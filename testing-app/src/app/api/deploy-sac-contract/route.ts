@@ -22,7 +22,7 @@ import {
   Account,
   Address,
   nativeToScVal,
-} from "stellar-sdk";
+} from "@stellar/stellar-sdk";
 
 export async function POST(request: NextRequest) {
   try {

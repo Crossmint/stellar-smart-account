@@ -1,6 +1,7 @@
 import { RPC_URL } from "@/lib/const";
 import { waitForTx } from "@/lib/txs";
 import {
+  PASSKEY_SWC_ADDRESS,
   SWC_ADDRESS,
   TREASURY_WALLET,
   XLM_TESTNET_ADDRESS,
@@ -15,7 +16,7 @@ import {
   Operation,
   ScInt,
   TransactionBuilder,
-} from "stellar-sdk";
+} from "@stellar/stellar-sdk";
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
           function: "transfer",
           args: [
             new Address(TREASURY_WALLET.publicKey()).toScVal(),
-            new Address(SWC_ADDRESS).toScVal(),
+            new Address(PASSKEY_SWC_ADDRESS).toScVal(),
             new ScInt(TRANSFER_AMOUNT, { type: "i128" }).toScVal(),
           ],
         })
