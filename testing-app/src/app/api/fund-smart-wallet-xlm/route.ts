@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       `✅ Source account fetched. Sequence: ${sourceAccount.sequenceNumber()}`
     );
 
-    const TRANSFER_AMOUNT = 0.5 * 1_000_000;
+    const TRANSFER_AMOUNT = 1 * 1_000_000;
     console.log(`💰 Transfer amount: ${TRANSFER_AMOUNT}`);
 
     console.log("🔨 Building transaction");
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
         status: finalTx.status,
         txHash: finalTx.txHash,
         from: TREASURY_WALLET.publicKey(),
-        to: SWC_ADDRESS,
+        to: PASSKEY_SWC_ADDRESS,
         amount: TRANSFER_AMOUNT,
       },
       { status: 200 }

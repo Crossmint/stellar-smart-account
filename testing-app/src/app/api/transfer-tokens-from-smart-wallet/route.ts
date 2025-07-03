@@ -14,6 +14,7 @@ import { Server } from "@stellar/stellar-sdk/rpc";
 import {
   Keypair,
   Networks,
+  TransactionBuilder,
   hash,
   nativeToScVal,
   rpc as stellarRpc,
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
       networkPassphrase: Networks.TESTNET,
       rpcUrl: RPC_URL,
     });
-    const sacClient = sacClientStatic.getSACClient(XLM_TESTNET_ADDRESS);
+    const sacClient = sacClientStatic.getSACClient(XMUSD_CONTRACT_ADDRESS);
     const tx = await sacClient.transfer({
       from: PASSKEY_SWC_ADDRESS,
       to: TREASURY_WALLET.publicKey(),
@@ -72,6 +73,19 @@ export async function POST(request: NextRequest) {
       keypair: SIGNER_1_WALLET,
     });
     await tx.simulate();
+    // const builtTx = tx.built!;
+    // const feeBumpTx = TransactionBuilder.buildFeeBumpTransaction(
+    //   TREASURY_WALLET,
+    //   (Number(builtTx.fee) * 5).toString(),
+    //   builtTx,
+    //   Networks.TESTNET
+    // );
+    // feeBumpTx.sign(TREASURY_WALLET);
+    // const res2 = await server.sendTransaction(feeBumpTx);
+    // if (res2.status != "PENDING") {
+    //   console.log(JSON.stringify(res2, null, 2));
+    //   throw new Error("Transaction failed");
+    // }
     // console.log(tx.simulation);
     // return NextResponse.json(
     //   {
@@ -80,16 +94,11 @@ export async function POST(request: NextRequest) {
     //   { status: 200 }
     // );
 
-    console.log("Tx has been signed");
+    console.log("Tx has been signed. Sending to Launchtube...");
     const data = new FormData();
 
-    console.log("1");
     const txn = signedTx.built!.toXDR();
-
-    console.log("2");
     data.set("xdr", txn);
-
-    console.log("3");
     const res = await fetch("https://testnet.launchtube.xyz", {
       method: "POST",
       headers: {
@@ -108,7 +117,7 @@ export async function POST(request: NextRequest) {
     // const sentTxM = await server2.send(signedTx);
     return NextResponse.json(
       {
-        json,
+        txHash: json.txHash,
       },
       { status: 200 }
     );
