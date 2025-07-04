@@ -1,7 +1,7 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, Val, Vec};
-use stellar_access_control::{set_admin, AccessControl};
-use stellar_access_control_macros::only_role;
+use soroban_sdk::{contract, contractimpl, symbol_short, Address, BytesN, Env, Val, Vec};
+use stellar_access_control::{set_admin, grant_role, AccessControl};
+use stellar_access_control_macros::{only_role};
 use stellar_default_impl_macro::default_impl;
 
 #[contract]
@@ -12,6 +12,7 @@ impl CrossmintContractFactory {
     /// Construct the deployer with a given admin address.
     pub fn __constructor(env: &Env, admin: Address) {
         set_admin(env, &admin);
+        grant_role(env, &admin, &admin, &symbol_short!("deployer"));
     }
 
     /// Deploys the contract on behalf of the `CrossmintContractFactory` contract.
