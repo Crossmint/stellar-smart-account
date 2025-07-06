@@ -1,0 +1,18 @@
+[package]
+name = "crossmint-contract-factory"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["lib", "cdylib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+stellar-default-impl-macro = { git = "https://github.com/OpenZeppelin/stellar-contracts", tag = "v0.3.0" }
+stellar-access-control = { git = "https://github.com/OpenZeppelin/stellar-contracts", tag = "v0.3.0" }
+stellar-access-control-macros = { git = "https://github.com/OpenZeppelin/stellar-contracts", tag = "v0.3.0" }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
