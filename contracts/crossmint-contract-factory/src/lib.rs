@@ -4,6 +4,7 @@ use stellar_access_control::{grant_role, set_admin, AccessControl};
 use stellar_access_control_macros::only_role;
 use stellar_default_impl_macro::default_impl;
 
+
 #[contract]
 pub struct CrossmintContractFactory;
 
