@@ -2,16 +2,20 @@
 pub mod interface;
 pub mod types;
 
-use soroban_sdk::{contract, contractimpl, Env, Vec, auth::{Context, CustomAccountInterface},crypto::Hash};
 use interface::SmartAccountInterface;
-use types::{Signatures, Error};
+use soroban_sdk::{
+    auth::{Context, CustomAccountInterface},
+    contract, contractimpl,
+    crypto::Hash,
+    Env, Vec,
+};
+use types::{Error, Signatures};
 
 #[contract]
 pub struct Contract;
 
 #[contractimpl]
-impl SmartAccountInterface for Contract {
-}
+impl SmartAccountInterface for Contract {}
 
 #[contractimpl]
 impl CustomAccountInterface for Contract {

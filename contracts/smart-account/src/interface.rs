@@ -1,2 +1,1 @@
-pub trait SmartAccountInterface {
-}
+pub trait SmartAccountInterface {}

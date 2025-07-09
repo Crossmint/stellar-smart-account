@@ -1,7 +1,7 @@
 #![no_std]
 use soroban_sdk::{contract, contractimpl, symbol_short, Address, BytesN, Env, Val, Vec};
-use stellar_access_control::{set_admin, grant_role, AccessControl};
-use stellar_access_control_macros::{only_role};
+use stellar_access_control::{grant_role, set_admin, AccessControl};
+use stellar_access_control_macros::only_role;
 use stellar_default_impl_macro::default_impl;
 
 #[contract]
@@ -42,7 +42,9 @@ impl CrossmintContractFactory {
     }
 
     pub fn get_deployed_address(env: Env, salt: BytesN<32>) -> Address {
-        env.deployer().with_address(env.current_contract_address(), salt).deployed_address()
+        env.deployer()
+            .with_address(env.current_contract_address(), salt)
+            .deployed_address()
     }
 }
 

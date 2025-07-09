@@ -3,9 +3,7 @@
 extern crate std;
 
 use soroban_sdk::{
-    symbol_short,
-    testutils::{Address as _,},
-    vec, Address, BytesN, Env, IntoVal, Val, Vec,
+    symbol_short, testutils::Address as _, vec, Address, BytesN, Env, IntoVal, Val, Vec,
 };
 
 use crate::{CrossmintContractFactory, CrossmintContractFactoryClient};
@@ -22,11 +20,7 @@ pub struct TestAccounts {
     pub outsider: Address,
 }
 
-fn setup_roles(
-    e: &Env,
-    client: &CrossmintContractFactoryClient,
-    admin: &Address,
-) -> TestAccounts {
+fn setup_roles(e: &Env, client: &CrossmintContractFactoryClient, admin: &Address) -> TestAccounts {
     let deployer_admin = Address::generate(e);
     let deployer1 = Address::generate(e);
     let deployer2 = Address::generate(e);
@@ -65,12 +59,14 @@ fn test_constructor_sets_admin() {
 
     // Admin should be able to grant roles
     let new_deployer = Address::generate(&e);
-    
+
     e.mock_all_auths();
     client.grant_role(&admin, &new_deployer, &symbol_short!("deployer"));
-    
+
     // Verify the role was granted
-    assert!(client.has_role(&new_deployer, &symbol_short!("deployer")).is_some());
+    assert!(client
+        .has_role(&new_deployer, &symbol_short!("deployer"))
+        .is_some());
 }
 
 #[test]
@@ -84,13 +80,19 @@ fn test_deployers_have_correct_roles() {
     let accounts = setup_roles(&e, &client, &admin);
 
     // Verify deployer1 has the deployer role
-    assert!(client.has_role(&accounts.deployer1, &symbol_short!("deployer")).is_some());
+    assert!(client
+        .has_role(&accounts.deployer1, &symbol_short!("deployer"))
+        .is_some());
 
     // Verify deployer2 has the deployer role
-    assert!(client.has_role(&accounts.deployer2, &symbol_short!("deployer")).is_some());
+    assert!(client
+        .has_role(&accounts.deployer2, &symbol_short!("deployer"))
+        .is_some());
 
     // Verify outsider does not have the deployer role
-    assert!(client.has_role(&accounts.outsider, &symbol_short!("deployer")).is_none());
+    assert!(client
+        .has_role(&accounts.outsider, &symbol_short!("deployer"))
+        .is_none());
 }
 
 #[test]
@@ -104,7 +106,9 @@ fn test_non_deployers_lack_role() {
     let accounts = setup_roles(&e, &client, &admin);
 
     // Outsider should not have the deployer role
-    assert!(client.has_role(&accounts.outsider, &symbol_short!("deployer")).is_none());
+    assert!(client
+        .has_role(&accounts.outsider, &symbol_short!("deployer"))
+        .is_none());
 }
 
 #[test]
@@ -117,7 +121,7 @@ fn test_get_deployed_address_without_deployment() {
 
     // Should be able to get address even without deploying
     let predicted_address = client.get_deployed_address(&salt);
-    
+
     // Address should be valid
     assert_ne!(predicted_address, Address::generate(&e));
 }
@@ -166,10 +170,16 @@ fn test_deployer_admin_can_grant_deployer_role() {
     let new_deployer = Address::generate(&e);
 
     // Deployer admin should be able to grant deployer role
-    client.grant_role(&accounts.deployer_admin, &new_deployer, &symbol_short!("deployer"));
+    client.grant_role(
+        &accounts.deployer_admin,
+        &new_deployer,
+        &symbol_short!("deployer"),
+    );
 
     // Verify the role was granted
-    assert!(client.has_role(&new_deployer, &symbol_short!("deployer")).is_some());
+    assert!(client
+        .has_role(&new_deployer, &symbol_short!("deployer"))
+        .is_some());
 }
 
 #[test]
@@ -183,13 +193,21 @@ fn test_deployer_admin_can_revoke_deployer_role() {
     let accounts = setup_roles(&e, &client, &admin);
 
     // Verify deployer1 initially has the role
-    assert!(client.has_role(&accounts.deployer1, &symbol_short!("deployer")).is_some());
+    assert!(client
+        .has_role(&accounts.deployer1, &symbol_short!("deployer"))
+        .is_some());
 
     // Revoke deployer1's role
-    client.revoke_role(&accounts.deployer_admin, &accounts.deployer1, &symbol_short!("deployer"));
+    client.revoke_role(
+        &accounts.deployer_admin,
+        &accounts.deployer1,
+        &symbol_short!("deployer"),
+    );
 
     // Verify the role was revoked
-    assert!(client.has_role(&accounts.deployer1, &symbol_short!("deployer")).is_none());
+    assert!(client
+        .has_role(&accounts.deployer1, &symbol_short!("deployer"))
+        .is_none());
 }
 
 #[test]
@@ -205,7 +223,11 @@ fn test_non_admin_cannot_grant_deployer_role() {
     let new_deployer = Address::generate(&e);
 
     // Outsider should not be able to grant deployer role
-    client.grant_role(&accounts.outsider, &new_deployer, &symbol_short!("deployer"));
+    client.grant_role(
+        &accounts.outsider,
+        &new_deployer,
+        &symbol_short!("deployer"),
+    );
 }
 
 #[test]
@@ -220,7 +242,11 @@ fn test_non_admin_cannot_revoke_deployer_role() {
     let accounts = setup_roles(&e, &client, &admin);
 
     // Outsider should not be able to revoke deployer role
-    client.revoke_role(&accounts.outsider, &accounts.deployer1, &symbol_short!("deployer"));
+    client.revoke_role(
+        &accounts.outsider,
+        &accounts.deployer1,
+        &symbol_short!("deployer"),
+    );
 }
 
 #[test]
@@ -237,7 +263,9 @@ fn test_admin_can_grant_deployer_role_directly() {
     client.grant_role(&admin, &new_deployer, &symbol_short!("deployer"));
 
     // Verify the role was granted
-    assert!(client.has_role(&new_deployer, &symbol_short!("deployer")).is_some());
+    assert!(client
+        .has_role(&new_deployer, &symbol_short!("deployer"))
+        .is_some());
 }
 
 #[test]
@@ -250,7 +278,7 @@ fn test_constructor_args_handling() {
 
     let _accounts = setup_roles(&e, &client, &admin);
     let salt = create_mock_salt(&e, 1);
-    
+
     // Create constructor args with some values (unused but kept for documentation)
     let _arg1 = Address::generate(&e);
     let _arg2 = 42u32;
@@ -312,5 +340,7 @@ fn test_role_admin_functionality() {
     );
 
     // Verify deployer_admin has the admin role
-    assert!(client.has_role(&accounts.deployer_admin, &symbol_short!("dep_admin")).is_some());
+    assert!(client
+        .has_role(&accounts.deployer_admin, &symbol_short!("dep_admin"))
+        .is_some());
 }
