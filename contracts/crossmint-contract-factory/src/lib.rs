@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, symbol_short, Address, BytesN, Env, Val, Vec};
+use soroban_sdk::{contract, contractimpl, symbol_short, Address, BytesN, Env, Map, Val, Vec};
 use stellar_access_control::{grant_role, set_admin, AccessControl};
 use stellar_access_control_macros::only_role;
 use stellar_default_impl_macro::default_impl;
@@ -26,6 +26,18 @@ impl CrossmintContractFactory {
         salt: BytesN<32>,
         constructor_args: Vec<Val>,
     ) -> Address {
+        let storage_key = symbol_short!("deployed");
+
+        let deployed_contracts: Map<BytesN<32>, Address> = env
+            .storage()
+            .persistent()
+            .get(&storage_key)
+            .unwrap_or(Map::new(&env));
+
+        if let Some(existing_address) = deployed_contracts.get(salt.clone()) {
+            return existing_address;
+        }
+
         // Deploy the contract using the uploaded Wasm with given hash on behalf
         // of the current contract.
         // Note, that not deploying on behalf of the admin provides more
@@ -35,8 +47,14 @@ impl CrossmintContractFactory {
         // by the same `CrossmintContractFactory` contract address.
         let deployed_address = env
             .deployer()
-            .with_address(env.current_contract_address(), salt)
+            .with_address(env.current_contract_address(), salt.clone())
             .deploy_v2(wasm_hash, constructor_args);
+
+        let mut updated_contracts = deployed_contracts;
+        updated_contracts.set(salt, deployed_address.clone());
+        env.storage()
+            .persistent()
+            .set(&storage_key, &updated_contracts);
 
         deployed_address
     }

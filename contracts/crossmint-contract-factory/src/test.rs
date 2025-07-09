@@ -344,3 +344,79 @@ fn test_role_admin_functionality() {
         .has_role(&accounts.deployer_admin, &symbol_short!("dep_admin"))
         .is_some());
 }
+
+#[test]
+fn test_deploy_idempotency() {
+    let e = Env::default();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    e.mock_all_auths();
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 1);
+    let wasm_hash = BytesN::from_array(&e, &[0u8; 32]);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    let deployed_address1 =
+        client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args);
+
+    // Second deployment with same salt should return the same address
+    let deployed_address2 =
+        client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args);
+
+    // Addresses should be identical (idempotent)
+    assert_eq!(deployed_address1, deployed_address2);
+
+    // Verify the address matches the predicted address
+    let predicted_address = client.get_deployed_address(&salt);
+    assert_eq!(deployed_address1, predicted_address);
+}
+
+#[test]
+fn test_deploy_different_salts_different_addresses() {
+    let e = Env::default();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    e.mock_all_auths();
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt1 = create_mock_salt(&e, 1);
+    let salt2 = create_mock_salt(&e, 2);
+    let wasm_hash = BytesN::from_array(&e, &[0u8; 32]);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    let deployed_address1 =
+        client.deploy(&accounts.deployer1, &wasm_hash, &salt1, &constructor_args);
+
+    let deployed_address2 =
+        client.deploy(&accounts.deployer1, &wasm_hash, &salt2, &constructor_args);
+
+    // Different salts should produce different addresses
+    assert_ne!(deployed_address1, deployed_address2);
+}
+
+#[test]
+fn test_deploy_idempotency_across_different_deployers() {
+    let e = Env::default();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    e.mock_all_auths();
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 1);
+    let wasm_hash = BytesN::from_array(&e, &[0u8; 32]);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    let deployed_address1 =
+        client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args);
+
+    // Second deployment by deployer2 with same salt should return the same address
+    let deployed_address2 =
+        client.deploy(&accounts.deployer2, &wasm_hash, &salt, &constructor_args);
+
+    // Addresses should be identical regardless of which deployer calls it
+    assert_eq!(deployed_address1, deployed_address2);
+}
