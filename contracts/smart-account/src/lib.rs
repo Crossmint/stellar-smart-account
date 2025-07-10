@@ -18,6 +18,13 @@ pub struct Contract;
 impl SmartAccountInterface for Contract {}
 
 #[contractimpl]
+impl Contract {
+    #[allow(non_snake_case)]
+    pub fn __constructor(_env: Env) {
+    }
+}
+
+#[contractimpl]
 impl CustomAccountInterface for Contract {
     type Error = Error;
     type Signature = Signatures;
