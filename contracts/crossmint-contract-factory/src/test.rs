@@ -344,7 +344,6 @@ fn test_role_admin_functionality() {
 }
 
 #[test]
-#[should_panic(expected = "magic header not detected")]
 fn test_upload_and_deploy_function_exists() {
     let e = Env::default();
     e.mock_all_auths();
@@ -354,9 +353,15 @@ fn test_upload_and_deploy_function_exists() {
     let accounts = setup_roles(&e, &client, &admin);
     let salt = create_mock_salt(&e, 1);
 
-    // Create mock WASM bytes (invalid WASM will cause expected panic)
-    let wasm_bytes = soroban_sdk::Bytes::from_array(&e, &[1, 2, 3, 4]);
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(
+        &e,
+        include_bytes!("../../../target/wasm32v1-none/release/smart_account.wasm"),
+    );
     let constructor_args: Vec<Val> = vec![&e];
 
-    client.upload_and_deploy(&accounts.deployer1, &wasm_bytes, &salt, &constructor_args);
+    let deployed_address =
+        client.upload_and_deploy(&accounts.deployer1, &wasm_bytes, &salt, &constructor_args);
+
+    // Verify that deployment actually worked by checking the address is valid
+    assert!(!deployed_address.to_string().is_empty());
 }
