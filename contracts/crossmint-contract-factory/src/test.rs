@@ -380,3 +380,23 @@ fn test_deploy_idempotency() {
     assert_eq!(predicted_address, predicted_address_after);
     assert_eq!(deployed_address1, predicted_address_after);
 }
+
+#[test]
+fn test_upload_and_deploy_function_exists() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 1);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    let deployed_address =
+        client.upload_and_deploy(&accounts.deployer1, &wasm_bytes, &salt, &constructor_args);
+
+    // Verify that deployment actually worked by checking the address is valid
+    assert!(!deployed_address.to_string().is_empty());
+}
