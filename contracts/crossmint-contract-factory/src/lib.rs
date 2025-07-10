@@ -4,20 +4,39 @@ use stellar_access_control::{grant_role, set_admin, AccessControl};
 use stellar_access_control_macros::only_role;
 use stellar_default_impl_macro::default_impl;
 
+///
+/// address generation for predictable contract locations.
+///
 #[contract]
 pub struct CrossmintContractFactory;
 
 #[contractimpl]
 impl CrossmintContractFactory {
-    /// Construct the deployer with a given admin address.
+    ///
+    /// address as both the system administrator and granting it the `deployer` role.
+    ///
+    ///
+    ///
+    ///
     pub fn __constructor(env: &Env, admin: Address) {
         set_admin(env, &admin);
         grant_role(env, &admin, &admin, &symbol_short!("deployer"));
     }
 
-    /// Deploys the contract on behalf of the `CrossmintContractFactory` contract.
+    /// Deploys a contract using pre-uploaded WASM bytecode.
     ///
-    /// This has to be authorized by an address with the `deployer` role.
+    /// Deploys a smart contract on behalf of the factory using previously uploaded WASM.
+    ///
+    ///
+    ///
+    ///
+    /// The address of the newly deployed contract.
+    ///
+    ///
+    ///
+    ///
+    /// address is deterministic based on:
+    ///
     #[only_role(caller, "deployer")]
     pub fn deploy(
         env: Env,
@@ -41,9 +60,18 @@ impl CrossmintContractFactory {
         deployed_address
     }
 
-    /// Uploads the contract WASM and deploys it on behalf of the `CrossmintContractFactory` contract.
+    /// Uploads WASM bytecode and deploys the contract in a single operation.
     ///
-    /// using that hash. This has to be authorized by an address with the `deployer` role.
+    ///
+    ///
+    ///
+    ///
+    /// The address of the newly deployed contract.
+    ///
+    ///
+    ///
+    ///
+    /// the WASM, but may be more expensive as it includes the upload operation.
     #[only_role(caller, "deployer")]
     pub fn upload_and_deploy(
         env: Env,
@@ -64,6 +92,16 @@ impl CrossmintContractFactory {
         deployed_address
     }
 
+    ///
+    ///
+    ///
+    ///
+    ///
+    /// The address where a contract would be deployed using the given salt.
+    ///
+    ///
+    ///
+    ///
     pub fn get_deployed_address(env: Env, salt: BytesN<32>) -> Address {
         env.deployer()
             .with_current_contract(salt)
@@ -71,6 +109,8 @@ impl CrossmintContractFactory {
     }
 }
 
+///
+///
 #[default_impl]
 #[contractimpl]
 impl AccessControl for CrossmintContractFactory {}
