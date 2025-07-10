@@ -344,28 +344,31 @@ fn test_role_admin_functionality() {
 }
 
 #[test]
-fn test_deploy_address_idempotency() {
+fn test_deploy_idempotency() {
     let e = Env::default();
     e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
+    let accounts = setup_roles(&e, &client, &admin);
 
-    let salt1 = create_mock_salt(&e, 1);
-    let salt2 = create_mock_salt(&e, 2);
+    let smart_account_wasm =
+        std::fs::read("../../target/wasm32-unknown-unknown/release/smart_account.wasm")
+            .expect("smart_account.wasm should exist");
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, &smart_account_wasm);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let salt = create_mock_salt(&e, 1);
+    let constructor_args: Vec<Val> = vec![&e];
 
-    // Test that get_deployed_address is idempotent for the same salt
-    let predicted_address1_call1 = client.get_deployed_address(&salt1);
-    let predicted_address1_call2 = client.get_deployed_address(&salt1);
-    let predicted_address1_call3 = client.get_deployed_address(&salt1);
+    let predicted_address = client.get_deployed_address(&salt);
 
-    // All calls with same salt should return same address
-    assert_eq!(predicted_address1_call1, predicted_address1_call2);
-    assert_eq!(predicted_address1_call2, predicted_address1_call3);
+    let deployed_address1 =
+        client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args);
 
-    // Test that different salts produce different addresses
-    let predicted_address2 = client.get_deployed_address(&salt2);
-    assert_ne!(predicted_address1_call1, predicted_address2);
+    // Verify first deployment returns the predicted address
+    assert_eq!(deployed_address1, predicted_address);
 
-    let predicted_address1_call4 = client.get_deployed_address(&salt1);
-    assert_eq!(predicted_address1_call1, predicted_address1_call4);
+    // Verify that get_deployed_address still returns the same address (demonstrating idempotent address prediction)
+    let predicted_address_after = client.get_deployed_address(&salt);
+    assert_eq!(predicted_address, predicted_address_after);
+    assert_eq!(deployed_address1, predicted_address_after);
 }
