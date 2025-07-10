@@ -348,7 +348,6 @@ fn test_role_admin_functionality() {
 #[test]
 fn test_address_prediction_before_and_after_deployment() {
     let e = Env::default();
-    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
@@ -360,11 +359,9 @@ fn test_address_prediction_before_and_after_deployment() {
     let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
     let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
 
-    // Step 3: Deploy the contract with the same salt
     let constructor_args: Vec<Val> = vec![&e];
 
-    e.set_auths(&[]);
-    e.mock_all_auths_allowing_non_root_auth();
+    e.mock_all_auths();
 
     let deployed_address = client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args);
 
@@ -377,7 +374,6 @@ fn test_address_prediction_before_and_after_deployment() {
 #[test]
 fn test_deploy_idempotency() {
     let e = Env::default();
-    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
     let accounts = setup_roles(&e, &client, &admin);
@@ -389,6 +385,8 @@ fn test_deploy_idempotency() {
 
     let predicted_address = client.get_deployed_address(&salt);
 
+    e.mock_all_auths();
+
     let deployed_address1 =
         client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args);
 
@@ -396,6 +394,7 @@ fn test_deploy_idempotency() {
     assert_eq!(deployed_address1, predicted_address);
 
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        e.mock_all_auths();
         client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args)
     }));
 
@@ -414,7 +413,6 @@ fn test_deploy_idempotency() {
 #[test]
 fn test_upload_and_deploy_function_exists() {
     let e = Env::default();
-    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
@@ -424,9 +422,46 @@ fn test_upload_and_deploy_function_exists() {
     let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
     let constructor_args: Vec<Val> = vec![&e];
 
+    e.mock_all_auths();
+
     let deployed_address =
         client.upload_and_deploy(&accounts.deployer1, &wasm_bytes, &salt, &constructor_args);
 
     // Verify that deployment actually worked by checking the address is valid
     assert!(!deployed_address.to_string().is_empty());
+}
+
+#[test]
+#[should_panic(expected = "Error(Auth, InvalidAction)")]
+fn test_non_deployer_cannot_deploy() {
+    let e = Env::default();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 1);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    e.set_auths(&[]);
+    client.deploy(&accounts.outsider, &wasm_hash, &salt, &constructor_args);
+}
+
+#[test]
+#[should_panic(expected = "Error(Auth, InvalidAction)")]
+fn test_non_deployer_cannot_upload_and_deploy() {
+    let e = Env::default();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 1);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    e.set_auths(&[]);
+    client.upload_and_deploy(&accounts.outsider, &wasm_bytes, &salt, &constructor_args);
 }
