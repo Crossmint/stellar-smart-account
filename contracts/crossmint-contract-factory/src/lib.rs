@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, symbol_short, Address, BytesN, Env, Val, Vec};
+use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, BytesN, Env, Val, Vec};
 use stellar_access_control::{grant_role, set_admin, AccessControl};
 use stellar_access_control_macros::only_role;
 use stellar_default_impl_macro::default_impl;
@@ -44,6 +44,29 @@ impl CrossmintContractFactory {
         deployed_address
     }
 
+    /// Uploads the contract WASM and deploys it on behalf of the `CrossmintContractFactory` contract.
+    ///
+    /// using that hash. This has to be authorized by an address with the `deployer` role.
+    #[only_role(caller, "deployer")]
+    pub fn upload_and_deploy(
+        env: Env,
+        caller: Address,
+        wasm_bytes: Bytes,
+        salt: BytesN<32>,
+        constructor_args: Vec<Val>,
+    ) -> Address {
+        let wasm_hash = env.deployer().upload_contract_wasm(wasm_bytes);
+
+        // Deploy the contract using the uploaded WASM hash on behalf
+        // of the current contract.
+        let deployed_address = env
+            .deployer()
+            .with_address(env.current_contract_address(), salt)
+            .deploy_v2(wasm_hash, constructor_args);
+
+        deployed_address
+    }
+
     pub fn get_deployed_address(env: Env, salt: BytesN<32>) -> Address {
         env.deployer()
             .with_current_contract(salt)
@@ -70,3 +93,6 @@ impl UpgradeableInternal for CrossmintContractFactory {
 }
 
 mod test;
+
+#[cfg(test)]
+mod test_constants;

@@ -6,7 +6,9 @@ use soroban_sdk::{
     symbol_short, testutils::Address as _, vec, Address, BytesN, Env, IntoVal, Val, Vec,
 };
 
+use crate::test_constants::SMART_ACCOUNT_WASM;
 use crate::{CrossmintContractFactory, CrossmintContractFactoryClient};
+
 
 fn create_factory_client<'a>(e: &Env, admin: &Address) -> CrossmintContractFactoryClient<'a> {
     let address = e.register(CrossmintContractFactory, (admin,));
@@ -341,4 +343,90 @@ fn test_role_admin_functionality() {
     assert!(client
         .has_role(&accounts.deployer_admin, &symbol_short!("dep_admin"))
         .is_some());
+}
+
+#[test]
+fn test_address_prediction_before_and_after_deployment() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 42);
+
+    let predicted_address = client.get_deployed_address(&salt);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+
+    // Step 3: Deploy the contract with the same salt
+    let constructor_args: Vec<Val> = vec![&e];
+
+    e.set_auths(&[]);
+    e.mock_all_auths_allowing_non_root_auth();
+
+    let deployed_address = client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args);
+
+    assert_eq!(predicted_address, deployed_address);
+
+    let predicted_address_after = client.get_deployed_address(&salt);
+    assert_eq!(predicted_address, predicted_address_after);
+}
+
+#[test]
+fn test_deploy_idempotency() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+    let accounts = setup_roles(&e, &client, &admin);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let salt = create_mock_salt(&e, 1);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    let predicted_address = client.get_deployed_address(&salt);
+
+    let deployed_address1 =
+        client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args);
+
+    // Verify first deployment returns the predicted address
+    assert_eq!(deployed_address1, predicted_address);
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args)
+    }));
+
+    // Verify that second deployment failed (the error type Error(Storage, ExistingValue)
+    assert!(
+        result.is_err(),
+        "Second deployment should fail - deploy function is not idempotent"
+    );
+
+    // Verify that get_deployed_address still returns the same address (address prediction is idempotent)
+    let predicted_address_after = client.get_deployed_address(&salt);
+    assert_eq!(predicted_address, predicted_address_after);
+    assert_eq!(deployed_address1, predicted_address_after);
+}
+
+#[test]
+fn test_upload_and_deploy_function_exists() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 1);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    let deployed_address =
+        client.upload_and_deploy(&accounts.deployer1, &wasm_bytes, &salt, &constructor_args);
+
+    // Verify that deployment actually worked by checking the address is valid
+    assert!(!deployed_address.to_string().is_empty());
 }
