@@ -3,7 +3,10 @@ use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, BytesN, 
 use stellar_access_control::{grant_role, set_admin, AccessControl};
 use stellar_access_control_macros::only_role;
 use stellar_default_impl_macro::default_impl;
+use stellar_upgradeable::UpgradeableInternal;
+use stellar_upgradeable_macros::Upgradeable;
 
+#[derive(Upgradeable)]
 #[contract]
 pub struct CrossmintContractFactory;
 
@@ -74,6 +77,20 @@ impl CrossmintContractFactory {
 #[default_impl]
 #[contractimpl]
 impl AccessControl for CrossmintContractFactory {}
+
+impl UpgradeableInternal for CrossmintContractFactory {
+    fn _require_auth(e: &Env, operator: &Address) {
+        operator.require_auth();
+        let admin = e
+            .storage()
+            .instance()
+            .get::<_, Address>(&symbol_short!("admin"))
+            .unwrap();
+        if *operator != admin {
+            panic!("Unauthorized");
+        }
+    }
+}
 
 mod test;
 
