@@ -54,13 +54,13 @@ fn create_mock_salt(e: &Env, value: u8) -> BytesN<32> {
 #[test]
 fn test_constructor_sets_admin() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
     // Admin should be able to grant roles
     let new_deployer = Address::generate(&e);
 
-    e.mock_all_auths();
     client.grant_role(&admin, &new_deployer, &symbol_short!("deployer"));
 
     // Verify the role was granted
@@ -72,10 +72,9 @@ fn test_constructor_sets_admin() {
 #[test]
 fn test_deployers_have_correct_roles() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
-
-    e.mock_all_auths();
 
     let accounts = setup_roles(&e, &client, &admin);
 
@@ -98,10 +97,9 @@ fn test_deployers_have_correct_roles() {
 #[test]
 fn test_non_deployers_lack_role() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
-
-    e.mock_all_auths();
 
     let accounts = setup_roles(&e, &client, &admin);
 
@@ -114,6 +112,7 @@ fn test_non_deployers_lack_role() {
 #[test]
 fn test_get_deployed_address_without_deployment() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
@@ -129,6 +128,7 @@ fn test_get_deployed_address_without_deployment() {
 #[test]
 fn test_get_deployed_address_consistency() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
@@ -145,6 +145,7 @@ fn test_get_deployed_address_consistency() {
 #[test]
 fn test_different_salts_produce_different_addresses() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
@@ -161,10 +162,9 @@ fn test_different_salts_produce_different_addresses() {
 #[test]
 fn test_deployer_admin_can_grant_deployer_role() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
-
-    e.mock_all_auths();
 
     let accounts = setup_roles(&e, &client, &admin);
     let new_deployer = Address::generate(&e);
@@ -185,10 +185,9 @@ fn test_deployer_admin_can_grant_deployer_role() {
 #[test]
 fn test_deployer_admin_can_revoke_deployer_role() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
-
-    e.mock_all_auths();
 
     let accounts = setup_roles(&e, &client, &admin);
 
@@ -211,18 +210,18 @@ fn test_deployer_admin_can_revoke_deployer_role() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #1210)")]
+#[should_panic(expected = "Error(Auth, InvalidAction)")]
 fn test_non_admin_cannot_grant_deployer_role() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
-
-    e.mock_all_auths();
 
     let accounts = setup_roles(&e, &client, &admin);
     let new_deployer = Address::generate(&e);
 
     // Outsider should not be able to grant deployer role
+    e.set_auths(&[]);
     client.grant_role(
         &accounts.outsider,
         &new_deployer,
@@ -231,17 +230,17 @@ fn test_non_admin_cannot_grant_deployer_role() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #1210)")]
+#[should_panic(expected = "Error(Auth, InvalidAction)")]
 fn test_non_admin_cannot_revoke_deployer_role() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
-
-    e.mock_all_auths();
 
     let accounts = setup_roles(&e, &client, &admin);
 
     // Outsider should not be able to revoke deployer role
+    e.set_auths(&[]);
     client.revoke_role(
         &accounts.outsider,
         &accounts.deployer1,
@@ -252,10 +251,9 @@ fn test_non_admin_cannot_revoke_deployer_role() {
 #[test]
 fn test_admin_can_grant_deployer_role_directly() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
-
-    e.mock_all_auths();
 
     let new_deployer = Address::generate(&e);
 
@@ -271,10 +269,9 @@ fn test_admin_can_grant_deployer_role_directly() {
 #[test]
 fn test_constructor_args_handling() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
-
-    e.mock_all_auths();
 
     let _accounts = setup_roles(&e, &client, &admin);
     let salt = create_mock_salt(&e, 1);
@@ -294,6 +291,7 @@ fn test_constructor_args_handling() {
 #[test]
 fn test_same_salt_produces_same_address() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
@@ -310,6 +308,7 @@ fn test_same_salt_produces_same_address() {
 #[test]
 fn test_get_deployed_address_is_read_only() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
@@ -326,10 +325,9 @@ fn test_get_deployed_address_is_read_only() {
 #[test]
 fn test_role_admin_functionality() {
     let e = Env::default();
+    e.mock_all_auths();
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
-
-    e.mock_all_auths();
 
     let accounts = setup_roles(&e, &client, &admin);
 
