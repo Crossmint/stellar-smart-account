@@ -473,8 +473,9 @@ fn test_deploy_idempotency() {
         client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args)
     }));
 
-    // Verify that second deployment failed (proving deploy is not idempotent)
-    assert!(result.is_err(), "Second deployment should fail, proving deploy function is not idempotent");
+    // Verify that second deployment failed with the specific "contract already exists" error
+    assert!(result.is_err(), "Second deployment should fail with 'contract already exists' error");
+    
 
     // Verify that get_deployed_address still returns the same address (address prediction is idempotent)
     let predicted_address_after = client.get_deployed_address(&salt);
