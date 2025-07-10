@@ -9,6 +9,7 @@ use soroban_sdk::{
 use crate::test_constants::SMART_ACCOUNT_WASM;
 use crate::{CrossmintContractFactory, CrossmintContractFactoryClient};
 
+
 fn create_factory_client<'a>(e: &Env, admin: &Address) -> CrossmintContractFactoryClient<'a> {
     let address = e.register(CrossmintContractFactory, (admin,));
     CrossmintContractFactoryClient::new(e, &address)
@@ -342,6 +343,35 @@ fn test_role_admin_functionality() {
     assert!(client
         .has_role(&accounts.deployer_admin, &symbol_short!("dep_admin"))
         .is_some());
+}
+
+#[test]
+fn test_address_prediction_before_and_after_deployment() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 42);
+
+    let predicted_address = client.get_deployed_address(&salt);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+
+    // Step 3: Deploy the contract with the same salt
+    let constructor_args: Vec<Val> = vec![&e];
+
+    e.set_auths(&[]);
+    e.mock_all_auths_allowing_non_root_auth();
+
+    let deployed_address = client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args);
+
+    assert_eq!(predicted_address, deployed_address);
+
+    let predicted_address_after = client.get_deployed_address(&salt);
+    assert_eq!(predicted_address, predicted_address_after);
 }
 
 #[test]
