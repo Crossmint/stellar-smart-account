@@ -18,7 +18,6 @@ impl CrossmintContractFactory {
     /// Deploys the contract on behalf of the `CrossmintContractFactory` contract.
     ///
     /// This has to be authorized by an address with the `deployer` role.
-    /// If a contract already exists at the predicted address, returns that address.
     #[only_role(caller, "deployer")]
     pub fn deploy(
         env: Env,
