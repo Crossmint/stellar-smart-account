@@ -53,3 +53,6 @@ impl CrossmintContractFactory {
 impl AccessControl for CrossmintContractFactory {}
 
 mod test;
+
+#[cfg(test)]
+mod test_constants;
