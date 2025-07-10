@@ -35,7 +35,7 @@ impl CrossmintContractFactory {
         // by the same `CrossmintContractFactory` contract address.
         let deployed_address = env
             .deployer()
-            .with_address(env.current_contract_address(), salt)
+            .with_current_contract(salt)
             .deploy_v2(wasm_hash, constructor_args);
 
         deployed_address
@@ -43,7 +43,7 @@ impl CrossmintContractFactory {
 
     pub fn get_deployed_address(env: Env, salt: BytesN<32>) -> Address {
         env.deployer()
-            .with_address(env.current_contract_address(), salt)
+            .with_current_contract(salt)
             .deployed_address()
     }
 }
