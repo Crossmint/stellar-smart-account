@@ -46,10 +46,16 @@ impl CrossmintContractFactory {
             .with_current_contract(salt)
             .deployed_address()
     }
+
+    #[only_role(caller, "admin")]
+    pub fn upgrade(env: Env, caller: Address, new_wasm_hash: BytesN<32>) {
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
+    }
 }
 
 #[default_impl]
 #[contractimpl]
 impl AccessControl for CrossmintContractFactory {}
+
 
 mod test;
