@@ -367,7 +367,14 @@ fn test_deploy_idempotency() {
     // Verify first deployment returns the predicted address
     assert_eq!(deployed_address1, predicted_address);
 
-    // Verify that get_deployed_address still returns the same address (demonstrating idempotent address prediction)
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args)
+    }));
+
+    // Verify that second deployment failed (proving deploy is not idempotent)
+    assert!(result.is_err(), "Second deployment should fail, proving deploy function is not idempotent");
+
+    // Verify that get_deployed_address still returns the same address (address prediction is idempotent)
     let predicted_address_after = client.get_deployed_address(&salt);
     assert_eq!(predicted_address, predicted_address_after);
     assert_eq!(deployed_address1, predicted_address_after);
