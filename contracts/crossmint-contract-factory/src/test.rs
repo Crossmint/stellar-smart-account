@@ -342,3 +342,30 @@ fn test_role_admin_functionality() {
         .has_role(&accounts.deployer_admin, &symbol_short!("dep_admin"))
         .is_some());
 }
+
+#[test]
+fn test_deploy_address_idempotency() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let salt1 = create_mock_salt(&e, 1);
+    let salt2 = create_mock_salt(&e, 2);
+
+    // Test that get_deployed_address is idempotent for the same salt
+    let predicted_address1_call1 = client.get_deployed_address(&salt1);
+    let predicted_address1_call2 = client.get_deployed_address(&salt1);
+    let predicted_address1_call3 = client.get_deployed_address(&salt1);
+
+    // All calls with same salt should return same address
+    assert_eq!(predicted_address1_call1, predicted_address1_call2);
+    assert_eq!(predicted_address1_call2, predicted_address1_call3);
+
+    // Test that different salts produce different addresses
+    let predicted_address2 = client.get_deployed_address(&salt2);
+    assert_ne!(predicted_address1_call1, predicted_address2);
+
+    let predicted_address1_call4 = client.get_deployed_address(&salt1);
+    assert_eq!(predicted_address1_call1, predicted_address1_call4);
+}
