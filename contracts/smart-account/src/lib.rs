@@ -15,7 +15,11 @@ use types::{Error, Signatures};
 pub struct Contract;
 
 #[contractimpl]
-impl SmartAccountInterface for Contract {}
+impl SmartAccountInterface for Contract {
+    #[allow(non_snake_case)]
+    pub fn __constructor(_env: Env) {
+    }
+}
 
 #[contractimpl]
 impl CustomAccountInterface for Contract {
