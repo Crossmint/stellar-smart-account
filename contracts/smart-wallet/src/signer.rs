@@ -4,9 +4,9 @@ use soroban_sdk::{
 };
 
 use crate::error::Error;
-use crate::initializable::Initializable;
 use crate::require_auth;
-use crate::storage::Storage;
+use initializable::Initializable;
+use storage::Storage;
 
 #[contracttype(export = false)]
 #[derive(Clone, Debug, PartialEq)]
@@ -14,11 +14,11 @@ pub struct SignerExpiration(pub Option<u32>);
 
 #[contracttype(export = false)]
 #[derive(Clone, Debug, PartialEq)]
-// Map of contexts this signer can authorize if present in the __check_auth auth_contexts list
-// Map value is a list of SignerKeys which must all be present in the __check_auth signatures list in order for the signer to authorize the context
-// e.g. a policy runs on a SAC token to check how much it's withdrawing and also requires a signature from an additional ed25519 signer
-// e.g. an ed25519 signer can only be used to authorize a specific contract's invocations and no further keys are required
 pub struct SignerLimits(pub Option<Map<Address, Option<Vec<SignerKey>>>>);
+
+#[contracttype(export = false)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct Threshold(pub u32);
 
 #[contracttype(export = false)]
 #[derive(Clone, Debug, PartialEq)]

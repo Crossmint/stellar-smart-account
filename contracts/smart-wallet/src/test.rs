@@ -42,6 +42,12 @@ impl ExampleContract {
     pub fn call(_env: Env, from: Address) {
         from.require_auth();
     }
+
+    pub fn call_many(_env: Env, senders: Vec<Address>) {
+        for sender in senders {
+            sender.require_auth();
+        }
+    }
 }
 
 // ============================================================================
@@ -79,23 +85,6 @@ impl<'a> TestEnvironment<'a> {
             signer,
             keypair,
         )
-    }
-
-    fn new_with_signers(signers: Vec<Signer>) -> Self {
-        let env = Env::default();
-        let smart_wallet_address = env.register(SmartWallet, (signers,));
-        let smart_wallet_client = SmartWalletClient::new(&env, &smart_wallet_address);
-
-        let example_contract_address = env.register(ExampleContract, ());
-        let example_contract_client = ExampleContractClient::new(&env, &example_contract_address);
-
-        TestEnvironment {
-            env,
-            smart_wallet_address,
-            smart_wallet_client,
-            example_contract_address,
-            example_contract_client,
-        }
     }
 }
 
@@ -250,7 +239,7 @@ fn test_add_signer_with_mock_auth() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #5)")]
+#[should_panic(expected = "Error(Contract, #10)")]
 fn test_add_signer_rejects_duplicate_with_mock_auth() {
     let (test_env, signer, _keypair) = TestEnvironment::new_with_signer("add_duplicate_mock");
 
@@ -297,6 +286,155 @@ fn test_external_contract_call_with_real_auth() {
         .example_contract_client
         .set_auths(&[auth_entry])
         .call(&test_env.smart_wallet_address);
+}
+
+#[test]
+fn test_external_contract_call_with_many_signers_with_real_auth() {
+    let env = Env::default();
+    let (signer1, keypair1) = create_keypair_signer(&env, "external_call_real_1");
+    let (signer2, keypair2) = create_keypair_signer(&env, "external_call_real_2");
+    let wallet_1_address = env.register(SmartWallet, (Vec::from_slice(&env, &[signer1.clone()]),));
+    let wallet_2_address = env.register(SmartWallet, (Vec::from_slice(&env, &[signer2.clone()]),));
+    let example_contract_address = env.register(ExampleContract, ());
+    let example_contract_client = ExampleContractClient::new(&env, &example_contract_address);
+
+    let signature_expiration_ledger = env.ledger().sequence();
+
+    let payload = create_authorization_payload(
+        &env,
+        &example_contract_address,
+        "call_many",
+        std::vec![Vec::<Address>::from_slice(
+            &env,
+            &[
+                wallet_1_address.clone().try_into().unwrap(),
+                wallet_2_address.clone().try_into().unwrap()
+            ]
+        )
+        .try_into()
+        .unwrap()],
+        DEFAULT_NONCE,
+        signature_expiration_ledger,
+    );
+
+    let signer_key_1 = get_signer_key_from_signer(&signer1);
+    let signature_1 = create_signature(&env, &keypair1, &payload);
+    let signer_key_2 = get_signer_key_from_signer(&signer2);
+    let signature_2 = create_signature(&env, &keypair2, &payload);
+
+    let auth_entry_1 = create_authorization_entry(
+        &env,
+        &wallet_1_address,
+        &example_contract_address,
+        "call_many",
+        std::vec![Vec::<Address>::from_slice(
+            &env,
+            &[
+                wallet_1_address.clone().try_into().unwrap(),
+                wallet_2_address.clone().try_into().unwrap()
+            ]
+        )
+        .try_into()
+        .unwrap()],
+        &signer_key_1,
+        &signature_1,
+        DEFAULT_NONCE,
+        signature_expiration_ledger,
+    );
+
+    let auth_entry_2 = create_authorization_entry(
+        &env,
+        &wallet_2_address,
+        &example_contract_address,
+        "call_many",
+        std::vec![Vec::<Address>::from_slice(
+            &env,
+            &[
+                wallet_1_address.clone().try_into().unwrap(),
+                wallet_2_address.clone().try_into().unwrap()
+            ]
+        )
+        .try_into()
+        .unwrap()],
+        &signer_key_2,
+        &signature_2,
+        DEFAULT_NONCE,
+        signature_expiration_ledger,
+    );
+
+    example_contract_client
+        .set_auths(&[auth_entry_1, auth_entry_2])
+        .call_many(&Vec::from_slice(
+            &env,
+            &[
+                wallet_1_address.clone().try_into().unwrap(),
+                wallet_2_address.clone().try_into().unwrap(),
+            ],
+        ));
+}
+
+#[test]
+#[should_panic(expected = "Error(Auth, InvalidAction)")]
+fn test_external_contract_call_with_many_signers_with_incomplete_auth() {
+    let env = Env::default();
+    let (signer1, keypair1) = create_keypair_signer(&env, "external_call_real_1");
+    let (signer2, _) = create_keypair_signer(&env, "external_call_real_2");
+    let wallet_1_address = env.register(SmartWallet, (Vec::from_slice(&env, &[signer1.clone()]),));
+    let wallet_2_address = env.register(SmartWallet, (Vec::from_slice(&env, &[signer2.clone()]),));
+    let example_contract_address = env.register(ExampleContract, ());
+    let example_contract_client = ExampleContractClient::new(&env, &example_contract_address);
+
+    let signature_expiration_ledger = env.ledger().sequence();
+
+    let payload = create_authorization_payload(
+        &env,
+        &example_contract_address,
+        "call_many",
+        std::vec![Vec::<Address>::from_slice(
+            &env,
+            &[
+                wallet_1_address.clone().try_into().unwrap(),
+                wallet_2_address.clone().try_into().unwrap()
+            ]
+        )
+        .try_into()
+        .unwrap()],
+        DEFAULT_NONCE,
+        signature_expiration_ledger,
+    );
+
+    let signer_key_1 = get_signer_key_from_signer(&signer1);
+    let signature_1 = create_signature(&env, &keypair1, &payload);
+
+    let auth_entry_1 = create_authorization_entry(
+        &env,
+        &wallet_1_address,
+        &example_contract_address,
+        "call_many",
+        std::vec![Vec::<Address>::from_slice(
+            &env,
+            &[
+                wallet_1_address.clone().try_into().unwrap(),
+                wallet_2_address.clone().try_into().unwrap()
+            ]
+        )
+        .try_into()
+        .unwrap()],
+        &signer_key_1,
+        &signature_1,
+        DEFAULT_NONCE,
+        signature_expiration_ledger,
+    );
+
+    example_contract_client
+        .set_auths(&[auth_entry_1])
+        .call_many(&Vec::from_slice(
+            &env,
+            &[
+                wallet_1_address.clone().try_into().unwrap(),
+                wallet_2_address.clone().try_into().unwrap(),
+            ],
+        ));
 }
 
 #[test]

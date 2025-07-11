@@ -2,15 +2,12 @@
 
 mod auth;
 mod error;
-mod events;
-mod initializable;
 mod interface;
 mod signer;
-mod storage;
 
-use auth::Auth;
+use auth::SmartWalletAuth;
 use error::Error;
-use initializable::Initializable;
+use initializable::{only_not_initialized, Initializable};
 use interface::SmartWalletInterface;
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
@@ -18,22 +15,29 @@ use soroban_sdk::{
     crypto::Hash,
     log, panic_with_error, symbol_short, Env, Vec,
 };
+use storage::Storage;
 
-use crate::{
-    signer::{Signatures, SignedPayload, Signer, SignerKey, SignerVal},
-    storage::Storage,
-};
+use crate::signer::{Signatures, SignedPayload, Signer, SignerKey, SignerVal};
 
 #[contract]
 pub struct SmartWallet;
 
+pub trait Upgradeable {}
+
 impl Initializable for SmartWallet {}
+impl Upgradeable for SmartWallet {}
+impl SmartWalletAuth for SmartWallet {}
 
 #[contractimpl]
 impl SmartWalletInterface for SmartWallet {
     fn __constructor(env: Env, signers: Vec<Signer>) {
         let initialize = || {
+            only_not_initialized!(&env);
             if signers.len() == 0 {
+                log!(
+                    &env,
+                    "No signers provided. At least one signer is required."
+                );
                 return Err(Error::NoSigners);
             }
             for signer in signers {
@@ -46,57 +50,30 @@ impl SmartWalletInterface for SmartWallet {
     }
     fn add_signer(env: &Env, signer: Signer) -> Result<(), Error> {
         require_auth!(env);
-        let storage = Storage::default();
-        let signer_key = signer.clone().into();
-        let signer_val = signer.clone().into();
-        if storage.get_signer(env, &signer_key).is_some() {
-            return Err(Error::SignerAlreadyExists);
-        }
-        storage.store_signer(env, &signer_key, &signer_val);
-        env.events().publish(
-            (
-                symbol_short!("sw"),
-                symbol_short!("add"),
-                signer_key.clone(),
-            ),
-            (signer_val.clone(), signer_val.clone()),
-        );
+        Storage::default().store::<SignerKey, SignerVal>(
+            env,
+            &signer.clone().into(),
+            &signer.clone().into(),
+        )?;
         Ok(())
     }
     fn update_signer(env: &Env, signer: Signer) -> Result<(), Error> {
         require_auth!(env);
-        let storage = Storage::default();
-        let signer_key = signer.clone().into();
-        let signer_val = signer.clone().into();
-        if storage.get_signer(env, &signer_key).is_none() {
-            return Err(Error::SignerNotFound);
-        }
-        storage.update_signer(env, &signer_key, &signer_val);
-        env.events().publish(
-            (
-                symbol_short!("sw"),
-                symbol_short!("update"),
-                signer_key.clone(),
-            ),
-            (signer_val.clone(), signer_val.clone()),
-        );
+        Storage::default().update::<SignerKey, SignerVal>(
+            env,
+            &signer.clone().into(),
+            &signer.clone().into(),
+        )?;
         Ok(())
     }
-    fn revoke_signer(env: &Env, signer: SignerKey) -> Result<(), Error> {
+    fn revoke_signer(env: &Env, signer_key: SignerKey) -> Result<(), Error> {
         require_auth!(env);
-        let storage = Storage::default();
-        let signer_key = signer.clone();
-        if storage.get_signer(env, &signer_key).is_none() {
-            return Err(Error::SignerNotFound);
-        }
-        storage.delete_signer(env, &signer_key);
+        Storage::default().delete::<SignerKey>(env, &signer_key)?;
         Ok(())
     }
     fn get_signer(env: &Env, signer_key: SignerKey) -> Result<Signer, Error> {
-        require_auth!(env);
-        let storage = Storage::default();
-        storage
-            .get_signer(env, &signer_key)
+        Storage::default()
+            .get::<SignerKey, SignerVal>(env, &signer_key)
             .map(|signer_val| Signer::from((signer_key, signer_val)))
             .ok_or(Error::SignerNotFound)
     }
@@ -118,14 +95,14 @@ impl CustomAccountInterface for SmartWallet {
             log!(&env, "Checking context {:?}", context);
             let has_valid_signer = signatures.0.iter().any(|(signer_key, _)| {
                 storage
-                    .get_signer(&env, &signer_key)
+                    .get::<SignerKey, SignerVal>(&env, &signer_key)
                     .map_or(false, |signer_val| {
                         let (expiration, limits) = match signer_val {
                             SignerVal::Ed25519(expiration, limits) => (expiration, limits),
                         };
-                        Auth::check_signer_is_not_expired(&env, &expiration)
+                        Self::check_signer_is_not_expired(&env, &expiration)
                             .and_then(|_| {
-                                Auth::verify_context(
+                                Self::verify_context(
                                     &env,
                                     &context,
                                     &signer_key,
@@ -145,7 +122,7 @@ impl CustomAccountInterface for SmartWallet {
         for (signer_key, signature) in signatures.0.iter() {
             log!(&env, "Checking signature {:?}", signature);
             let signer_val = storage
-                .get_signer(&env, &signer_key)
+                .get::<SignerKey, SignerVal>(&env, &signer_key)
                 .ok_or(Error::MatchingSignatureNotFound)?;
             log!(&env, "Checking signer {:?}", signer_val);
             Signer::from((signer_key, signer_val)).verify(

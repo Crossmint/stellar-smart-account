@@ -16,13 +16,8 @@ macro_rules! require_auth {
     };
 }
 
-pub struct Auth;
-
-impl Auth {
-    pub fn check_signer_is_not_expired(
-        env: &Env,
-        expiration: &SignerExpiration,
-    ) -> Result<(), Error> {
+pub trait SmartWalletAuth {
+    fn check_signer_is_not_expired(env: &Env, expiration: &SignerExpiration) -> Result<(), Error> {
         if let SignerExpiration(Some(signer_expiration)) = expiration {
             if env.ledger().sequence() > *signer_expiration {
                 return Err(Error::SignerExpired);
@@ -30,7 +25,7 @@ impl Auth {
         }
         Ok(())
     }
-    pub fn verify_context(
+    fn verify_context(
         env: &Env,
         context: &Context,
         signer_key: &SignerKey,
@@ -84,7 +79,7 @@ impl Auth {
         Ok(())
     }
 
-    pub fn verify_signer_limit_keys(
+    fn verify_signer_limit_keys(
         env: &Env,
         signer_key: &SignerKey,
         signatures: &Signatures,

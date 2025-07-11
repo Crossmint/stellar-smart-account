@@ -1,5 +1,5 @@
 [package]
-name = "smart-wallet"
+name = "storage"
 version = "0.0.0"
 edition = "2021"
 publish = false
@@ -10,11 +10,6 @@ doctest = false
 
 [dependencies]
 soroban-sdk = { workspace = true }
-initializable = { workspace = true }
-storage = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
-ed25519-dalek = { version = "1" }
-stellar-strkey = { version = "0.0.13" }
-rand = "0.7.3"

@@ -761,6 +761,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e04e2fd2b8188ea827b32ef11de88377086d690286ab35747ef7f9bf3ccb590"
 
 [[package]]
+name = "initializable"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1263,9 +1270,11 @@ name = "smart-wallet"
 version = "0.0.0"
 dependencies = [
  "ed25519-dalek 1.0.1",
+ "initializable",
  "rand 0.7.3",
  "soroban-sdk",
  "stellar-strkey 0.0.13",
+ "storage",
 ]
 
 [[package]]
@@ -1571,6 +1580,13 @@ dependencies = [
  "serde",
  "serde_with",
  "stellar-strkey 0.0.9",
+]
+
+[[package]]
+name = "storage"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
 ]
 
 [[package]]

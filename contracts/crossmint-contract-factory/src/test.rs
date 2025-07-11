@@ -9,7 +9,6 @@ use soroban_sdk::{
 use crate::test_constants::SMART_ACCOUNT_WASM;
 use crate::{CrossmintContractFactory, CrossmintContractFactoryClient};
 
-
 fn create_factory_client<'a>(e: &Env, admin: &Address) -> CrossmintContractFactoryClient<'a> {
     let address = e.register(CrossmintContractFactory, (admin,));
     CrossmintContractFactoryClient::new(e, &address)
