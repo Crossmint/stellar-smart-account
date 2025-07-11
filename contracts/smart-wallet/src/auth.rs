@@ -80,11 +80,11 @@ pub trait SmartWalletAuth {
     }
 
     fn verify_signer_limit_keys(
-        env: &Env,
-        signer_key: &SignerKey,
+        _env: &Env,
+        _signer_key: &SignerKey,
         signatures: &Signatures,
         signer_limits_keys: &Option<Vec<SignerKey>>,
-        context: &Context,
+        _context: &Context,
     ) -> Result<(), Error> {
         if let Some(signer_limits_keys) = signer_limits_keys {
             for signer_limits_key in signer_limits_keys.iter() {

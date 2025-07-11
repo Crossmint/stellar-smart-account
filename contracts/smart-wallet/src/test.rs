@@ -22,7 +22,6 @@ use crate::signer::{Signature, SignerExpiration, SignerLimits};
 // ============================================================================
 
 const DEFAULT_NONCE: i64 = 3;
-const TEST_SEED_PREFIX: &str = "test_seed_";
 
 // ============================================================================
 // Test Contract (for testing authorization)

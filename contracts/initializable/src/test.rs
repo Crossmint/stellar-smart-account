@@ -9,7 +9,7 @@ pub struct ExampleContract;
 #[contractimpl]
 impl ExampleContract {
     pub fn __constructor(env: &Env) {
-        Self::initialize(env).map_err(|e| panic_with_error!(env, e));
+        let _ = Self::initialize(env).map_err(|e| panic_with_error!(env, e));
     }
 
     pub fn only_initialized_fn(env: &Env) {
@@ -29,7 +29,7 @@ impl Initializable for ExampleContract {}
 fn test_should_deploy() {
     let env = Env::default();
     let contract_id = env.register(ExampleContract, ());
-    let client = ExampleContractClient::new(&env, &contract_id);
+    let _client = ExampleContractClient::new(&env, &contract_id);
 }
 
 #[test]
