@@ -13,20 +13,29 @@ use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    log, panic_with_error, Env, Vec,
+    log, panic_with_error, Address, BytesN, Env, Vec,
 };
 use storage::Storage;
+use upgradeable::{
+    SmartWalletUpgradeable, SmartWalletUpgradeableAuth, SmartWalletUpgradeableMigratableInternal,
+};
 
 use crate::signer::{Signatures, SignedPayload, Signer, SignerKey, SignerVal};
 
 #[contract]
 pub struct SmartWallet;
 
-pub trait Upgradeable {}
-
 impl Initializable for SmartWallet {}
-impl Upgradeable for SmartWallet {}
 impl SmartWalletAuth for SmartWallet {}
+
+#[contractimpl]
+impl SmartWalletUpgradeable for SmartWallet {}
+
+impl SmartWalletUpgradeableAuth for SmartWallet {
+    fn _require_auth_upgrade(e: &Env) {
+        e.current_contract_address().require_auth();
+    }
+}
 
 #[contractimpl]
 impl SmartWalletInterface for SmartWallet {
