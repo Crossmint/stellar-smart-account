@@ -10,20 +10,14 @@ pub struct StorageTestContract;
 impl StorageTestContract {
     pub fn store_and_check(env: Env, key: Symbol, value: SorobanString) -> bool {
         let storage = Storage::default();
-        match storage.store(&env, &key, &value) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        storage.store(&env, &key, &value).is_ok()
     }
 
     pub fn store_persistent_and_check(env: Env, key: Symbol, value: SorobanString) -> bool {
         let storage = Storage {
             storage_type: StorageType::Persistent,
         };
-        match storage.store(&env, &key, &value) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        storage.store(&env, &key, &value).is_ok()
     }
 
     pub fn get_value(env: Env, key: Symbol) -> Option<SorobanString> {
@@ -40,18 +34,12 @@ impl StorageTestContract {
 
     pub fn update_and_check(env: Env, key: Symbol, value: SorobanString) -> bool {
         let storage = Storage::default();
-        match storage.update(&env, &key, &value) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        storage.update(&env, &key, &value).is_ok()
     }
 
     pub fn delete_and_check(env: Env, key: Symbol) -> bool {
         let storage = Storage::default();
-        match storage.delete(&env, &key) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        storage.delete(&env, &key).is_ok()
     }
 
     pub fn has_key(env: Env, key: Symbol) -> bool {

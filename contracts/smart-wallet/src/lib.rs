@@ -42,7 +42,7 @@ impl SmartWalletInterface for SmartWallet {
     fn __constructor(env: Env, signers: Vec<Signer>) {
         let initialize = || {
             only_not_initialized!(&env);
-            if signers.len() == 0 {
+            if signers.is_empty() {
                 log!(
                     &env,
                     "No signers provided. At least one signer is required."
@@ -99,7 +99,7 @@ impl CustomAccountInterface for SmartWallet {
             let has_valid_signer = signatures.0.iter().any(|(signer_key, _)| {
                 storage
                     .get::<SignerKey, SignerVal>(&env, &signer_key)
-                    .map_or(false, |signer_val| {
+                    .is_some_and(|signer_val| {
                         let (expiration, limits) = match signer_val {
                             SignerVal::Ed25519(expiration, limits) => (expiration, limits),
                         };
