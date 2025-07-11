@@ -71,12 +71,6 @@ impl SmartWalletInterface for SmartWallet {
         Storage::default().delete::<SignerKey>(env, &signer_key)?;
         Ok(())
     }
-    fn get_signer(env: &Env, signer_key: SignerKey) -> Result<Signer, Error> {
-        Storage::default()
-            .get::<SignerKey, SignerVal>(env, &signer_key)
-            .map(|signer_val| Signer::from((signer_key, signer_val)))
-            .ok_or(Error::SignerNotFound)
-    }
 }
 
 #[contractimpl]

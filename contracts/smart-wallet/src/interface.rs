@@ -10,5 +10,4 @@ pub trait SmartWalletInterface {
     fn add_signer(env: &Env, signer: Signer) -> Result<(), Error>;
     fn update_signer(env: &Env, signer: Signer) -> Result<(), Error>;
     fn revoke_signer(env: &Env, signer: SignerKey) -> Result<(), Error>;
-    fn get_signer(env: &Env, signer: SignerKey) -> Result<Signer, Error>;
 }
