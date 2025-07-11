@@ -13,11 +13,11 @@ use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    log, panic_with_error, Address, BytesN, Env, Vec,
+    log, panic_with_error, Env, Vec,
 };
 use storage::Storage;
 use upgradeable::{
-    SmartWalletUpgradeable, SmartWalletUpgradeableAuth, SmartWalletUpgradeableMigratableInternal,
+    SmartWalletUpgradeable, SmartWalletUpgradeableAuth,
 };
 
 use crate::signer::{Signatures, SignedPayload, Signer, SignerKey, SignerVal};
