@@ -13,7 +13,7 @@ use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    log, panic_with_error, symbol_short, Env, Vec,
+    log, panic_with_error, Env, Vec,
 };
 use storage::Storage;
 
