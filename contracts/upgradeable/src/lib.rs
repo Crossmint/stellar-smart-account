@@ -1,3 +1,5 @@
+#![no_std]
+
 use soroban_sdk::{
     contracterror, panic_with_error, symbol_short, BytesN, Env, FromVal, Symbol, Val,
 };
