@@ -1,7 +1,5 @@
 use soroban_sdk::log;
-use soroban_sdk::{
-    contracttype, crypto::Hash, Address, BytesN, Env, Map, Vec,
-};
+use soroban_sdk::{contracttype, crypto::Hash, Address, BytesN, Env, Map, Vec};
 
 use crate::error::Error;
 
