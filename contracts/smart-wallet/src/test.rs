@@ -126,7 +126,7 @@ fn create_authorization_payload(
 ) -> BytesN<32> {
     let root_invocation = SorobanAuthorizedInvocation {
         function: SorobanAuthorizedFunction::ContractFn(InvokeContractArgs {
-            contract_address: contract_address.clone().try_into().unwrap(),
+            contract_address: contract_address.clone().into(),
             function_name: function_name.try_into().unwrap(),
             args: args.try_into().unwrap(),
         }),
@@ -158,7 +158,7 @@ fn create_authorization_entry(
 ) -> SorobanAuthorizationEntry {
     let root_invocation = SorobanAuthorizedInvocation {
         function: SorobanAuthorizedFunction::ContractFn(InvokeContractArgs {
-            contract_address: contract_address.clone().try_into().unwrap(),
+            contract_address: contract_address.clone().into(),
             function_name: function_name.try_into().unwrap(),
             args: args.try_into().unwrap(),
         }),
@@ -167,7 +167,7 @@ fn create_authorization_entry(
 
     SorobanAuthorizationEntry {
         credentials: SorobanCredentials::Address(SorobanAddressCredentials {
-            address: wallet_address.clone().try_into().unwrap(),
+            address: wallet_address.clone().into(),
             nonce,
             signature_expiration_ledger,
             signature: Signatures(map![env, (signer_key.clone(), signature.clone())])
@@ -261,7 +261,7 @@ fn test_external_contract_call_with_real_auth() {
         &test_env.env,
         &test_env.example_contract_address,
         "call",
-        std::vec![test_env.smart_wallet_address.clone().try_into().unwrap()],
+        std::vec![test_env.smart_wallet_address.clone().into()],
         DEFAULT_NONCE,
         signature_expiration_ledger,
     );
@@ -274,7 +274,7 @@ fn test_external_contract_call_with_real_auth() {
         &test_env.smart_wallet_address,
         &test_env.example_contract_address,
         "call",
-        std::vec![test_env.smart_wallet_address.clone().try_into().unwrap()],
+        std::vec![test_env.smart_wallet_address.clone().into()],
         &signer_key,
         &signature,
         DEFAULT_NONCE,
@@ -310,8 +310,7 @@ fn test_external_contract_call_with_many_signers_with_real_auth() {
                 wallet_2_address.clone().try_into().unwrap()
             ]
         )
-        .try_into()
-        .unwrap()],
+        .into()],
         DEFAULT_NONCE,
         signature_expiration_ledger,
     );
@@ -333,8 +332,7 @@ fn test_external_contract_call_with_many_signers_with_real_auth() {
                 wallet_2_address.clone().try_into().unwrap()
             ]
         )
-        .try_into()
-        .unwrap()],
+        .into()],
         &signer_key_1,
         &signature_1,
         DEFAULT_NONCE,
@@ -353,8 +351,7 @@ fn test_external_contract_call_with_many_signers_with_real_auth() {
                 wallet_2_address.clone().try_into().unwrap()
             ]
         )
-        .try_into()
-        .unwrap()],
+        .into()],
         &signer_key_2,
         &signature_2,
         DEFAULT_NONCE,
@@ -396,8 +393,7 @@ fn test_external_contract_call_with_many_signers_with_incomplete_auth() {
                 wallet_2_address.clone().try_into().unwrap()
             ]
         )
-        .try_into()
-        .unwrap()],
+        .into()],
         DEFAULT_NONCE,
         signature_expiration_ledger,
     );
@@ -417,8 +413,7 @@ fn test_external_contract_call_with_many_signers_with_incomplete_auth() {
                 wallet_2_address.clone().try_into().unwrap()
             ]
         )
-        .try_into()
-        .unwrap()],
+        .into()],
         &signer_key_1,
         &signature_1,
         DEFAULT_NONCE,

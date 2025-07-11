@@ -44,11 +44,10 @@ pub trait SmartWalletAuth {
                     args,
                 }) => {
                     signer_limits
-                        .get(contract.clone())
-                        .map_or(None, |signer_limits_keys| {
+                        .get(contract.clone()).and_then(|signer_limits_keys| {
                             if *contract == env.current_contract_address()
-                                && *fn_name != Symbol::new(&env, "remove_signer")
-                                || (*fn_name == Symbol::new(&env, "remove_signer")
+                                && *fn_name != Symbol::new(env, "remove_signer")
+                                || (*fn_name == Symbol::new(env, "remove_signer")
                                     && SignerKey::from_val(env, &args.get_unchecked(0))
                                         != *signer_key)
                             {
@@ -70,7 +69,7 @@ pub trait SmartWalletAuth {
                     signer_key,
                     signatures,
                     &signer_limits_keys,
-                    &context,
+                    context,
                 )
             } else {
                 Err(Error::MatchingSignatureNotFound)
