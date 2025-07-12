@@ -11,7 +11,7 @@
 /// - `Standard` - Can authorize any operation except changing signers and upgrading contracts
 /// - `Restricted(Vec<SignerPolicy>)` - Subject to policy restrictions; all policies must pass
 ///
-/// ### AuthorizationPayloads
+/// ### SignatureProofs
 /// A wrapper struct containing a Map<SignerKey, SignerProof> that pairs signer keys with their
 /// cryptographic proofs. Used to bundle authorization data for multi-signature operations.
 ///
@@ -26,17 +26,17 @@
 ///
 /// ## Core Traits
 ///
-/// ### PermissionsCheck
+/// ### AuthorizationCheck
 /// Core trait for authorization checking. Implementations must provide:
 /// - `is_authorized(&self, env: &Env, context: &Context) -> bool` - Determines if an operation
 ///   is authorized based on the execution context.
 ///
-/// ### SignerVerification
+/// ### SignatureVerifier
 /// Trait for cryptographic signature verification. Implementations must provide:
 /// - `verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error>`
 ///   Verifies a signature proof against a payload hash. Used by Signer and specific signer types.
 ///
-/// ### PolicyInitCheck
+/// ### PolicyValidator
 /// Trait for validating initialization parameters in signing policies. Implementations must provide:
 /// - `check(&self, env: &Env) -> Result<(), Error>` - Validates that policy parameters are
 ///   correct and feasible at initialization time. Used by SignerPolicy and policy implementations.

@@ -1,6 +1,6 @@
 use crate::auth::proof::SignerProof;
 use crate::auth::signer::SignerKey;
-use crate::auth::signers::SignerVerification;
+use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
 use soroban_sdk::{contracttype, Bytes, BytesN, Env};
 
@@ -18,7 +18,7 @@ impl Ed25519Signer {
     }
 }
 
-impl SignerVerification for Ed25519Signer {
+impl SignatureVerifier for Ed25519Signer {
     fn verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
         match proof {
             SignerProof::Ed25519(signature) => {

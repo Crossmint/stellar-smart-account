@@ -1,7 +1,7 @@
-use crate::auth::permissions::{PermissionsCheck, SignerRole};
+use crate::auth::permissions::{AuthorizationCheck, SignerRole};
 use crate::auth::proof::SignerProof;
 use crate::auth::signers::Ed25519Signer;
-use crate::auth::signers::SignerVerification;
+use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
 use soroban_sdk::{auth::Context, contracttype, BytesN, Env};
 
@@ -17,7 +17,7 @@ pub enum Signer {
     Ed25519(Ed25519Signer, SignerRole),
 }
 
-impl SignerVerification for Signer {
+impl SignatureVerifier for Signer {
     fn verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
         match self {
             Signer::Ed25519(signer, _) => signer.verify(env, payload, proof),
@@ -25,7 +25,7 @@ impl SignerVerification for Signer {
     }
 }
 
-impl PermissionsCheck for Signer {
+impl AuthorizationCheck for Signer {
     fn is_authorized(&self, env: &Env, context: &Context) -> bool {
         self.role().is_authorized(env, context)
     }
