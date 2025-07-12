@@ -42,7 +42,7 @@ graph TB
     
     subgraph "Authentication Layer"
         CA[__check_auth]
-        AP[AuthorizationPayloads]
+        AP[SignatureProofs]
         
         CAI --> CA
         CA --> AP
@@ -59,7 +59,7 @@ graph TB
     end
     
     subgraph "Verification Layer"
-        SV[SignerVerification]
+        SV[SignatureVerifier]
         SP[SignerProof]
         E25[Ed25519Signer]
         
@@ -69,7 +69,7 @@ graph TB
     end
     
     subgraph "Permission System"
-        PC[PermissionsCheck]
+        PC[AuthorizationCheck]
         SPol[SignerPolicy]
         TB[TimeBasedPolicy]
         AL[ContractAllowListPolicy]
@@ -119,9 +119,9 @@ pub struct NewSigner {
 }
 ```
 
-2. **Implement SignerVerification trait**:
+2. **Implement SignatureVerifier trait**:
 ```rust
-impl SignerVerification for NewSigner {
+impl SignatureVerifier for NewSigner {
     fn verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
         // Implement signature verification logic
     }
@@ -171,12 +171,12 @@ graph TD
 
 ```mermaid
 classDiagram
-    class PermissionsCheck {
+    class AuthorizationCheck {
         <<trait>>
         +is_authorized(env, context) bool
     }
     
-    class PolicyInitCheck {
+    class PolicyValidator {
         <<trait>>
         +check(env) Result~(), Error~
     }
@@ -201,14 +201,14 @@ classDiagram
         +denied_contracts: Vec~Address~
     }
     
-    PermissionsCheck <|.. SignerPolicy
-    PolicyInitCheck <|.. SignerPolicy
-    PermissionsCheck <|.. TimeBasedPolicy
-    PermissionsCheck <|.. ContractAllowListPolicy
-    PermissionsCheck <|.. ContractDenyListPolicy
-    PolicyInitCheck <|.. TimeBasedPolicy
-    PolicyInitCheck <|.. ContractAllowListPolicy
-    PolicyInitCheck <|.. ContractDenyListPolicy
+    AuthorizationCheck <|.. SignerPolicy
+    PolicyValidator <|.. SignerPolicy
+    AuthorizationCheck <|.. TimeBasedPolicy
+    AuthorizationCheck <|.. ContractAllowListPolicy
+    AuthorizationCheck <|.. ContractDenyListPolicy
+    PolicyValidator <|.. TimeBasedPolicy
+    PolicyValidator <|.. ContractAllowListPolicy
+    PolicyValidator <|.. ContractDenyListPolicy
     
     SignerPolicy --> TimeBasedPolicy
     SignerPolicy --> ContractAllowListPolicy
@@ -230,13 +230,13 @@ pub struct NewPolicy {
 
 2. **Implement required traits**:
 ```rust
-impl PermissionsCheck for NewPolicy {
+impl AuthorizationCheck for NewPolicy {
     fn is_authorized(&self, env: &Env, context: &Context) -> bool {
         // Authorization logic
     }
 }
 
-impl PolicyInitCheck for NewPolicy {
+impl PolicyValidator for NewPolicy {
     fn check(&self, env: &Env) -> Result<(), Error> {
         // Validation logic
     }
@@ -267,13 +267,13 @@ sequenceDiagram
     participant Policy
     
     Client->>SorobanRuntime: Submit transaction with authorization
-    SorobanRuntime->>SmartWallet: __check_auth(signature_payload, auth_payloads, auth_contexts)
+    SorobanRuntime->>SmartWallet: __check_auth(signature_payload, signature_proofs, auth_contexts)
     
-    Note over SmartWallet: Step 1: Validate authorization payloads
-    SmartWallet->>SmartWallet: Check auth_payloads not empty
+    Note over SmartWallet: Step 1: Validate signature proofs
+    SmartWallet->>SmartWallet: Check signature_proofs not empty
     
     Note over SmartWallet: Step 2: Verify signatures
-    loop For each (signer_key, proof) in auth_payloads
+    loop For each (signer_key, proof) in signature_proofs
         SmartWallet->>Storage: get_signer(signer_key)
         Storage-->>SmartWallet: Return signer or error
         SmartWallet->>Signer: verify(signature_payload, proof)
@@ -282,7 +282,7 @@ sequenceDiagram
     
     Note over SmartWallet: Step 3: Check permissions
     loop For each auth_context
-        loop For each (signer_key, _) in auth_payloads
+        loop For each (signer_key, _) in signature_proofs
             SmartWallet->>Storage: get_signer(signer_key)
             Storage-->>SmartWallet: Return signer
             SmartWallet->>Signer: role.is_authorized(context)
