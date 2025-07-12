@@ -46,7 +46,7 @@ impl PolicyInitCheck for SignerPolicy {
     }
 }
 
-// This defines the roles that a configured admin can have
+// This defines the roles that a configured signer can have
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerRole {
