@@ -23,7 +23,7 @@ impl PermissionsCheck for ContractDenyListPolicy {
 }
 
 impl InitCheck for ContractDenyListPolicy {
-    fn check(&self, env: &Env) -> Result<(), Error> {
+    fn check(&self, _env: &Env) -> Result<(), Error> {
         Ok(())
     }
 }

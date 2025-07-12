@@ -10,7 +10,3 @@ pub trait SignerVerification {
     /// Verify a signature against a payload
     fn verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error>;
 }
-
-pub trait Into<SignerKey> {
-    fn into(&self) -> SignerKey;
-}

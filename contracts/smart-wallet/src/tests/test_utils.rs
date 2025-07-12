@@ -10,7 +10,6 @@ use soroban_sdk::Env;
 
 use crate::auth::permissions::SignerRole;
 use crate::auth::proof::SignerProof;
-use crate::auth::proof::SignerProofEntry;
 use crate::auth::signer::Signer;
 use crate::auth::signer::SignerKey;
 use crate::auth::signers::Ed25519Signer;
@@ -44,7 +43,7 @@ pub fn get_update_signer_auth_context(e: &Env, signer: Signer) -> Context {
 pub trait TestSigner {
     fn generate(role: SignerRole) -> Self;
     fn into_signer(&self, env: &Env) -> Signer;
-    fn sign(&self, env: &Env, payload: &BytesN<32>) -> SignerProofEntry;
+    fn sign(&self, env: &Env, payload: &BytesN<32>) -> (SignerKey, SignerProof);
 }
 
 pub struct Ed25519TestSigner(pub Keypair, pub SignerRole);
@@ -66,7 +65,7 @@ impl TestSigner for Ed25519TestSigner {
         Signer::Ed25519(Ed25519Signer::new(self.public_key(env)), role.clone())
     }
 
-    fn sign(&self, env: &Env, payload: &BytesN<32>) -> SignerProofEntry {
+    fn sign(&self, env: &Env, payload: &BytesN<32>) -> (SignerKey, SignerProof) {
         let signature_bytes = self.0.sign(payload.to_array().as_slice()).to_bytes();
         if signature_bytes.len() != 64 {
             panic!("Invalid signature length");
