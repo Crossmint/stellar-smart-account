@@ -6,6 +6,11 @@ members = [
 
 [workspace.dependencies]
 soroban-sdk = "22.0.0"
+smart-wallet = { path = "contracts/smart-wallet" }
+crossmint-contract-factory = { path = "contracts/crossmint-contract-factory" }
+initializable = { path = "contracts/initializable" }
+storage = { path = "contracts/storage" }
+
 
 [profile.release]
 opt-level = "z"

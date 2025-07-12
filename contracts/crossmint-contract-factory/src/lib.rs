@@ -33,12 +33,10 @@ impl CrossmintContractFactory {
         // change or it could be a completely separate contract with complex
         // authorization rules, but all the contracts will still be deployed
         // by the same `CrossmintContractFactory` contract address.
-        let deployed_address = env
-            .deployer()
-            .with_current_contract(salt)
-            .deploy_v2(wasm_hash, constructor_args);
 
-        deployed_address
+        env.deployer()
+            .with_current_contract(salt)
+            .deploy_v2(wasm_hash, constructor_args)
     }
 
     /// Uploads the contract WASM and deploys it on behalf of the `CrossmintContractFactory` contract.
@@ -56,12 +54,10 @@ impl CrossmintContractFactory {
 
         // Deploy the contract using the uploaded WASM hash on behalf
         // of the current contract.
-        let deployed_address = env
-            .deployer()
-            .with_address(env.current_contract_address(), salt)
-            .deploy_v2(wasm_hash, constructor_args);
 
-        deployed_address
+        env.deployer()
+            .with_address(env.current_contract_address(), salt)
+            .deploy_v2(wasm_hash, constructor_args)
     }
 
     pub fn get_deployed_address(env: Env, salt: BytesN<32>) -> Address {
