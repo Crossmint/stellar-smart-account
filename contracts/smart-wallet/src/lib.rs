@@ -7,7 +7,7 @@ pub mod wallet;
 
 // Re-export key types for external use and bindings generation
 pub use auth::permissions::{SignerPolicy, SignerRole};
-pub use auth::proof::{AuthorizationPayloads, SignerProof};
+pub use auth::proof::{SignatureProofs, SignerProof};
 pub use auth::signer::{Signer, SignerKey};
 pub use error::Error;
 

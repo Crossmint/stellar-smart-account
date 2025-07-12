@@ -10,4 +10,4 @@ pub enum SignerProof {
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
-pub struct AuthorizationPayloads(pub Map<SignerKey, SignerProof>);
+pub struct SignatureProofs(pub Map<SignerKey, SignerProof>);

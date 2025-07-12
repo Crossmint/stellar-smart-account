@@ -1,5 +1,5 @@
-use crate::auth::permissions::{PermissionsCheck, PolicyInitCheck, SignerRole};
-use crate::auth::signers::SignerVerification as _;
+use crate::auth::permissions::{AuthorizationCheck, PolicyValidator, SignerRole};
+use crate::auth::signers::SignatureVerifier as _;
 use crate::error::Error;
 use crate::interface::SmartWalletInterface;
 use crate::require_auth;
@@ -12,7 +12,7 @@ use soroban_sdk::{
 };
 use storage::Storage;
 
-use crate::auth::proof::AuthorizationPayloads;
+use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 
 /// SmartWallet is a multi-signature wallet contract that provides enhanced security
@@ -107,7 +107,7 @@ impl SmartWalletInterface for SmartWallet {
 impl CustomAccountInterface for SmartWallet {
     /// The signature type used for authorization proofs.
     /// Contains a map of signer keys to their corresponding signature proofs.
-    type Signature = AuthorizationPayloads;
+    type Signature = SignatureProofs;
     type Error = Error;
 
     /// Custom authorization function invoked by the Soroban runtime.
@@ -129,11 +129,11 @@ impl CustomAccountInterface for SmartWallet {
     fn __check_auth(
         env: Env,
         signature_payload: Hash<32>,
-        auth_payloads: AuthorizationPayloads,
+        auth_payloads: SignatureProofs,
         auth_contexts: Vec<Context>,
     ) -> Result<(), Error> {
         let storage = Storage::default();
-        let AuthorizationPayloads(proof_map) = auth_payloads;
+        let SignatureProofs(proof_map) = auth_payloads;
 
         // Ensure we have at least one authorization proof
         if proof_map.is_empty() {

@@ -1,7 +1,7 @@
 use soroban_sdk::{auth::Context, contracttype, Address, Env, Vec};
 
 use crate::{
-    auth::permissions::{PermissionsCheck, PolicyInitCheck},
+    auth::permissions::{AuthorizationCheck, PolicyValidator},
     error::Error,
 };
 
@@ -11,7 +11,7 @@ pub struct ContractAllowListPolicy {
     pub allowed_contracts: Vec<Address>,
 }
 
-impl PermissionsCheck for ContractAllowListPolicy {
+impl AuthorizationCheck for ContractAllowListPolicy {
     fn is_authorized(&self, _env: &Env, context: &Context) -> bool {
         match context {
             Context::Contract(contract_context) => {
@@ -22,7 +22,7 @@ impl PermissionsCheck for ContractAllowListPolicy {
     }
 }
 
-impl PolicyInitCheck for ContractAllowListPolicy {
+impl PolicyValidator for ContractAllowListPolicy {
     fn check(&self, env: &Env) -> Result<(), Error> {
         if self
             .allowed_contracts

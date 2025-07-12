@@ -1,4 +1,4 @@
-use crate::tests::test_utils::TestSigner as _;
+use crate::tests::test_utils::TestSignerTrait as _;
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{vec, Address};
 
