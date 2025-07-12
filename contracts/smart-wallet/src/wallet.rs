@@ -1,4 +1,4 @@
-use crate::auth::permissions::{InitCheck, PermissionsCheck, SignerRole};
+use crate::auth::permissions::{PermissionsCheck, PolicyInitCheck, SignerRole};
 use crate::auth::signers::SignerVerification as _;
 use crate::error::Error;
 use crate::interface::SmartWalletInterface;

@@ -5,5 +5,5 @@ pub mod error;
 pub mod interface;
 pub mod wallet;
 
-// Tests
+#[cfg(test)]
 mod tests;

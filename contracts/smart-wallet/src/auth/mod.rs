@@ -1,3 +1,56 @@
+/// This module exports the basic functionality for the Smart Wallet auth system
+///
+/// ## Core Objects and Classes
+///
+/// ### SignerPolicy
+/// An enum that wraps individual policy implementations for restricted signers.
+///
+/// ### SignerRole
+/// Defines the authorization level and restrictions for a signer:
+/// - `Admin` - Can authorize any operation, including changing signers and upgrading contracts
+/// - `Standard` - Can authorize any operation except changing signers and upgrading contracts
+/// - `Restricted(Vec<SignerPolicy>)` - Subject to policy restrictions; all policies must pass
+///
+/// ### AuthorizationPayloads
+/// A wrapper struct containing a Map<SignerKey, SignerProof> that pairs signer keys with their
+/// cryptographic proofs. Used to bundle authorization data for multi-signature operations.
+///
+/// ### SignerProof
+/// An enum representing cryptographic proofs (e.g. signatures) for signature verification
+///
+/// ### SignerKey
+/// An enum representing an identifier for different signature schemes:
+///
+/// ### Signer
+/// The main signer enum that combines a cryptographic signer with a role:
+///
+/// ## Core Traits
+///
+/// ### PermissionsCheck
+/// Core trait for authorization checking. Implementations must provide:
+/// - `is_authorized(&self, env: &Env, context: &Context) -> bool` - Determines if an operation
+///   is authorized based on the execution context.
+///
+/// ### SignerVerification
+/// Trait for cryptographic signature verification. Implementations must provide:
+/// - `verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error>`
+///   Verifies a signature proof against a payload hash. Used by Signer and specific signer types.
+///
+/// ### PolicyInitCheck
+/// Trait for validating initialization parameters in signing policies. Implementations must provide:
+/// - `check(&self, env: &Env) -> Result<(), Error>` - Validates that policy parameters are
+///   correct and feasible at initialization time. Used by SignerPolicy and policy implementations.
+///
+/// ## Architecture
+///
+/// The auth system is designed with a layered approach:
+/// 1. **Signers** combine cryptographic verification with role-based permissions
+/// 2. **Roles** define what operations a signer can perform
+/// 3. **Policies** add additional restrictions for Restricted role signers
+/// 4. **Proofs** provide cryptographic evidence for authorization
+///
+/// This allows for flexible authorization schemes from simple admin access to complex
+/// multi-signature wallets with time-based and contract-specific restrictions.
 pub mod permissions;
 pub mod policy;
 pub mod proof;

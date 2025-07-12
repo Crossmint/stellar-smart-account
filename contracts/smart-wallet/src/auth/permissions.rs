@@ -12,7 +12,7 @@ pub trait PermissionsCheck {
     fn is_authorized(&self, env: &Env, context: &Context) -> bool;
 }
 
-pub trait InitCheck {
+pub trait PolicyInitCheck {
     fn check(&self, env: &Env) -> Result<(), Error>;
 }
 
@@ -36,7 +36,7 @@ impl PermissionsCheck for SignerPolicy {
     }
 }
 
-impl InitCheck for SignerPolicy {
+impl PolicyInitCheck for SignerPolicy {
     fn check(&self, env: &Env) -> Result<(), Error> {
         match self {
             SignerPolicy::TimeBased(policy) => policy.check(env),
