@@ -1,6 +1,6 @@
-use super::SignerVerification;
-use crate::auth::signature::SignerProof;
+use crate::auth::proof::SignerProof;
 use crate::auth::signer::SignerKey;
+use crate::auth::signers::SignerVerification;
 use crate::error::Error;
 use soroban_sdk::{contracttype, Bytes, BytesN, Env};
 

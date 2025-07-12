@@ -19,6 +19,11 @@ pub enum Error {
     StorageEntryAlreadyExists = 10,
     InvalidProofType = 11,
     NoProofsInAuthEntry = 12,
+    InsufficientPermissions = 13,
+    InsufficientPermissionsOnCreation = 14,
+    InvalidPolicy = 15,
+    InvalidTimeRange = 16,
+    InvalidNotAfterTime = 17,
 }
 
 impl From<InitializableError> for Error {

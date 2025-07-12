@@ -1,6 +1,8 @@
-pub mod ed25519;
+mod ed25519;
 
-use crate::auth::signature::SignerProof;
+pub use ed25519::Ed25519Signer;
+
+use crate::auth::proof::SignerProof;
 use crate::error::Error;
 use soroban_sdk::{BytesN, Env};
 
