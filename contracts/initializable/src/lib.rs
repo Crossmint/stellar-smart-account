@@ -3,6 +3,8 @@
 use soroban_sdk::{contracterror, symbol_short, Env, Symbol};
 
 #[contracterror]
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u32)]
 pub enum Error {
     AlreadyInitialized = 0,
     NotInitialized = 1,

@@ -17,6 +17,7 @@ pub enum Error {
     NotInitialized = 8,
     StorageEntryNotFound = 9,
     StorageEntryAlreadyExists = 10,
+    InvalidProofType = 11,
 }
 
 impl From<InitializableError> for Error {

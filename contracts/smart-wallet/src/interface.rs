@@ -1,9 +1,6 @@
 use soroban_sdk::{Env, Vec};
 
-use crate::{
-    error::Error,
-    signer::{Signer, SignerKey},
-};
+use crate::{auth::signer::Signer, auth::signer::SignerKey, error::Error};
 
 pub trait SmartWalletInterface {
     fn __constructor(env: Env, signers: Vec<Signer>);
