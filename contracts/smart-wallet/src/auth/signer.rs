@@ -27,21 +27,7 @@ impl SignerVerification for Signer {
 
 impl PermissionsCheck for Signer {
     fn is_authorized(&self, env: &Env, context: &Context) -> bool {
-        let role = match self {
-            Signer::Ed25519(_, role) => role,
-        };
-        match role {
-            SignerRole::Admin => true,
-            SignerRole::Standard => match context {
-                Context::Contract(contract_context) => {
-                    contract_context.contract != env.current_contract_address()
-                }
-                _ => true,
-            },
-            SignerRole::Restricted(policies) => policies
-                .iter()
-                .all(|policy| policy.is_authorized(env, context)),
-        }
+        self.role().is_authorized(env, context)
     }
 }
 
