@@ -26,7 +26,7 @@ impl InitCheck for ContractAllowListPolicy {
     fn check(&self, env: &Env) -> Result<(), Error> {
         if self
             .allowed_contracts
-            .contains(&env.current_contract_address())
+            .contains(env.current_contract_address())
         {
             return Err(Error::InvalidPolicy);
         }

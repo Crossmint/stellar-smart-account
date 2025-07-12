@@ -15,10 +15,8 @@ use crate::auth::signer::Signer;
 use crate::auth::signer::SignerKey;
 use crate::auth::signers::Ed25519Signer;
 
-use log::info;
 use soroban_sdk::auth::ContractContext;
 use soroban_sdk::testutils::Address as _;
-use soroban_sdk::testutils::Logs as _;
 use soroban_sdk::Address;
 use soroban_sdk::IntoVal;
 
