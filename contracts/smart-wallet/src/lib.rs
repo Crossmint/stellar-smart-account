@@ -99,6 +99,9 @@ impl CustomAccountInterface for SmartWallet {
         });
         log!(&env, "Provided auth payloads {:?}", auth_payloads);
         let AuthorizationPayloads(proof_map) = auth_payloads;
+        if proof_map.is_empty() {
+            return Err(Error::NoProofsInAuthEntry);
+        }
         for (signer_key, proof) in proof_map.iter() {
             let signer = match storage.get::<SignerKey, Signer>(&env, &signer_key.clone()) {
                 Some(signer) => signer,
