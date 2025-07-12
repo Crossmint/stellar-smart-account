@@ -1,9 +1,15 @@
 #![no_std]
 
-mod auth;
+pub mod auth;
 pub mod error;
 pub mod interface;
 pub mod wallet;
+
+// Re-export key types for external use and bindings generation
+pub use auth::permissions::{SignerPolicy, SignerRole};
+pub use auth::proof::{AuthorizationPayloads, SignerProof};
+pub use auth::signer::{Signer, SignerKey};
+pub use error::Error;
 
 #[cfg(test)]
 mod tests;

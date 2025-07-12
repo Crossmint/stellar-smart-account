@@ -8,7 +8,7 @@ pub enum Error {
     AlreadyExists,
 }
 
-#[contracttype(export = false)]
+#[contracttype]
 pub enum StorageType {
     Persistent,
     Instance,

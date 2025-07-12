@@ -5,13 +5,13 @@ use crate::auth::signers::SignerVerification;
 use crate::error::Error;
 use soroban_sdk::{auth::Context, contracttype, BytesN, Env};
 
-#[contracttype(export = false)]
+#[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerKey {
     Ed25519(BytesN<32>),
 }
 
-#[contracttype(export = false)]
+#[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Signer {
     Ed25519(Ed25519Signer, SignerRole),

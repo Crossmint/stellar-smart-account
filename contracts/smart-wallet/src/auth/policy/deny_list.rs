@@ -1,11 +1,11 @@
 use soroban_sdk::{auth::Context, contracttype, Address, Env, Vec};
 
 use crate::{
-    auth::permissions::{PolicyInitCheck, PermissionsCheck},
+    auth::permissions::{PermissionsCheck, PolicyInitCheck},
     error::Error,
 };
 
-#[contracttype(export = false)]
+#[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct ContractDenyListPolicy {
     pub denied_contracts: Vec<Address>,

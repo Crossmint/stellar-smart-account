@@ -1,11 +1,11 @@
 use soroban_sdk::{auth::Context, contracttype, Env};
 
 use crate::{
-    auth::permissions::{PolicyInitCheck, PermissionsCheck},
+    auth::permissions::{PermissionsCheck, PolicyInitCheck},
     error::Error,
 };
 
-#[contracttype(export = false)]
+#[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct TimeBasedPolicy {
     pub not_before: u64,

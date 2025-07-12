@@ -5,7 +5,7 @@ use crate::error::Error;
 use soroban_sdk::{contracttype, Bytes, BytesN, Env};
 
 /// Ed25519 signer implementation
-#[contracttype(export = false)]
+#[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ed25519Signer {
     pub public_key: BytesN<32>,

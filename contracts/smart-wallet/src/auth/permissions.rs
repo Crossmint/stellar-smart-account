@@ -17,7 +17,7 @@ pub trait PolicyInitCheck {
 }
 
 // Main policy enum that wraps the individual policies
-#[contracttype(export = false)]
+#[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerPolicy {
     TimeBased(TimeBasedPolicy),
@@ -47,7 +47,7 @@ impl PolicyInitCheck for SignerPolicy {
 }
 
 // This defines the roles that a configured admin can have
-#[contracttype(export = false)]
+#[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerRole {
     // Can authorize any operation, including changing signers and upgrading the contract
