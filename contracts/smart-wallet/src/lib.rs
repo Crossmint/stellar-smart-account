@@ -6,7 +6,6 @@ pub mod interface;
 pub mod signer;
 
 use crate::auth::signers::SignerVerification as _;
-use auth::signer::Signer as _;
 use error::Error;
 use initializable::{only_not_initialized, Initializable};
 use interface::SmartWalletInterface;
@@ -63,7 +62,7 @@ impl SmartWalletInterface for SmartWallet {
         Storage::default().store::<SignerKey, Signer>(
             env,
             &signer.clone().into(),
-            &signer.clone().into(),
+            &signer.clone(),
         )?;
         Ok(())
     }
@@ -72,7 +71,7 @@ impl SmartWalletInterface for SmartWallet {
         Storage::default().update::<SignerKey, Signer>(
             env,
             &signer.clone().into(),
-            &signer.clone().into(),
+            &signer.clone(),
         )?;
         Ok(())
     }

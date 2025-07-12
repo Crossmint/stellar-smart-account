@@ -2,7 +2,7 @@ use super::SignerVerification;
 use crate::auth::signature::SignerProof;
 use crate::auth::signer::SignerKey;
 use crate::error::Error;
-use soroban_sdk::{contracttype, crypto, Bytes, BytesN, Env};
+use soroban_sdk::{contracttype, Bytes, BytesN, Env};
 
 /// Ed25519 signer implementation
 #[contracttype(export = false)]
@@ -25,7 +25,7 @@ impl SignerVerification for Ed25519Signer {
                 env.crypto().ed25519_verify(
                     &self.public_key,
                     &Bytes::from(payload.clone()),
-                    &BytesN::from(signature.clone()),
+                    &signature.clone(),
                 );
                 Ok(())
             }

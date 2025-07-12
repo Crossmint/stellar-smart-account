@@ -2,7 +2,6 @@
 
 extern crate std;
 
-use ed25519_dalek::PublicKey;
 use soroban_sdk::auth::ContractContext;
 use soroban_sdk::map;
 use soroban_sdk::testutils::Address as _;
@@ -15,7 +14,6 @@ use soroban_sdk::IntoVal;
 
 use crate::test_utils::Ed25519TestSigner;
 use crate::test_utils::TestSigner;
-use env_logger;
 
 use super::*;
 
