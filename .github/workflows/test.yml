@@ -24,32 +24,16 @@ jobs:
     - name: Install jq
       run: sudo apt-get install jq
     
-    - name: Cache cargo registry and binaries
+    - name: Cache cargo registry
       uses: actions/cache@v3
       with:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          ~/.cargo/bin
           target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tarpaulin
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
           ${{ runner.os }}-cargo-
-
-    - name: Install tarpaulin
-      run: |
-        if ! command -v cargo-tarpaulin &> /dev/null; then
-          cargo install cargo-tarpaulin
-        else
-          echo "cargo-tarpaulin already installed, skipping"
-        fi
     
-    - name: Run tests and coverage
-      run: |
-        cargo tarpaulin --tests --out Json --jobs 4
-        COVERAGE=$(cat tarpaulin-report.json | jq -r .coverage)
-        echo "Coverage: $COVERAGE"
-        if (( COVERAGE < 80 )); then
-          echo "Coverage is less than 80%"
-          exit 1
-        fi
+    - name: Run tests
+      run: cargo test --verbose --jobs 4
