@@ -71,7 +71,7 @@ impl PermissionsCheck for SignerRole {
             SignerRole::Standard => match context {
                 Context::Contract(context) => {
                     let ContractContext { contract, .. } = context;
-                    contract.eq(&env.current_contract_address())
+                    !contract.eq(&env.current_contract_address())
                 }
                 _ => true,
             },

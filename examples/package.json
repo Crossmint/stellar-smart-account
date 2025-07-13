@@ -10,8 +10,11 @@
     "dev": "tsx smart-wallet-deployment.ts"
   },
   "dependencies": {
-    "@stellar/stellar-sdk": "^13.x",
-    "buffer": "^6.0.3"
+    "@stellar/stellar-sdk": "13.3.0",
+    "buffer": "^6.0.3",
+    "factory": "file:../packages/factory",
+    "smart_wallet": "file:../packages/smart_wallet",
+    "hello_world": "file:../packages/hello_world"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

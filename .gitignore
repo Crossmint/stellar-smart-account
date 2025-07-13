@@ -8,3 +8,4 @@ target
 tarpaulin-report.*
 
 **/node_modules
+**/dist
