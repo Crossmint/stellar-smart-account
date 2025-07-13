@@ -272,7 +272,7 @@ sequenceDiagram
     Note over SmartWallet: Step 1: Validate signature proofs
     SmartWallet->>SmartWallet: Check signature_proofs not empty
     
-    Note over SmartWallet: Step 2: Pre-validate signer existence (Optimization)
+    Note over SmartWallet: Step 2: Pre-validate signer existence
     loop For each (signer_key, _) in signature_proofs
         SmartWallet->>Storage: has(signer_key)
         Storage-->>SmartWallet: Exists/Not found
@@ -282,7 +282,7 @@ sequenceDiagram
         end
     end
     
-    Note over SmartWallet: Step 3: Verify signatures and cache signers (Optimization)
+    Note over SmartWallet: Step 3: Verify signatures and cache signers
     loop For each (signer_key, proof) in signature_proofs
         SmartWallet->>Storage: get_signer(signer_key)
         Storage-->>SmartWallet: Return signer (safe after has() check)
@@ -291,7 +291,7 @@ sequenceDiagram
         SmartWallet->>SmartWallet: Cache verified signer
     end
     
-    Note over SmartWallet: Step 4: Check permissions with early exit (Optimization)
+    Note over SmartWallet: Step 4: Check permissions with early exit
     loop For each auth_context
         SmartWallet->>SmartWallet: context_authorized = false
         loop For each (signer_key, _) in signature_proofs
