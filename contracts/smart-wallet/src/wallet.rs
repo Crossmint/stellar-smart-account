@@ -40,6 +40,15 @@ impl SmartWalletUpgradeableAuth for SmartWallet {
 // an explicit authorization for those signers
 impl Initializable for SmartWallet {}
 
+impl SmartWallet {
+    /// Only requires authorization if the contract is already initialized.
+    fn require_auth_if_initialized(env: &Env) {
+        if Self::is_initialized(env) {
+            env.current_contract_address().require_auth();
+        }
+    }
+}
+
 // ============================================================================
 // SmartWalletInterface implementation
 // ============================================================================
@@ -90,27 +99,21 @@ impl SmartWalletInterface for SmartWallet {
     }
 
     fn add_signer(env: &Env, signer: Signer) -> Result<(), Error> {
-        if Self::is_initialized(env) {
-            env.current_contract_address().require_auth();
-        }
+        Self::require_auth_if_initialized(env);
         let key = signer.clone().into();
         Storage::default().store::<SignerKey, Signer>(env, &key, &signer)?;
         Ok(())
     }
 
     fn update_signer(env: &Env, signer: Signer) -> Result<(), Error> {
-        if Self::is_initialized(env) {
-            env.current_contract_address().require_auth();
-        }
+        Self::require_auth_if_initialized(env);
         let key = signer.clone().into();
         Storage::default().update::<SignerKey, Signer>(env, &key, &signer)?;
         Ok(())
     }
 
     fn revoke_signer(env: &Env, signer_key: SignerKey) -> Result<(), Error> {
-        if Self::is_initialized(env) {
-            env.current_contract_address().require_auth();
-        }
+        Self::require_auth_if_initialized(env);
 
         let storage = Storage::default();
 

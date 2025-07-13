@@ -22,8 +22,11 @@ impl SignatureVerifier for Ed25519Signer {
     fn verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
         match proof {
             SignerProof::Ed25519(signature) => {
-                env.crypto()
-                    .ed25519_verify(&self.public_key, &Bytes::from(payload.clone()), signature);
+                env.crypto().ed25519_verify(
+                    &self.public_key,
+                    &Bytes::from(payload.clone()),
+                    signature,
+                );
                 Ok(())
             }
         }
