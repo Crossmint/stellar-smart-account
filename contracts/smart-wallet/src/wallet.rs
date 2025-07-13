@@ -4,13 +4,12 @@ use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
 use crate::error::Error;
 use crate::interface::SmartWalletInterface;
-use crate::require_auth;
 use initializable::{only_not_initialized, Initializable};
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    log, panic_with_error, Env, Vec,
+    log, panic_with_error, Env, Map, Vec,
 };
 use storage::Storage;
 use upgradeable::{SmartWalletUpgradeable, SmartWalletUpgradeableAuth};
@@ -66,6 +65,15 @@ impl SmartWalletInterface for SmartWallet {
             panic_with_error!(env, Error::InsufficientPermissionsOnCreation);
         }
 
+        let mut seen_signer_keys = Vec::new(&env);
+        for signer in signers.iter() {
+            let signer_key: SignerKey = signer.clone().into();
+            if seen_signer_keys.contains(&signer_key) {
+                panic_with_error!(env, Error::SignerAlreadyExists);
+            }
+            seen_signer_keys.push_back(signer_key);
+        }
+
         signers.iter().for_each(|signer| {
             // If it's a restricted signer, we check that the policies are valid.
             if let SignerRole::Restricted(policies) = signer.role() {
@@ -82,7 +90,9 @@ impl SmartWalletInterface for SmartWallet {
     }
 
     fn add_signer(env: &Env, signer: Signer) -> Result<(), Error> {
-        require_auth!(env);
+        if Self::is_initialized(env) {
+            env.current_contract_address().require_auth();
+        }
         Storage::default().store::<SignerKey, Signer>(
             env,
             &signer.clone().into(),
@@ -92,7 +102,9 @@ impl SmartWalletInterface for SmartWallet {
     }
 
     fn update_signer(env: &Env, signer: Signer) -> Result<(), Error> {
-        require_auth!(env);
+        if Self::is_initialized(env) {
+            env.current_contract_address().require_auth();
+        }
         Storage::default().update::<SignerKey, Signer>(
             env,
             &signer.clone().into(),
@@ -102,8 +114,21 @@ impl SmartWalletInterface for SmartWallet {
     }
 
     fn revoke_signer(env: &Env, signer_key: SignerKey) -> Result<(), Error> {
-        require_auth!(env);
-        Storage::default().delete::<SignerKey>(env, &signer_key)?;
+        if Self::is_initialized(env) {
+            env.current_contract_address().require_auth();
+        }
+        
+        let storage = Storage::default();
+        
+        let signer_to_revoke = storage.get::<SignerKey, Signer>(env, &signer_key)
+            .ok_or(Error::SignerNotFound)?;
+        
+        if signer_to_revoke.role() == SignerRole::Admin {
+            return Err(Error::CannotRevokeAdminSigner);
+        }
+        
+        storage.delete::<SignerKey>(env, &signer_key)?;
+      
         Ok(())
     }
 }
@@ -153,8 +178,8 @@ impl CustomAccountInterface for SmartWallet {
             return Err(Error::NoProofsInAuthEntry);
         }
 
-        // Step 1: Verify all provided signatures are cryptographically valid by delegating verification
-        // to the signer
+        // Step 1: Verify all provided signatures are cryptographically valid and cache signers
+        let mut verified_signers = soroban_sdk::Map::new(&env);
         for (signer_key, proof) in proof_map.iter() {
             let signer = match storage.get::<SignerKey, Signer>(&env, &signer_key.clone()) {
                 Some(signer) => signer,
@@ -164,15 +189,14 @@ impl CustomAccountInterface for SmartWallet {
                 }
             };
             signer.verify(&env, &signature_payload.to_bytes(), &proof)?;
+            verified_signers.set(signer_key.clone(), signer);
         }
 
-        // Step 2: Check authorization for each operation context
+        // Step 2: Check authorization for each operation context using cached signers
         // Ensure that for each operation, at least one signer has the required permissions
         for context in auth_contexts.iter() {
             if !proof_map.iter().any(|(signer_key, _)| {
-                let signer = storage
-                    .get::<SignerKey, Signer>(&env, &signer_key.clone())
-                    .unwrap(); // Safe to unwrap - we verified signer exists above
+                let signer = verified_signers.get(signer_key.clone()).unwrap(); // Safe to unwrap - we verified signer exists above
                 signer.role().is_authorized(&env, &context)
             }) {
                 return Err(Error::InsufficientPermissions);
