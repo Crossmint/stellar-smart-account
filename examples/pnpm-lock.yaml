@@ -17,9 +17,6 @@ importers:
       factory:
         specifier: file:../packages/factory
         version: file:../packages/factory
-      hello_world:
-        specifier: file:../packages/hello_world
-        version: file:../packages/hello_world
       smart_wallet:
         specifier: file:../packages/smart_wallet
         version: file:../packages/smart_wallet
@@ -371,9 +368,6 @@ packages:
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
-
-  hello_world@file:../packages/hello_world:
-    resolution: {directory: ../packages/hello_world, type: directory}
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -791,13 +785,6 @@ snapshots:
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
-
-  hello_world@file:../packages/hello_world:
-    dependencies:
-      '@stellar/stellar-sdk': 13.3.0
-      buffer: 6.0.3
-    transitivePeerDependencies:
-      - debug
 
   ieee754@1.2.1: {}
 

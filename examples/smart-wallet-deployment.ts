@@ -1,4 +1,4 @@
-import { Keypair, BASE_FEE, hash } from "@stellar/stellar-sdk";
+import { Keypair, BASE_FEE, hash, nativeToScVal } from "@stellar/stellar-sdk";
 import { Buffer } from "buffer";
 import { Client as FactoryClient } from "factory";
 import {
@@ -8,7 +8,6 @@ import {
   SignerProof,
   xdr,
 } from "smart_wallet";
-import { Client as HelloWorldClient } from "hello_world";
 import {
   FACTORY_WASM_HASH,
   ADMIN_SIGNER_KEYPAIR,
@@ -22,7 +21,10 @@ import {
   TREASURY_KEYPAIR,
   HELLO_WORLD_CONTRACT_ID,
 } from "./consts.js";
-import { basicNodeSigner } from "@stellar/stellar-sdk/contract";
+import {
+  AssembledTransaction,
+  basicNodeSigner,
+} from "@stellar/stellar-sdk/contract";
 import { Server } from "@stellar/stellar-sdk/rpc";
 import { printAuthEntries } from "./utils.js";
 
@@ -414,21 +416,29 @@ async function sendHelloWorldTransactionWithSmartWalletAuth(
     publicKey: TREASURY_KEYPAIR.publicKey(),
   });
 
-  const helloWorldClient = new HelloWorldClient({
-    contractId: HELLO_WORLD_CONTRACT_ID,
-    networkPassphrase: NETWORK,
-    rpcUrl: RPC_URL,
-    allowHttp: false,
-    publicKey: TREASURY_KEYPAIR.publicKey(),
-  });
-
   try {
-    const helloWorldTx = await helloWorldClient.hello(
-      { caller: smartWalletContractId },
-      {
-        simulate: true,
-      }
-    );
+    const helloWorldTx = await AssembledTransaction.build<string[]>({
+      method: "hello",
+      args: [
+        nativeToScVal(smartWalletContractId, {
+          type: "address",
+        }),
+      ],
+      contractId: HELLO_WORLD_CONTRACT_ID,
+      networkPassphrase: NETWORK,
+      rpcUrl: RPC_URL,
+      allowHttp: false,
+      publicKey: TREASURY_KEYPAIR.publicKey(),
+      parseResultXdr: (xdrVal: xdr.ScVal) => {
+        const xdrVec = xdrVal.vec();
+        if (!xdrVec) {
+          throw new Error("Expected a vector");
+        }
+        return xdrVec
+          .map((xdrItem) => xdrItem.str())
+          .map((str) => str.toString());
+      },
+    });
 
     printAuthEntries(helloWorldTx);
     await authorizeWithSmartWallet(

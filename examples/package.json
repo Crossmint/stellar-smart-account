@@ -13,8 +13,7 @@
     "@stellar/stellar-sdk": "13.3.0",
     "buffer": "^6.0.3",
     "factory": "file:../packages/factory",
-    "smart_wallet": "file:../packages/smart_wallet",
-    "hello_world": "file:../packages/hello_world"
+    "smart_wallet": "file:../packages/smart_wallet"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
