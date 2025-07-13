@@ -71,7 +71,7 @@ cd stellar-smart-account
 
 2. **Build the contracts**:
 ```bash
-stellar contract build
+soroban contract build
 ```
 
 3. **Run tests**:
