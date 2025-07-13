@@ -65,6 +65,15 @@ impl SmartWalletInterface for SmartWallet {
             panic_with_error!(env, Error::InsufficientPermissionsOnCreation);
         }
 
+        let mut seen_signer_keys = Vec::new(&env);
+        for signer in signers.iter() {
+            let signer_key: SignerKey = signer.clone().into();
+            if seen_signer_keys.contains(&signer_key) {
+                panic_with_error!(env, Error::SignerAlreadyExists);
+            }
+            seen_signer_keys.push_back(signer_key);
+        }
+
         signers.iter().for_each(|signer| {
             // If it's a restricted signer, we check that the policies are valid.
             if let SignerRole::Restricted(policies) = signer.role() {

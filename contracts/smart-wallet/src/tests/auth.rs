@@ -105,3 +105,23 @@ fn test_deploy_without_sufficient_permissions() {
     let test_signer = Ed25519TestSigner::generate(SignerRole::Standard);
     env.register(SmartWallet, (vec![&env, test_signer.into_signer(&env)],));
 }
+
+#[test]
+#[should_panic(expected = "Error(Contract, #21)")]
+fn test_constructor_duplicate_signers() {
+    let env = setup();
+    let test_signer = Ed25519TestSigner::generate(SignerRole::Admin);
+    let signer1 = test_signer.into_signer(&env);
+    let signer2 = test_signer.into_signer(&env); // Same signer key, different instance
+    env.register(SmartWallet, (vec![&env, signer1, signer2],));
+}
+
+#[test]
+fn test_constructor_different_signers_success() {
+    let env = setup();
+    let test_signer1 = Ed25519TestSigner::generate(SignerRole::Admin);
+    let test_signer2 = Ed25519TestSigner::generate(SignerRole::Standard);
+    let signer1 = test_signer1.into_signer(&env);
+    let signer2 = test_signer2.into_signer(&env);
+    env.register(SmartWallet, (vec![&env, signer1, signer2],));
+}
