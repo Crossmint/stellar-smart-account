@@ -1,7 +1,11 @@
 #![cfg(test)]
 
 use soroban_sdk::auth::{Context, ContractContext};
-use soroban_sdk::{map, testutils::BytesN as _, vec, Address, BytesN, IntoVal};
+use soroban_sdk::{
+    map,
+    testutils::{Address as _, BytesN as _},
+    vec, Address, BytesN, IntoVal,
+};
 
 use crate::{
     auth::{
@@ -227,7 +231,7 @@ fn test_auth_admin_can_update_signers() {
         auth_payloads.into_val(&env),
         &vec![
             &env,
-            get_update_signer_auth_context(&env, new_signer.into_signer(&env)),
+            get_update_signer_auth_context(&env, &contract_id, new_signer.into_signer(&env)),
         ],
     )
     .unwrap();
@@ -260,7 +264,7 @@ fn test_auth_standard_cannot_update_signers() {
             auth_payloads.into_val(&env),
             &vec![
                 &env,
-                get_update_signer_auth_context(&env, new_signer.into_signer(&env)),
+                get_update_signer_auth_context(&env, &contract_id, new_signer.into_signer(&env)),
             ],
         )
         .unwrap_err()
@@ -280,7 +284,7 @@ fn test_auth_time_based_policy_within_window() {
 
     let current_time = env.ledger().timestamp();
     let time_policy = SignerPolicy::TimeBased(TimeBasedPolicy {
-        not_before: current_time - 100,
+        not_before: current_time,
         not_after: current_time + 100,
     });
 
@@ -319,8 +323,8 @@ fn test_auth_time_based_policy_outside_window() {
 
     let current_time = env.ledger().timestamp();
     let time_policy = SignerPolicy::TimeBased(TimeBasedPolicy {
-        not_before: current_time + 100,
-        not_after: current_time + 200,
+        not_before: current_time + 1000,
+        not_after: current_time + 2000,
     });
 
     let restricted_signer =
@@ -555,7 +559,7 @@ fn test_auth_multiple_policies_all_satisfied() {
 
     let current_time = env.ledger().timestamp();
     let time_policy = SignerPolicy::TimeBased(TimeBasedPolicy {
-        not_before: current_time - 100,
+        not_before: current_time,
         not_after: current_time + 100,
     });
 
@@ -609,8 +613,8 @@ fn test_auth_multiple_policies_one_violated() {
 
     let current_time = env.ledger().timestamp();
     let time_policy = SignerPolicy::TimeBased(TimeBasedPolicy {
-        not_before: current_time - 100,
-        not_after: current_time + 100,
+        not_before: current_time + 100,
+        not_after: current_time + 200,
     });
 
     let allowlist_policy = SignerPolicy::ContractAllowList(ContractAllowListPolicy {
@@ -721,7 +725,7 @@ fn test_auth_multiple_contexts_partial_authorization() {
     let contexts = vec![
         &env,
         get_token_auth_context(&env),
-        get_update_signer_auth_context(&env, new_signer.into_signer(&env)),
+        get_update_signer_auth_context(&env, &contract_id, new_signer.into_signer(&env)),
     ];
 
     match env
