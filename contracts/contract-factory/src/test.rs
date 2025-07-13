@@ -7,11 +7,11 @@ use soroban_sdk::{
 };
 
 use crate::test_constants::SMART_ACCOUNT_WASM;
-use crate::{CrossmintContractFactory, CrossmintContractFactoryClient};
+use crate::{ContractFactory, ContractFactoryClient};
 
-fn create_factory_client<'a>(e: &Env, admin: &Address) -> CrossmintContractFactoryClient<'a> {
-    let address = e.register(CrossmintContractFactory, (admin,));
-    CrossmintContractFactoryClient::new(e, &address)
+fn create_factory_client<'a>(e: &Env, admin: &Address) -> ContractFactoryClient<'a> {
+    let address = e.register(ContractFactory, (admin,));
+    ContractFactoryClient::new(e, &address)
 }
 
 pub struct TestAccounts {
@@ -21,7 +21,7 @@ pub struct TestAccounts {
     pub outsider: Address,
 }
 
-fn setup_roles(e: &Env, client: &CrossmintContractFactoryClient, admin: &Address) -> TestAccounts {
+fn setup_roles(e: &Env, client: &ContractFactoryClient, admin: &Address) -> TestAccounts {
     let deployer_admin = Address::generate(e);
     let deployer1 = Address::generate(e);
     let deployer2 = Address::generate(e);
