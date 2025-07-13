@@ -126,7 +126,7 @@ import { Contract, networks } from "smart_wallet";
 
 const contract = new Contract({
   ...networks.futurenet,
-  rpcUrl: 'https://soroban-testnet.stellar.org:443'
+  rpcUrl: 'YOUR_SOROBAN_RPC_URL'
 });
 
 // Add a new signer
