@@ -4,7 +4,7 @@ use soroban_sdk::{
     contracterror, panic_with_error, symbol_short, BytesN, Env, FromVal, Symbol, Val,
 };
 
-#[contracterror]
+#[contracterror(export = false)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Error {
