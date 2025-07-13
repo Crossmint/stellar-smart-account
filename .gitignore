@@ -6,3 +6,6 @@ target
 .stellar
 **/test_snapshots
 tarpaulin-report.*
+
+**/node_modules
+**/dist

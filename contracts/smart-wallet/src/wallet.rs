@@ -1,4 +1,6 @@
-use crate::auth::permissions::{AuthorizationCheck, PolicyValidator, SignerRole};
+use crate::auth::permissions::SignerRole;
+use crate::auth::permissions::{AuthorizationCheck, PolicyValidator};
+use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
 use crate::error::Error;
 use crate::interface::SmartWalletInterface;
@@ -13,7 +15,6 @@ use soroban_sdk::{
 use storage::Storage;
 
 use crate::auth::proof::SignatureProofs;
-use crate::auth::signer::{Signer, SignerKey};
 
 /// SmartWallet is a multi-signature wallet contract that provides enhanced security
 /// through role-based access control and policy-based authorization.

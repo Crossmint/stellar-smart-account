@@ -1,0 +1,34 @@
+{
+  "name": "stellar-smart-wallet-examples",
+  "version": "1.0.0",
+  "description": "TypeScript examples for Stellar Smart Wallet deployment and usage",
+  "type": "module",
+  "main": "smart-wallet-deployment.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/smart-wallet-deployment.js",
+    "dev": "tsx smart-wallet-deployment.ts"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "13.3.0",
+    "buffer": "^6.0.3",
+    "factory": "file:../packages/factory",
+    "smart_wallet": "file:../packages/smart_wallet",
+    "hello_world": "file:../packages/hello_world"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.6.2"
+  },
+  "keywords": [
+    "stellar",
+    "soroban",
+    "smart-contracts",
+    "smart-wallet",
+    "blockchain",
+    "typescript"
+  ],
+  "author": "Crossmint",
+  "license": "MIT"
+}
