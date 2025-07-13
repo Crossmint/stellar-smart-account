@@ -18,7 +18,7 @@ impl Secp256r1Signer {
 }
 
 impl SignatureVerifier for Secp256r1Signer {
-    fn verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
+    fn verify(&self, env: &Env, _payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
         match proof {
             SignerProof::Secp256r1(signature) => {
                 let Secp256r1Signature {
