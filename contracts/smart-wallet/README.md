@@ -328,6 +328,40 @@ sequenceDiagram
     SorobanRuntime-->>Client: Transaction success
 ```
 
+## Gas Cost Analysis for `__check_auth`
+
+### Gas Cost Formula
+
+```
+Total_Gas = Storage_Lookups(n) + Signature_Verification + Role_Checks + Policy_Enforcement
+
+Where:
+- n = Number of signers
+- m = Number of authorization contexts  
+- p = Number of policies per signer
+- k = Contract list size (for allow/deny policies)
+```
+
+### Cost Factors
+
+| Component | Complexity | Notes |
+|-----------|------------|-------|
+| **Storage Operations** | O(n) | Signer existence checks and retrieval |
+| **Ed25519 Signatures** | O(1) | Baseline cost (1x) |
+| **Secp256r1 Signatures** | O(1) | ~3x cost vs Ed25519 (includes SHA256 operations) |
+| **Admin Role** | O(1) | Constant time authorization |
+| **Standard Role** | O(m) | Address comparison per context |
+| **Restricted Role** | O(p × m) | Policy evaluation per context |
+| **TimeBased Policy** | O(1) | Timestamp comparison |
+| **Allow/Deny List Policy** | O(k) | Linear search through contract list |
+
+### Optimization Recommendations
+
+- Use Ed25519 over Secp256r1 for better performance
+- Minimize signer count and policy complexity
+- Keep contract allow/deny lists small (< 10 contracts)
+- Prefer Admin role for high-frequency operations
+
 ### Sequence Numbers and Nonce Handling
 
 The Smart Wallet relies on Soroban's built-in sequence number mechanism for replay protection:
