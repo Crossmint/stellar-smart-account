@@ -66,18 +66,28 @@ pub enum SignerRole {
 // If it's a restricted signer, it's authorized if all the policies are authorized.
 impl AuthorizationCheck for SignerRole {
     fn is_authorized(&self, env: &Env, context: &Context) -> bool {
+        let is_admin_operation = match context {
+            Context::Contract(context) => {
+                let ContractContext { contract, .. } = context;
+                contract.eq(&env.current_contract_address())
+            }
+            _ => false,
+        };
+
         match self {
             SignerRole::Admin => true,
-            SignerRole::Standard => match context {
-                Context::Contract(context) => {
-                    let ContractContext { contract, .. } = context;
-                    !contract.eq(&env.current_contract_address())
+            SignerRole::Standard => !is_admin_operation,
+            SignerRole::Restricted(policies) => {
+                // Restricted signers cannot perform admin operations
+                if is_admin_operation {
+                    false
+                } else {
+                    // If not an admin operation, check all policies
+                    policies
+                        .iter()
+                        .all(|policy| policy.is_authorized(env, context))
                 }
-                _ => true,
-            },
-            SignerRole::Restricted(policies) => policies
-                .iter()
-                .all(|policy| policy.is_authorized(env, context)),
+            }
         }
     }
 }
