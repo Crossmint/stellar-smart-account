@@ -226,7 +226,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-![Crossmint Logo](https://crossmint.notion.site/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2F4c70854d-2aec-4777-89e3-868b9390d3f2%2F382a5c5e-4b5a-4b5e-9b5e-4b5a4b5e9b5e%2FCrossmint_Logo_Horizontal_Green.png?table=block&id=382a5c5e-4b5a-4b5e-9b5e-4b5a4b5e9b5e&spaceId=4c70854d-2aec-4777-89e3-868b9390d3f2&width=400&userId=&cache=v2)
+![Crossmint Logo](https://www.crossmint.com/assets/crossmint/logo.png)
 
 ### Built with ❤️ by **Crossmint**
 
