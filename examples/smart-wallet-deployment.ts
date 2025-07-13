@@ -157,11 +157,11 @@ async function authorizeWithSmartWallet(
 }
 
 /**
- * Step 1: Deploy the CrossmintContractFactory
+ * Step 1: Deploy the ContractFactory
  */
 async function deployFactory(): Promise<string> {
   console.log("\n" + "=".repeat(60));
-  console.log("🏭 STEP 1: DEPLOYING CROSSMINT CONTRACT FACTORY");
+  console.log("🏭 STEP 1: DEPLOYING CONTRACT FACTORY");
   console.log("=".repeat(60));
 
   try {
