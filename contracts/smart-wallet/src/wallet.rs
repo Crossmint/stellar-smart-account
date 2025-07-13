@@ -148,9 +148,9 @@ impl CustomAccountInterface for SmartWallet {
     /// Custom authorization function invoked by the Soroban runtime.
     ///
     /// This function implements the wallet's authorization logic with optimizations for Stellar costs:
-    /// 2. Verifies that all provided signatures are cryptographically valid
-    /// 5. Checks that at least one authorized signer has approved each operation
-    /// 6. Ensures signers have the required permissions for the requested operations
+    /// 1. Verifies that all provided signatures are cryptographically valid
+    /// 2. Checks that at least one authorized signer has approved each operation
+    /// 3. Ensures signers have the required permissions for the requested operations
     ///
     ///
     /// # Arguments
