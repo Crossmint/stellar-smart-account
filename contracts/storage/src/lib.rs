@@ -27,6 +27,33 @@ impl Default for Storage {
 }
 
 impl Storage {
+    fn execute_storage_set<K: IntoVal<Env, Val>, V: IntoVal<Env, Val>>(
+        &self,
+        env: &Env,
+        key: &K,
+        value: &V,
+    ) {
+        match self.storage_type {
+            StorageType::Persistent => {
+                env.storage().persistent().set::<K, V>(key, value);
+            }
+            StorageType::Instance => {
+                env.storage().instance().set::<K, V>(key, value);
+            }
+        }
+    }
+
+    fn execute_storage_remove<K: IntoVal<Env, Val>>(&self, env: &Env, key: &K) {
+        match self.storage_type {
+            StorageType::Persistent => {
+                env.storage().persistent().remove::<K>(key);
+            }
+            StorageType::Instance => {
+                env.storage().instance().remove::<K>(key);
+            }
+        }
+    }
+
     pub fn get<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
         &self,
         env: &Env,
@@ -47,14 +74,7 @@ impl Storage {
         if self.has(env, key) {
             return Err(Error::AlreadyExists);
         }
-        match self.storage_type {
-            StorageType::Persistent => {
-                env.storage().persistent().set::<K, V>(key, value);
-            }
-            StorageType::Instance => {
-                env.storage().instance().set::<K, V>(key, value);
-            }
-        }
+        self.execute_storage_set(env, key, value);
         Ok(())
     }
 
@@ -67,14 +87,7 @@ impl Storage {
         if !self.has(env, key) {
             return Err(Error::NotFound);
         }
-        match self.storage_type {
-            StorageType::Persistent => {
-                env.storage().persistent().set::<K, V>(key, value);
-            }
-            StorageType::Instance => {
-                env.storage().instance().set::<K, V>(key, value);
-            }
-        }
+        self.execute_storage_set(env, key, value);
         Ok(())
     }
 
@@ -82,14 +95,7 @@ impl Storage {
         if !self.has(env, key) {
             return Err(Error::NotFound);
         }
-        match self.storage_type {
-            StorageType::Persistent => {
-                env.storage().persistent().remove::<K>(key);
-            }
-            StorageType::Instance => {
-                env.storage().instance().remove::<K>(key);
-            }
-        }
+        self.execute_storage_remove(env, key);
         Ok(())
     }
 
@@ -98,6 +104,60 @@ impl Storage {
             StorageType::Persistent => env.storage().persistent().has::<K>(key),
             StorageType::Instance => env.storage().instance().has::<K>(key),
         }
+    }
+
+    pub fn batch_store<K: IntoVal<Env, Val> + Clone, V: IntoVal<Env, Val>>(
+        &self,
+        env: &Env,
+        items: &[(K, V)],
+    ) -> Result<(), Error> {
+        for (key, _) in items {
+            if self.has(env, key) {
+                return Err(Error::AlreadyExists);
+            }
+        }
+
+        for (key, value) in items {
+            self.execute_storage_set(env, key, value);
+        }
+
+        Ok(())
+    }
+
+    pub fn batch_update<K: IntoVal<Env, Val> + Clone, V: IntoVal<Env, Val>>(
+        &self,
+        env: &Env,
+        items: &[(K, V)],
+    ) -> Result<(), Error> {
+        for (key, _) in items {
+            if !self.has(env, key) {
+                return Err(Error::NotFound);
+            }
+        }
+
+        for (key, value) in items {
+            self.execute_storage_set(env, key, value);
+        }
+
+        Ok(())
+    }
+
+    pub fn batch_delete<K: IntoVal<Env, Val> + Clone>(
+        &self,
+        env: &Env,
+        keys: &[K],
+    ) -> Result<(), Error> {
+        for key in keys {
+            if !self.has(env, key) {
+                return Err(Error::NotFound);
+            }
+        }
+
+        for key in keys {
+            self.execute_storage_remove(env, key);
+        }
+
+        Ok(())
     }
 }
 
