@@ -17,6 +17,7 @@ upgradeable = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+contract-factory = { workspace = true }
 ed25519-dalek = { version = "1" }
 stellar-strkey = { version = "0.0.13" }
 rand = "0.7.3"

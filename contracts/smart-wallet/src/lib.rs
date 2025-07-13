@@ -13,3 +13,6 @@ pub use error::Error;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod test_constants;
