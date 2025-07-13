@@ -6,7 +6,7 @@ use soroban_sdk::{
     symbol_short, testutils::Address as _, vec, Address, BytesN, Env, IntoVal, Val, Vec,
 };
 
-use crate::test_constants::SMART_ACCOUNT_WASM;
+use crate::test_constants::get_smart_account_wasm;
 use crate::{ContractFactory, ContractFactoryClient};
 
 fn create_factory_client<'a>(e: &Env, admin: &Address) -> ContractFactoryClient<'a> {
@@ -356,8 +356,7 @@ fn test_address_prediction_before_and_after_deployment() {
 
     let predicted_address = client.get_deployed_address(&salt);
 
-    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
-    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let wasm_hash = get_smart_account_wasm(&e);
 
     // Step 3: Deploy the contract with the same salt
     let constructor_args: Vec<Val> = vec![&e];
@@ -381,8 +380,7 @@ fn test_deploy_idempotency() {
     let client = create_factory_client(&e, &admin);
     let accounts = setup_roles(&e, &client, &admin);
 
-    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
-    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let wasm_hash = get_smart_account_wasm(&e);
     let salt = create_mock_salt(&e, 1);
     let constructor_args: Vec<Val> = vec![&e];
 
@@ -420,7 +418,7 @@ fn test_upload_and_deploy_function_exists() {
     let accounts = setup_roles(&e, &client, &admin);
     let salt = create_mock_salt(&e, 1);
 
-    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, crate::test_constants::SMART_ACCOUNT_WASM);
     let constructor_args: Vec<Val> = vec![&e];
 
     let deployed_address =

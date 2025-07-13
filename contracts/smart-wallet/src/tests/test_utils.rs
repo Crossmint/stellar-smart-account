@@ -17,6 +17,7 @@ use crate::auth::signers::Ed25519Signer;
 use soroban_sdk::auth::ContractContext;
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::Address;
+use soroban_sdk::Bytes;
 use soroban_sdk::IntoVal;
 
 pub fn setup() -> Env {
@@ -74,4 +75,16 @@ impl TestSignerTrait for Ed25519TestSigner {
         let signature = SignerProof::Ed25519(BytesN::from_array(env, &signature_bytes));
         (signer_key, signature)
     }
+}
+
+pub const SMART_WALLET_WASM: &[u8] = &[0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00];
+
+pub fn get_smart_wallet_wasm(env: &Env) -> soroban_sdk::BytesN<32> {
+    let wasm_bytes = Bytes::from_slice(env, SMART_WALLET_WASM);
+    env.deployer().upload_contract_wasm(wasm_bytes)
+}
+
+pub fn get_contract_factory_wasm(env: &Env) -> soroban_sdk::BytesN<32> {
+    let wasm_bytes = Bytes::from_slice(env, SMART_WALLET_WASM);
+    env.deployer().upload_contract_wasm(wasm_bytes)
 }
