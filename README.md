@@ -4,7 +4,7 @@
 [![Soroban SDK](https://img.shields.io/badge/soroban--sdk-22.0.0-blue.svg)](https://soroban.stellar.org/)
 [![Test Status](https://github.com/Crossmint/stellar-smart-account/workflows/Test/badge.svg)](https://github.com/Crossmint/stellar-smart-account/actions)
 [![Coverage](https://img.shields.io/badge/coverage-80%25+-green.svg)](https://github.com/Crossmint/stellar-smart-account/actions)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 A comprehensive smart contract system for Stellar/Soroban that provides enterprise-grade account management with multi-signature support, role-based access control, and policy-based authorization. Designed for both human users and AI agents requiring sophisticated permission systems.
 
@@ -171,7 +171,7 @@ The contracts are designed for deployment on:
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ---
 
