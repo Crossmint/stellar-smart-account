@@ -6,17 +6,55 @@ use storage::Error as StorageError;
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u32)]
 pub enum Error {
-    NoSigners = 0,
-    NotFound = 1,
-    MatchingSignatureNotFound = 2,
-    SignatureVerificationFailed = 3,
-    SignerExpired = 4,
-    SignerAlreadyExists = 5,
-    SignerNotFound = 6,
-    AlreadyInitialized = 7,
-    NotInitialized = 8,
-    StorageEntryNotFound = 9,
-    StorageEntryAlreadyExists = 10,
+    // === Initialization Errors (0-9) ===
+    /// Contract has already been initialized
+    AlreadyInitialized = 0,
+    /// Contract has not been initialized yet
+    NotInitialized = 1,
+
+    // === Storage Errors (10-19) ===
+    /// Storage entry was not found
+    StorageEntryNotFound = 10,
+    /// Storage entry already exists
+    StorageEntryAlreadyExists = 11,
+
+    // === Signer Management Errors (20-39) ===
+    /// No signers are configured for the wallet
+    NoSigners = 20,
+    /// Signer already exists in the wallet
+    SignerAlreadyExists = 21,
+    /// Signer was not found in the wallet
+    SignerNotFound = 22,
+    /// Signer has expired and is no longer valid
+    SignerExpired = 23,
+
+    // === Authentication & Signature Errors (40-59) ===
+    /// No matching signature found for the given criteria
+    MatchingSignatureNotFound = 40,
+    /// Signature verification failed during authentication
+    SignatureVerificationFailed = 41,
+    /// Invalid proof type provided
+    InvalidProofType = 42,
+    /// No proofs found in the authentication entry
+    NoProofsInAuthEntry = 43,
+
+    // === Permission Errors (60-79) ===
+    /// Insufficient permissions to perform the requested operation
+    InsufficientPermissions = 60,
+    /// Insufficient permissions during wallet creation
+    InsufficientPermissionsOnCreation = 61,
+
+    // === Policy Errors (80-99) ===
+    /// Invalid policy configuration
+    InvalidPolicy = 80,
+    /// Invalid time range specified in policy
+    InvalidTimeRange = 81,
+    /// Invalid not-after time specified
+    InvalidNotAfterTime = 82,
+
+    // === Generic Errors (100+) ===
+    /// Requested resource was not found
+    NotFound = 100,
 }
 
 impl From<InitializableError> for Error {

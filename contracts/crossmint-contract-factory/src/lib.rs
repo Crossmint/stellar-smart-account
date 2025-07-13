@@ -1,6 +1,6 @@
 #![no_std]
 use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, BytesN, Env, Val, Vec};
-use stellar_access_control::{grant_role, set_admin, AccessControl};
+use stellar_access_control::{grant_role_no_auth, set_admin, AccessControl};
 use stellar_access_control_macros::only_role;
 use stellar_default_impl_macro::default_impl;
 
@@ -12,7 +12,7 @@ impl CrossmintContractFactory {
     /// Construct the deployer with a given admin address.
     pub fn __constructor(env: &Env, admin: Address) {
         set_admin(env, &admin);
-        grant_role(env, &admin, &admin, &symbol_short!("deployer"));
+        grant_role_no_auth(env, &admin, &admin, &symbol_short!("deployer"));
     }
 
     /// Deploys the contract on behalf of the `CrossmintContractFactory` contract.
@@ -33,10 +33,8 @@ impl CrossmintContractFactory {
         // change or it could be a completely separate contract with complex
         // authorization rules, but all the contracts will still be deployed
         // by the same `CrossmintContractFactory` contract address.
-        
 
-        env
-            .deployer()
+        env.deployer()
             .with_current_contract(salt)
             .deploy_v2(wasm_hash, constructor_args)
     }
@@ -56,10 +54,8 @@ impl CrossmintContractFactory {
 
         // Deploy the contract using the uploaded WASM hash on behalf
         // of the current contract.
-        
 
-        env
-            .deployer()
+        env.deployer()
             .with_address(env.current_contract_address(), salt)
             .deploy_v2(wasm_hash, constructor_args)
     }
