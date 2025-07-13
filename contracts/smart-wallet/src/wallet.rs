@@ -25,6 +25,8 @@ use crate::auth::proof::SignatureProofs;
 #[contract]
 pub struct SmartWallet;
 
+// Implements SmartWalletUpgradeable trait to allow the contract to be upgraded
+// by authorized signers through the upgrade mechanism
 #[contractimpl]
 impl SmartWalletUpgradeable for SmartWallet {}
 
