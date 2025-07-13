@@ -4,7 +4,7 @@ use soroban_sdk::{
     contracterror, panic_with_error, symbol_short, BytesN, Env, FromVal, Symbol, Val,
 };
 
-#[contracterror]
+#[contracterror(export = false)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Error {
@@ -45,6 +45,27 @@ pub trait SmartWalletUpgradeableMigratableInternal {
 
 pub trait SmartWalletUpgradeableAuth {
     fn _require_auth_upgrade(e: &Env);
+}
+
+/// Macro to implement SmartWalletUpgradeable for a contract type.
+/// This generates the necessary contractimpl block with the upgrade function.
+///
+/// # Usage
+/// ```rust
+/// upgradeable::impl_upgradeable!(MyContract);
+/// ```
+#[macro_export]
+macro_rules! impl_upgradeable {
+    ($contract_type:ident) => {
+        #[soroban_sdk::contractimpl]
+        impl SmartWalletUpgradeable for $contract_type {
+            fn upgrade(env: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
+                Self::_require_auth_upgrade(env);
+                $crate::enable_migration(env);
+                env.deployer().update_current_contract_wasm(new_wasm_hash);
+            }
+        }
+    };
 }
 
 pub fn ensure_can_complete_migration(e: &Env) {
