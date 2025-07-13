@@ -117,7 +117,18 @@ impl SmartWalletInterface for SmartWallet {
         if Self::is_initialized(env) {
             env.current_contract_address().require_auth();
         }
-        Storage::default().delete::<SignerKey>(env, &signer_key)?;
+        
+        let storage = Storage::default();
+        
+        let signer_to_revoke = storage.get::<SignerKey, Signer>(env, &signer_key)
+            .ok_or(Error::SignerNotFound)?;
+        
+        if signer_to_revoke.role() == SignerRole::Admin {
+            return Err(Error::CannotRevokeAdminSigner);
+        }
+        
+        storage.delete::<SignerKey>(env, &signer_key)?;
+      
         Ok(())
     }
 }
