@@ -105,60 +105,6 @@ impl Storage {
             StorageType::Instance => env.storage().instance().has::<K>(key),
         }
     }
-
-    pub fn batch_store<K: IntoVal<Env, Val> + Clone, V: IntoVal<Env, Val>>(
-        &self,
-        env: &Env,
-        items: &[(K, V)],
-    ) -> Result<(), Error> {
-        for (key, _) in items {
-            if self.has(env, key) {
-                return Err(Error::AlreadyExists);
-            }
-        }
-
-        for (key, value) in items {
-            self.execute_storage_set(env, key, value);
-        }
-
-        Ok(())
-    }
-
-    pub fn batch_update<K: IntoVal<Env, Val> + Clone, V: IntoVal<Env, Val>>(
-        &self,
-        env: &Env,
-        items: &[(K, V)],
-    ) -> Result<(), Error> {
-        for (key, _) in items {
-            if !self.has(env, key) {
-                return Err(Error::NotFound);
-            }
-        }
-
-        for (key, value) in items {
-            self.execute_storage_set(env, key, value);
-        }
-
-        Ok(())
-    }
-
-    pub fn batch_delete<K: IntoVal<Env, Val> + Clone>(
-        &self,
-        env: &Env,
-        keys: &[K],
-    ) -> Result<(), Error> {
-        for key in keys {
-            if !self.has(env, key) {
-                return Err(Error::NotFound);
-            }
-        }
-
-        for key in keys {
-            self.execute_storage_remove(env, key);
-        }
-
-        Ok(())
-    }
 }
 
 mod test;
