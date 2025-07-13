@@ -402,10 +402,11 @@ async function addSigner(smartWalletContractId: string): Promise<void> {
  * Step 5: Send a hello world transaction with smart wallet authorization
  */
 async function sendHelloWorldTransactionWithSmartWalletAuth(
-  smartWalletContractId: string
+  smartWalletContractId: string,
+  step: string
 ): Promise<void> {
   console.log("\n" + "=".repeat(60));
-  console.log("🌍 STEP 5: SENDING HELLO WORLD TRANSACTION");
+  console.log(`🌍 STEP ${step}: SENDING HELLO WORLD TRANSACTION`);
   console.log("=".repeat(60));
 
   const smartWalletClient = new SmartWalletClient({
@@ -467,6 +468,61 @@ async function sendHelloWorldTransactionWithSmartWalletAuth(
   }
 }
 
+/**
+ * Step 6: Upgrade the smart wallet
+ */
+async function upgradeSmartWallet(
+  smartWalletContractId: string
+): Promise<void> {
+  console.log("\n" + "=".repeat(60));
+  console.log("➕ STEP 6: UPGRADING SMART WALLET");
+  console.log("=".repeat(60));
+
+  const smartWalletClient = new SmartWalletClient({
+    contractId: smartWalletContractId,
+    networkPassphrase: NETWORK,
+    rpcUrl: RPC_URL,
+    allowHttp: false,
+    publicKey: TREASURY_KEYPAIR.publicKey(),
+  });
+
+  try {
+    const upgradeTx = await smartWalletClient.upgrade(
+      {
+        new_wasm_hash: Buffer.from(SW_WASM_HASH, "hex"),
+      },
+      {
+        simulate: true,
+      }
+    );
+
+    printAuthEntries(upgradeTx);
+    await authorizeWithSmartWallet(
+      upgradeTx,
+      smartWalletContractId,
+      ADMIN_SIGNER_KEYPAIR,
+      smartWalletClient
+    );
+    await upgradeTx.simulate();
+    await upgradeTx.sign(basicNodeSigner(TREASURY_KEYPAIR, NETWORK));
+    const result = await upgradeTx.send();
+    const txHash = result.sendTransactionResponse?.hash;
+    if (!txHash) {
+      throw new Error(
+        "Upgrade smart wallet transaction failed: " + JSON.stringify(result)
+      );
+    }
+
+    console.log("📤 Transaction submitted with hash:", txHash);
+    await confirmTransaction(txHash, "Upgrade smart wallet");
+
+    console.log("✅ Smart wallet upgraded successfully");
+  } catch (error) {
+    console.error("❌ Failed to upgrade smart wallet:", error);
+    throw error;
+  }
+}
+
 function createAdminSignerFromKeypair(adminSignerKeyPair: Keypair): Signer {
   return {
     tag: "Ed25519",
@@ -498,7 +554,15 @@ async function main() {
     await grantDeployerRole(factoryContractId);
     const smartWalletContractId = await deploySmartWallet(factoryContractId);
     await addSigner(smartWalletContractId);
-    await sendHelloWorldTransactionWithSmartWalletAuth(smartWalletContractId);
+    await sendHelloWorldTransactionWithSmartWalletAuth(
+      smartWalletContractId,
+      "5"
+    );
+    await upgradeSmartWallet(smartWalletContractId);
+    await sendHelloWorldTransactionWithSmartWalletAuth(
+      smartWalletContractId,
+      "7"
+    );
 
     console.log("\n" + "=".repeat(60));
     console.log("📋 DEPLOYMENT SUMMARY");
