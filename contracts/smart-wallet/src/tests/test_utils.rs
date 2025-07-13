@@ -32,9 +32,9 @@ pub fn get_token_auth_context(e: &Env) -> Context {
     })
 }
 
-pub fn get_update_signer_auth_context(e: &Env, signer: Signer) -> Context {
+pub fn get_update_signer_auth_context(e: &Env, contract_id: &Address, signer: Signer) -> Context {
     Context::Contract(ContractContext {
-        contract: e.current_contract_address(),
+        contract: contract_id.clone(),
         fn_name: "update_signer".into_val(e),
         args: (signer.clone(),).into_val(e),
     })
