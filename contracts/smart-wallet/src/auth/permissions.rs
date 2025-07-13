@@ -75,9 +75,24 @@ impl AuthorizationCheck for SignerRole {
                 }
                 _ => true,
             },
-            SignerRole::Restricted(policies) => policies
-                .iter()
-                .all(|policy| policy.is_authorized(env, context)),
+            SignerRole::Restricted(policies) => {
+                let is_admin_operation = match context {
+                    Context::Contract(context) => {
+                        let ContractContext { contract, .. } = context;
+                        contract.eq(&env.current_contract_address())
+                    }
+                    _ => false,
+                };
+                // Restricted signers cannot perform admin operations
+                if is_admin_operation {
+                    false
+                } else {
+                    // If not an admin operation, check all policies
+                    policies
+                        .iter()
+                        .all(|policy| policy.is_authorized(env, context))
+                }
+            }
         }
     }
 }
