@@ -38,6 +38,13 @@ pub enum Error {
     InvalidProofType = 42,
     /// No proofs found in the authentication entry
     NoProofsInAuthEntry = 43,
+    /// Invalid threshold value for multisig signer
+    InvalidThreshold = 44,
+    EmptyPublicKeysList = 45,
+    /// Insufficient signatures for multisig threshold
+    InsufficientSignatures = 46,
+    /// Invalid signer index in multisig proof
+    InvalidSignerIndex = 47,
 
     // === Permission Errors (60-79) ===
     /// Insufficient permissions to perform the requested operation

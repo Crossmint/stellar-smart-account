@@ -1,6 +1,8 @@
 mod ed25519;
+mod multisig;
 
 pub use ed25519::Ed25519Signer;
+pub use multisig::MultisigSigner;
 
 use crate::auth::proof::SignerProof;
 use crate::error::Error;
