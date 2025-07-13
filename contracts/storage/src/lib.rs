@@ -27,6 +27,33 @@ impl Default for Storage {
 }
 
 impl Storage {
+    fn execute_storage_set<K: IntoVal<Env, Val>, V: IntoVal<Env, Val>>(
+        &self,
+        env: &Env,
+        key: &K,
+        value: &V,
+    ) {
+        match self.storage_type {
+            StorageType::Persistent => {
+                env.storage().persistent().set::<K, V>(key, value);
+            }
+            StorageType::Instance => {
+                env.storage().instance().set::<K, V>(key, value);
+            }
+        }
+    }
+
+    fn execute_storage_remove<K: IntoVal<Env, Val>>(&self, env: &Env, key: &K) {
+        match self.storage_type {
+            StorageType::Persistent => {
+                env.storage().persistent().remove::<K>(key);
+            }
+            StorageType::Instance => {
+                env.storage().instance().remove::<K>(key);
+            }
+        }
+    }
+
     pub fn get<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
         &self,
         env: &Env,
@@ -47,14 +74,7 @@ impl Storage {
         if self.has(env, key) {
             return Err(Error::AlreadyExists);
         }
-        match self.storage_type {
-            StorageType::Persistent => {
-                env.storage().persistent().set::<K, V>(key, value);
-            }
-            StorageType::Instance => {
-                env.storage().instance().set::<K, V>(key, value);
-            }
-        }
+        self.execute_storage_set(env, key, value);
         Ok(())
     }
 
@@ -67,14 +87,7 @@ impl Storage {
         if !self.has(env, key) {
             return Err(Error::NotFound);
         }
-        match self.storage_type {
-            StorageType::Persistent => {
-                env.storage().persistent().set::<K, V>(key, value);
-            }
-            StorageType::Instance => {
-                env.storage().instance().set::<K, V>(key, value);
-            }
-        }
+        self.execute_storage_set(env, key, value);
         Ok(())
     }
 
@@ -82,14 +95,7 @@ impl Storage {
         if !self.has(env, key) {
             return Err(Error::NotFound);
         }
-        match self.storage_type {
-            StorageType::Persistent => {
-                env.storage().persistent().remove::<K>(key);
-            }
-            StorageType::Instance => {
-                env.storage().instance().remove::<K>(key);
-            }
-        }
+        self.execute_storage_remove(env, key);
         Ok(())
     }
 

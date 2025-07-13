@@ -9,7 +9,7 @@ use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    log, panic_with_error, Env, Map, Vec,
+    log, panic_with_error, Env, Vec,
 };
 use storage::Storage;
 use upgradeable::{SmartWalletUpgradeable, SmartWalletUpgradeableAuth};
@@ -93,11 +93,8 @@ impl SmartWalletInterface for SmartWallet {
         if Self::is_initialized(env) {
             env.current_contract_address().require_auth();
         }
-        Storage::default().store::<SignerKey, Signer>(
-            env,
-            &signer.clone().into(),
-            &signer.clone(),
-        )?;
+        let key = signer.clone().into();
+        Storage::default().store::<SignerKey, Signer>(env, &key, &signer)?;
         Ok(())
     }
 
@@ -105,11 +102,8 @@ impl SmartWalletInterface for SmartWallet {
         if Self::is_initialized(env) {
             env.current_contract_address().require_auth();
         }
-        Storage::default().update::<SignerKey, Signer>(
-            env,
-            &signer.clone().into(),
-            &signer.clone(),
-        )?;
+        let key = signer.clone().into();
+        Storage::default().update::<SignerKey, Signer>(env, &key, &signer)?;
         Ok(())
     }
 
@@ -117,18 +111,19 @@ impl SmartWalletInterface for SmartWallet {
         if Self::is_initialized(env) {
             env.current_contract_address().require_auth();
         }
-        
+
         let storage = Storage::default();
-        
-        let signer_to_revoke = storage.get::<SignerKey, Signer>(env, &signer_key)
+
+        let signer_to_revoke = storage
+            .get::<SignerKey, Signer>(env, &signer_key)
             .ok_or(Error::SignerNotFound)?;
-        
+
         if signer_to_revoke.role() == SignerRole::Admin {
             return Err(Error::CannotRevokeAdminSigner);
         }
-        
+
         storage.delete::<SignerKey>(env, &signer_key)?;
-      
+
         Ok(())
     }
 }
@@ -181,7 +176,7 @@ impl CustomAccountInterface for SmartWallet {
         // Step 1: Verify all provided signatures are cryptographically valid and cache signers
         let mut verified_signers = soroban_sdk::Map::new(&env);
         for (signer_key, proof) in proof_map.iter() {
-            let signer = match storage.get::<SignerKey, Signer>(&env, &signer_key.clone()) {
+            let signer = match storage.get::<SignerKey, Signer>(&env, &signer_key) {
                 Some(signer) => signer,
                 None => {
                     log!(&env, "Signer not found {:?}", signer_key);
