@@ -330,173 +330,37 @@ sequenceDiagram
 
 ## Gas Cost Analysis for `__check_auth`
 
-The `__check_auth` function is the core authentication mechanism that determines gas costs for Smart Wallet operations. Understanding these costs is crucial for optimizing transaction efficiency and predicting operational expenses.
-
-### Overview of Gas-Consuming Operations
-
-The authentication process involves several gas-consuming operations that scale with different factors:
-
-1. **Storage Operations**: Signer existence checks and retrieval
-2. **Signature Verification**: Cryptographic proof validation
-3. **Authorization Checks**: Role-based permission evaluation
-4. **Policy Enforcement**: Restriction validation for limited signers
-
 ### Gas Cost Formula
 
-The total gas cost for `__check_auth` can be expressed as:
-
 ```
-Total_Gas = Base_Operations + Signature_Verification + Authorization_Checks + Policy_Enforcement
+Total_Gas = Storage_Lookups(n) + Signature_Verification + Role_Checks + Policy_Enforcement
 
 Where:
-Base_Operations = Storage_Lookups(n) + Proof_Validation(n)
-Signature_Verification = Σ(Signer_Type_Cost[i]) for i in signers
-Authorization_Checks = Σ(Role_Cost[i] × Context_Count) for i in signers  
-Policy_Enforcement = Σ(Policy_Cost[j] × Policy_Count[i]) for all policies
+- n = Number of signers
+- m = Number of authorization contexts  
+- p = Number of policies per signer
+- k = Contract list size (for allow/deny policies)
 ```
 
-**Variables:**
-- `n` = Number of signers providing proofs
-- `m` = Number of authorization contexts being validated
-- `k` = Average number of contracts in allow/deny lists
+### Cost Factors
 
-### Storage Operations Complexity
+| Component | Complexity | Notes |
+|-----------|------------|-------|
+| **Storage Operations** | O(n) | Signer existence checks and retrieval |
+| **Ed25519 Signatures** | O(1) | Baseline cost (1x) |
+| **Secp256r1 Signatures** | O(1) | ~3x cost vs Ed25519 (includes SHA256 operations) |
+| **Admin Role** | O(1) | Constant time authorization |
+| **Standard Role** | O(m) | Address comparison per context |
+| **Restricted Role** | O(p × m) | Policy evaluation per context |
+| **TimeBased Policy** | O(1) | Timestamp comparison |
+| **Allow/Deny List Policy** | O(k) | Linear search through contract list |
 
-```rust
-// Step 1: Pre-validate signer existence - O(n)
-for (signer_key, _) in proof_map.iter() {
-    if !storage.has(&env, &signer_key) {
-        return Err(Error::SignerNotFound);
-    }
-}
+### Optimization Recommendations
 
-// Step 2: Retrieve and cache signers - O(n)
-for (signer_key, proof) in proof_map.iter() {
-    let signer = storage.get::<SignerKey, Signer>(&env, &signer_key).unwrap();
-    // ... verification and caching
-}
-```
-
-**Cost:** `2n` storage operations where `n` = number of signers
-
-### Signature Verification Costs by Type
-
-#### Ed25519 Signatures
-```rust
-env.crypto().ed25519_verify(&self.public_key, &payload_bytes, signature);
-```
-- **Operations:** 1 cryptographic verification call
-- **Relative Cost:** `1x` (baseline)
-
-#### Secp256r1 Signatures (WebAuthn/Passkeys)
-```rust
-// Multiple operations required
-authenticator_data.extend_from_array(&env.crypto().sha256(&client_data_json).to_array());
-env.crypto().secp256r1_verify(
-    &self.public_key,
-    &env.crypto().sha256(&authenticator_data),
-    &signature,
-);
-```
-- **Operations:** 2 SHA256 hashes + 1 secp256r1 verification
-- **Relative Cost:** `~3x` compared to Ed25519
-
-### Role-Based Authorization Costs
-
-#### Admin Role
-```rust
-SignerRole::Admin => true, // O(1) - always authorized
-```
-- **Complexity:** O(1)
-- **Cost:** Constant, minimal overhead
-
-#### Standard Role  
-```rust
-SignerRole::Standard => match context {
-    Context::Contract(context) => {
-        !contract.eq(&env.current_contract_address()) // Contract address comparison
-    }
-    _ => true,
-}
-```
-- **Complexity:** O(1) per context
-- **Cost:** Address comparison overhead per authorization context
-
-#### Restricted Role
-```rust
-SignerRole::Restricted(policies) => policies
-    .iter()
-    .all(|policy| policy.is_authorized(env, context)) // O(p) where p = policy count
-```
-- **Complexity:** O(p × m) where p = policies per signer, m = contexts
-- **Cost:** Scales with number of policies and authorization contexts
-
-### Policy-Specific Costs
-
-#### TimeBasedPolicy
-```rust
-fn is_authorized(&self, env: &Env, _context: &Context) -> bool {
-    let current_time = env.ledger().timestamp();
-    current_time >= self.not_before && current_time <= self.not_after
-}
-```
-- **Complexity:** O(1)
-- **Operations:** 1 timestamp lookup + 2 comparisons
-- **Cost:** Minimal, constant time
-
-#### ContractAllowListPolicy
-```rust
-fn is_authorized(&self, _env: &Env, context: &Context) -> bool {
-    match context {
-        Context::Contract(contract_context) => {
-            self.allowed_contracts.contains(&contract_context.contract) // O(k) linear search
-        }
-        _ => false,
-    }
-}
-```
-- **Complexity:** O(k) where k = number of allowed contracts
-- **Cost:** Linear search through contract list
-
-#### ContractDenyListPolicy
-```rust
-fn is_authorized(&self, _env: &Env, context: &Context) -> bool {
-    match context {
-        Context::Contract(contract_context) => {
-            !self.denied_contracts.contains(&contract_context.contract) // O(k) linear search
-        }
-        _ => true,
-    }
-}
-```
-- **Complexity:** O(k) where k = number of denied contracts  
-- **Cost:** Linear search through contract list
-
-### Optimization Strategies
-
-1. **Minimize Signer Count**: Each additional signer adds storage and verification overhead
-2. **Prefer Ed25519**: ~3x more efficient than Secp256r1 for signature verification  
-3. **Limit Policy Lists**: ContractAllowList/DenyList costs scale linearly with list size
-4. **Use Admin Role When Possible**: Constant-time authorization vs. policy evaluation
-5. **Batch Operations**: Multiple contexts in single transaction amortize setup costs
-
-### Gas Cost Scaling Characteristics
-
-| Factor | Scaling | Impact |
-|--------|---------|---------|
-| **Number of Signers (n)** | Linear O(n) | Storage + verification costs |
-| **Authorization Contexts (m)** | Linear O(m) | Role checking overhead |
-| **Policy Count per Signer (p)** | Linear O(p) | Restricted role evaluation |
-| **Contract List Size (k)** | Linear O(k) | Allow/deny list searches |
-| **Signature Type** | Constant | Ed25519: 1x, Secp256r1: ~3x |
-
-### Recommendations for Developers
-
-- **For High-Frequency Operations**: Use single Admin signer with Ed25519
-- **For Security-Critical Operations**: Accept higher gas costs for multi-signature setups
-- **For AI Agent Integration**: Use time-based policies to minimize long-term gas exposure
-- **For Contract Interactions**: Keep allow/deny lists under 10 contracts when possible
-- **For Cost Optimization**: Profile your specific use case and adjust signer configuration accordingly
+- Use Ed25519 over Secp256r1 for better performance
+- Minimize signer count and policy complexity
+- Keep contract allow/deny lists small (< 10 contracts)
+- Prefer Admin role for high-frequency operations
 
 ### Sequence Numbers and Nonce Handling
 
