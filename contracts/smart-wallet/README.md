@@ -92,17 +92,17 @@ The system supports Ed25519 and Secp256r1 (WebAuthn/passkey) signatures with a d
 ```rust
 pub enum SignerKey {
     Ed25519(BytesN<32>),
-    // Future signer types can be added here
+    Secp256r1(Bytes),
 }
 
 pub enum Signer {
     Ed25519(Ed25519Signer, SignerRole),
-    // Future signer implementations can be added here
+    Secp256r1(Secp256r1Signer, SignerRole),
 }
 
 pub enum SignerProof {
     Ed25519(BytesN<64>),
-    // Future proof types can be added here
+    Secp256r1(Secp256r1Signature),
 }
 ```
 

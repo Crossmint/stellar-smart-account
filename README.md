@@ -58,7 +58,7 @@ Secure deployment system featuring:
 ### Prerequisites
 
 - Rust 1.75+ with `wasm32-unknown-unknown` target
-- [Soroban CLI](https://soroban.stellar.org/docs/getting-started/setup)
+- [Stellar CLI](https://soroban.stellar.org/docs/getting-started/setup)
 - Node.js 18+ (for JavaScript bindings)
 
 ### Installation
