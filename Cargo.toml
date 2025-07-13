@@ -4,6 +4,9 @@ members = [
   "contracts/*",
 ]
 
+[workspace.package]
+license = "Apache-2.0"
+
 [workspace.dependencies]
 soroban-sdk = "22.0.0"
 smart-wallet = { path = "contracts/smart-wallet" }
