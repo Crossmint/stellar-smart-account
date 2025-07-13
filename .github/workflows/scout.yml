@@ -1,0 +1,32 @@
+name: scout-audit
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  scout-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+      repository-projects: write
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: do scout
+        uses: coinfabrik/scout-actions@v3
+        with:
+          target: 'contracts/smart-wallet' 
+
+      - uses: mshick/add-pr-comment@v2.8.2
+        with:
+          message-path:  ${{ github.workspace }}/report.md
+
+      - name: Check for error
+        run: |
+          if [ -f "${{ github.workspace }}/FAIL" ]; then
+            echo "Error: Scout found issues."
+            exit 1
+          fi
