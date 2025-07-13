@@ -222,22 +222,16 @@ The contracts are designed for deployment on:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Links
-
-- [Soroban Documentation](https://soroban.stellar.org/)
-- [Stellar Network](https://stellar.org/)
-- [Crossmint Wallets Documentation](https://docs.crossmint.com/wallets/overview)
-- [Crossmint Platform](https://crossmint.com/)
-- [Smart Wallet Architecture](contracts/smart-wallet/README.md)
-
-## 🆘 Support
-
-For questions and support:
-
-- Create an issue in this repository
-- Join the [Stellar Discord](https://discord.gg/stellar)
-- Check the [Soroban documentation](https://soroban.stellar.org/docs)
-
 ---
 
-**Created by [Crossmint](https://crossmint.com/)** - The enterprise infrastructure for cross-chain applications. Learn more about [Crossmint Wallets](https://docs.crossmint.com/wallets/overview) and how they power the next generation of blockchain applications.
+<div align="center">
+
+![Crossmint Logo](https://crossmint.notion.site/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2F4c70854d-2aec-4777-89e3-868b9390d3f2%2F382a5c5e-4b5a-4b5e-9b5e-4b5a4b5e9b5e%2FCrossmint_Logo_Horizontal_Green.png?table=block&id=382a5c5e-4b5a-4b5e-9b5e-4b5a4b5e9b5e&spaceId=4c70854d-2aec-4777-89e3-868b9390d3f2&width=400&userId=&cache=v2)
+
+### Built with ❤️ by **Crossmint**
+
+*The enterprise infrastructure powering the next generation of cross-chain applications*
+
+**[🚀 Explore Crossmint Wallets](https://docs.crossmint.com/wallets/overview)** | **[🌐 Visit Crossmint.com](https://crossmint.com/)**
+
+</div>
