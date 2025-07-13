@@ -4,7 +4,6 @@ use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
 use crate::error::Error;
 use crate::interface::SmartWalletInterface;
-use crate::require_auth;
 use initializable::{only_not_initialized, Initializable};
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
@@ -82,7 +81,9 @@ impl SmartWalletInterface for SmartWallet {
     }
 
     fn add_signer(env: &Env, signer: Signer) -> Result<(), Error> {
-        require_auth!(env);
+        if Self::is_initialized(env) {
+            env.current_contract_address().require_auth();
+        }
         Storage::default().store::<SignerKey, Signer>(
             env,
             &signer.clone().into(),
@@ -92,7 +93,9 @@ impl SmartWalletInterface for SmartWallet {
     }
 
     fn update_signer(env: &Env, signer: Signer) -> Result<(), Error> {
-        require_auth!(env);
+        if Self::is_initialized(env) {
+            env.current_contract_address().require_auth();
+        }
         Storage::default().update::<SignerKey, Signer>(
             env,
             &signer.clone().into(),
@@ -102,7 +105,9 @@ impl SmartWalletInterface for SmartWallet {
     }
 
     fn revoke_signer(env: &Env, signer_key: SignerKey) -> Result<(), Error> {
-        require_auth!(env);
+        if Self::is_initialized(env) {
+            env.current_contract_address().require_auth();
+        }
         
         let storage = Storage::default();
         
@@ -114,6 +119,7 @@ impl SmartWalletInterface for SmartWallet {
         }
         
         storage.delete::<SignerKey>(env, &signer_key)?;
+      
         Ok(())
     }
 }
