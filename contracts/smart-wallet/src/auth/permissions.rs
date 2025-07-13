@@ -8,11 +8,11 @@ use crate::{
     error::Error,
 };
 
-pub trait PermissionsCheck {
+pub trait AuthorizationCheck {
     fn is_authorized(&self, env: &Env, context: &Context) -> bool;
 }
 
-pub trait PolicyInitCheck {
+pub trait PolicyValidator {
     fn check(&self, env: &Env) -> Result<(), Error>;
 }
 
@@ -26,7 +26,7 @@ pub enum SignerPolicy {
 }
 
 // Delegate to the specific policy implementation
-impl PermissionsCheck for SignerPolicy {
+impl AuthorizationCheck for SignerPolicy {
     fn is_authorized(&self, env: &Env, context: &Context) -> bool {
         match self {
             SignerPolicy::TimeBased(policy) => policy.is_authorized(env, context),
@@ -36,7 +36,7 @@ impl PermissionsCheck for SignerPolicy {
     }
 }
 
-impl PolicyInitCheck for SignerPolicy {
+impl PolicyValidator for SignerPolicy {
     fn check(&self, env: &Env) -> Result<(), Error> {
         match self {
             SignerPolicy::TimeBased(policy) => policy.check(env),
@@ -64,7 +64,7 @@ pub enum SignerRole {
 // If it's an admin signer, it's authorized.
 // If it's a standard signer, it's authorized if the operation is not a administration operation.
 // If it's a restricted signer, it's authorized if all the policies are authorized.
-impl PermissionsCheck for SignerRole {
+impl AuthorizationCheck for SignerRole {
     fn is_authorized(&self, env: &Env, context: &Context) -> bool {
         match self {
             SignerRole::Admin => true,

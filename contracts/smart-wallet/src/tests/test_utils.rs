@@ -40,7 +40,7 @@ pub fn get_update_signer_auth_context(e: &Env, signer: Signer) -> Context {
     })
 }
 
-pub trait TestSigner {
+pub trait TestSignerTrait {
     fn generate(role: SignerRole) -> Self;
     fn into_signer(&self, env: &Env) -> Signer;
     fn sign(&self, env: &Env, payload: &BytesN<32>) -> (SignerKey, SignerProof);
@@ -55,7 +55,7 @@ impl Ed25519TestSigner {
     }
 }
 
-impl TestSigner for Ed25519TestSigner {
+impl TestSignerTrait for Ed25519TestSigner {
     fn generate(role: SignerRole) -> Self {
         Self(Keypair::generate(&mut StdRng::from_entropy()), role)
     }
