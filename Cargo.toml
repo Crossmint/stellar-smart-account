@@ -30,3 +30,11 @@ lto = true
 [profile.release-with-logs]
 inherits = "release"
 debug-assertions = true
+
+[profile.test]
+opt-level = 1
+debug = false
+debug-assertions = true
+overflow-checks = true
+incremental = true
+codegen-units = 256
