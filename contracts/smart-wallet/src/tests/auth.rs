@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use soroban_sdk::auth::{Context, ContractContext};
+use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{map, testutils::BytesN as _, vec, Address, BytesN, IntoVal};
 
 use crate::{
@@ -763,6 +764,8 @@ fn test_auth_idempotency() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
+}
+
 #[test]
 #[should_panic(expected = "Error(Contract, #21)")]
 fn test_constructor_duplicate_signers() {
@@ -781,5 +784,4 @@ fn test_constructor_different_signers_success() {
     let signer1 = test_signer1.into_signer(&env);
     let signer2 = test_signer2.into_signer(&env);
     env.register(SmartWallet, (vec![&env, signer1, signer2],));
-
 }
