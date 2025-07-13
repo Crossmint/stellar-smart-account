@@ -13,6 +13,7 @@ use soroban_sdk::{
     log, panic_with_error, Env, Vec,
 };
 use storage::Storage;
+use upgradeable::{SmartWalletUpgradeable, SmartWalletUpgradeableAuth};
 
 use crate::auth::proof::SignatureProofs;
 
@@ -23,6 +24,17 @@ use crate::auth::proof::SignatureProofs;
 /// policies for fine-grained permission management.
 #[contract]
 pub struct SmartWallet;
+
+// Implements SmartWalletUpgradeable trait to allow the contract to be upgraded
+// by authorized signers through the upgrade mechanism
+#[contractimpl]
+impl SmartWalletUpgradeable for SmartWallet {}
+
+impl SmartWalletUpgradeableAuth for SmartWallet {
+    fn _require_auth_upgrade(e: &Env) {
+        e.current_contract_address().require_auth();
+    }
+}
 
 // Implements Initializable trait to allow the contract to be initialized.
 // that allows the deployer to set the initial signer configuration without

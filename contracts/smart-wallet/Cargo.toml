@@ -12,6 +12,8 @@ doctest = false
 soroban-sdk = { workspace = true }
 initializable = { workspace = true }
 storage = { workspace = true }
+upgradeable = { workspace = true }
+
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
