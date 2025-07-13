@@ -72,7 +72,7 @@ cd stellar-smart-account
 
 2. **Build the contracts**:
 ```bash
-cargo build --target wasm32-unknown-unknown --release
+stellar contract build
 ```
 
 3. **Run tests**:
