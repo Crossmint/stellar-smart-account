@@ -272,39 +272,60 @@ sequenceDiagram
     Note over SmartWallet: Step 1: Validate signature proofs
     SmartWallet->>SmartWallet: Check signature_proofs not empty
     
-    Note over SmartWallet: Step 2: Verify signatures
-    loop For each (signer_key, proof) in signature_proofs
-        SmartWallet->>Storage: get_signer(signer_key)
-        Storage-->>SmartWallet: Return signer or error
-        SmartWallet->>Signer: verify(signature_payload, proof)
-        Signer-->>SmartWallet: Signature valid/invalid
+    Note over SmartWallet: Step 2: Pre-validate signer existence
+    loop For each (signer_key, _) in signature_proofs
+        SmartWallet->>Storage: has(signer_key)
+        Storage-->>SmartWallet: Exists/Not found
+        alt Signer not found
+            SmartWallet-->>SorobanRuntime: Error: SignerNotFound
+            SorobanRuntime-->>Client: Transaction failure
+        end
     end
     
-    Note over SmartWallet: Step 3: Check permissions
+    Note over SmartWallet: Step 3: Verify signatures and cache signers
+    loop For each (signer_key, proof) in signature_proofs
+        SmartWallet->>Storage: get_signer(signer_key)
+        Storage-->>SmartWallet: Return signer (safe after has() check)
+        SmartWallet->>Signer: verify(signature_payload, proof)
+        Signer-->>SmartWallet: Signature valid/invalid
+        SmartWallet->>SmartWallet: Cache verified signer
+    end
+    
+    Note over SmartWallet: Step 4: Check permissions with early exit
     loop For each auth_context
+        SmartWallet->>SmartWallet: context_authorized = false
         loop For each (signer_key, _) in signature_proofs
-            SmartWallet->>Storage: get_signer(signer_key)
-            Storage-->>SmartWallet: Return signer
+            SmartWallet->>SmartWallet: Get cached signer
             SmartWallet->>Signer: role.is_authorized(context)
             
             alt Signer role is Admin
                 Signer-->>SmartWallet: Authorized
+                SmartWallet->>SmartWallet: context_authorized = true, break loop
             else Signer role is Standard
                 Signer->>Signer: Check if operation is admin-only
                 Signer-->>SmartWallet: Authorized/Denied
+                alt Authorized
+                    SmartWallet->>SmartWallet: context_authorized = true, break loop
+                end
             else Signer role is Restricted
                 loop For each policy in role
                     Signer->>Policy: is_authorized(env, context)
                     Policy-->>Signer: Policy result
                 end
                 Signer-->>SmartWallet: All policies passed/failed
+                alt All policies passed
+                    SmartWallet->>SmartWallet: context_authorized = true, break loop
+                end
             end
         end
-        SmartWallet->>SmartWallet: At least one signer authorized?
+        alt context_authorized == false
+            SmartWallet-->>SorobanRuntime: Error: InsufficientPermissions
+            SorobanRuntime-->>Client: Transaction failure
+        end
     end
     
-    SmartWallet-->>SorobanRuntime: Authorization result
-    SorobanRuntime-->>Client: Transaction success/failure
+    SmartWallet-->>SorobanRuntime: Authorization successful
+    SorobanRuntime-->>Client: Transaction success
 ```
 
 ### Sequence Numbers and Nonce Handling

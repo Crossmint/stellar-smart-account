@@ -147,10 +147,11 @@ impl CustomAccountInterface for SmartWallet {
 
     /// Custom authorization function invoked by the Soroban runtime.
     ///
-    /// This function implements the wallet's authorization logic:
+    /// This function implements the wallet's authorization logic with optimizations for Stellar costs:
     /// 1. Verifies that all provided signatures are cryptographically valid
     /// 2. Checks that at least one authorized signer has approved each operation
     /// 3. Ensures signers have the required permissions for the requested operations
+    ///
     ///
     /// # Arguments
     /// * `env` - The contract environment
@@ -177,25 +178,32 @@ impl CustomAccountInterface for SmartWallet {
 
         // Step 1: Verify all provided signatures are cryptographically valid and cache signers
         let mut verified_signers = soroban_sdk::Map::new(&env);
+
+        for (signer_key, _) in proof_map.iter() {
+            if !storage.has(&env, &signer_key) {
+                log!(&env, "Signer not found {:?}", signer_key);
+                return Err(Error::SignerNotFound);
+            }
+        }
+
+        // Now verify signatures and cache signers
         for (signer_key, proof) in proof_map.iter() {
-            let signer = match storage.get::<SignerKey, Signer>(&env, &signer_key) {
-                Some(signer) => signer,
-                None => {
-                    log!(&env, "Signer not found {:?}", signer_key);
-                    return Err(Error::SignerNotFound);
-                }
-            };
+            let signer = storage.get::<SignerKey, Signer>(&env, &signer_key).unwrap(); // Safe after has() check
             signer.verify(&env, &signature_payload.to_bytes(), &proof)?;
             verified_signers.set(signer_key.clone(), signer);
         }
 
         // Step 2: Check authorization for each operation context using cached signers
-        // Ensure that for each operation, at least one signer has the required permissions
         for context in auth_contexts.iter() {
-            if !proof_map.iter().any(|(signer_key, _)| {
+            let mut context_authorized = false;
+            for (signer_key, _) in proof_map.iter() {
                 let signer = verified_signers.get(signer_key.clone()).unwrap(); // Safe to unwrap - we verified signer exists above
-                signer.role().is_authorized(&env, &context)
-            }) {
+                if signer.role().is_authorized(&env, &context) {
+                    context_authorized = true;
+                    break; // Early exit when authorization found
+                }
+            }
+            if !context_authorized {
                 return Err(Error::InsufficientPermissions);
             }
         }
