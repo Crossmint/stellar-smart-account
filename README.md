@@ -86,55 +86,6 @@ cd packages/smart_wallet && npm install
 cd ../factory && npm install
 ```
 
-### Basic Usage
-
-#### Deploy a Smart Wallet
-
-```rust
-use smart_wallet::{SmartWallet, Signer, SignerRole, Ed25519Signer};
-
-// Create admin signer
-let admin_signer = Signer::Ed25519(
-    Ed25519Signer::new(admin_pubkey),
-    SignerRole::Admin
-);
-
-// Initialize wallet
-SmartWallet::__constructor(env, vec![admin_signer]);
-```
-
-#### Use the Factory Contract
-
-```rust
-use contract_factory::CrossmintContractFactory;
-
-// Deploy a new contract (requires deployer role)
-let contract_address = CrossmintContractFactory::deploy(
-    env,
-    deployer,
-    wasm_hash,
-    salt,
-    init_fn,
-    init_args
-);
-```
-
-#### JavaScript Integration
-
-```javascript
-import { Contract, networks } from "smart_wallet";
-
-const contract = new Contract({
-  ...networks.futurenet,
-  rpcUrl: 'YOUR_SOROBAN_RPC_URL'
-});
-
-// Add a new signer
-await contract.add_signer({
-  signer: newSignerData
-});
-```
-
 ## 🔑 Authentication & Permissions
 
 ### Signer Roles
