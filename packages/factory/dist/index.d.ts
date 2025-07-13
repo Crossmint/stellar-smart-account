@@ -65,7 +65,7 @@ export type AccessControlStorageKey = {
 export interface Client {
     /**
      * Construct and simulate a deploy transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-     * Deploys the contract on behalf of the `CrossmintContractFactory` contract.
+     * Deploys the contract on behalf of the `ContractFactory` contract.
      *
      * This has to be authorized by an address with the `deployer` role.
      */
@@ -90,7 +90,7 @@ export interface Client {
     }) => Promise<AssembledTransaction<string>>;
     /**
      * Construct and simulate a upload_and_deploy transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-     * Uploads the contract WASM and deploys it on behalf of the `CrossmintContractFactory` contract.
+     * Uploads the contract WASM and deploys it on behalf of the `ContractFactory` contract.
      *
      * using that hash. This has to be authorized by an address with the `deployer` role.
      */
