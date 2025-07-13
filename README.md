@@ -41,7 +41,7 @@ stellar-smart-account/
 
 The core smart wallet provides:
 
-- **Multiple Signature Schemes**: Currently Ed25519, extensible to others
+- **Multiple Signature Schemes**: Ed25519 and Secp256r1 (WebAuthn/passkeys), extensible to others
 - **Flexible Authorization**: Role-based access with policy enforcement
 - **Multi-Signature Support**: Customizable authorization logic
 - **Soroban Integration**: Native account interface implementation

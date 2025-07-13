@@ -5,7 +5,7 @@ The Smart Wallet is a multi-signature wallet contract built on Soroban that prov
 ## Overview
 
 The Smart Wallet contract implements a flexible authentication system that combines:
-- **Multiple signature schemes** (currently Ed25519, extensible to others)
+- **Multiple signature schemes** (Ed25519 and Secp256r1/WebAuthn, extensible to others)
 - **Role-based access control** (Admin, Standard, Restricted)
 - **Policy-based restrictions** (time-based, contract allow/deny lists)
 - **Multi-signature support** with customizable authorization logic
@@ -87,7 +87,7 @@ graph TB
 
 ### Current Signer Implementation
 
-The system currently supports Ed25519 signatures with a design that allows easy extension:
+The system supports Ed25519 and Secp256r1 (WebAuthn/passkey) signatures with a design that allows easy extension:
 
 ```rust
 pub enum SignerKey {
@@ -108,7 +108,7 @@ pub enum SignerProof {
 
 ### Adding New Signer Types
 
-To add a new signer type (e.g., Secp256k1, WebAuthn), follow this pattern:
+To add a new signer type (e.g., WebAuthn, threshold signatures), follow this pattern:
 
 1. **Define the signer struct** in `src/auth/signers/`:
 ```rust
@@ -486,7 +486,7 @@ This enables secure automation while maintaining fine-grained control over agent
 
 The modular architecture supports future enhancements:
 
-- **Additional Signature Schemes**: Secp256k1, WebAuthn, threshold signatures
+- **Additional Signature Schemes**: WebAuthn, threshold signatures, multi-party signatures
 - **Advanced Policies**: Spending limits, rate limiting, multi-party approval
 - **Integration Patterns**: Cross-contract authorization, delegation mechanisms
 - **Monitoring**: Event emission for audit trails and analytics

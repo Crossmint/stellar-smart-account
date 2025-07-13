@@ -29,6 +29,7 @@ impl SignatureVerifier for Ed25519Signer {
                 );
                 Ok(())
             }
+            SignerProof::Secp256r1(_) => Err(Error::InvalidProofType),
         }
     }
 }
