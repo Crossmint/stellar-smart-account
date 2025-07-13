@@ -318,6 +318,89 @@ The Smart Wallet relies on Soroban's built-in sequence number mechanism for repl
 
 The wallet does not implement custom nonce handling, instead leveraging Soroban's native account sequence system for transaction ordering and replay protection.
 
+## Contract Upgradeability
+
+The Smart Wallet supports contract upgrades through Soroban's built-in upgradeability mechanism, which allows updating the contract's WebAssembly bytecode without changing the contract address or requiring proxy patterns.
+
+### Upgrade Mechanism
+
+Unlike Ethereum's proxy pattern approach, Soroban contracts can be upgraded directly:
+
+```rust
+// Standard Soroban upgrade function (called by authorized admin)
+env.deployer().update_current_contract_wasm(new_wasm_hash)
+```
+
+Key characteristics of Soroban contract upgrades:
+- **Contract address remains unchanged** - No proxy contracts needed
+- **State preservation** - Contract storage persists across upgrades
+- **Atomic operation** - Upgrade succeeds or fails completely
+- **Event emission** - System events track old and new WASM references
+
+### Permission Requirements
+
+Contract upgrades are controlled by the Smart Wallet's role-based permission system:
+
+| Signer Role | Upgrade Permission | Description |
+|-------------|-------------------|-------------|
+| **Admin** | ✅ **Authorized** | Can authorize any operation including contract upgrades |
+| **Standard** | ❌ **Denied** | Cannot modify signers or upgrade contracts |
+| **Restricted** | ❌ **Denied** | Subject to policy restrictions, typically cannot upgrade |
+
+The upgrade authorization follows the same `__check_auth` flow as other operations:
+
+```rust
+// Admin signer can authorize upgrade operations
+if signer.role() == SignerRole::Admin {
+    // Authorized for any operation including upgrades
+    return Ok(());
+}
+```
+
+### Upgrade Process Flow
+
+```mermaid
+sequenceDiagram
+    participant Admin as Admin Signer
+    participant SW as Smart Wallet
+    participant Soroban as Soroban Runtime
+    participant Storage as Contract Storage
+    
+    Admin->>SW: Initiate upgrade with new WASM hash
+    SW->>SW: __check_auth(upgrade_operation)
+    
+    Note over SW: Verify admin authorization
+    SW->>SW: Check signer role == Admin
+    SW->>Admin: Authorization confirmed
+    
+    SW->>Soroban: update_current_contract_wasm(new_wasm_hash)
+    Soroban->>Storage: Preserve existing contract state
+    Soroban->>Soroban: Replace WASM bytecode
+    Soroban->>Soroban: Emit SYSTEM upgrade event
+    
+    Soroban-->>SW: Upgrade completed
+    SW-->>Admin: Upgrade successful
+    
+    Note over SW: Contract address unchanged, state preserved
+```
+
+### Security Considerations
+
+1. **Admin-Only Access**: Only Admin signers can perform upgrades, preventing unauthorized modifications
+2. **Multi-Signature Support**: Multiple admin signatures can be required for upgrade authorization
+3. **State Preservation**: Contract storage remains intact across upgrades
+4. **Audit Trail**: Soroban system events provide upgrade history
+5. **Rollback Capability**: Previous WASM versions can be redeployed if needed
+
+### Integration with Factory Contract
+
+The `CrossmintContractFactory` handles initial deployment but does not manage upgrades:
+- **Initial Deployment**: Factory deploys contracts with role-based access control
+- **Upgrade Management**: Individual Smart Wallet contracts handle their own upgrades
+- **Permission Inheritance**: Admin roles established during deployment control upgrade access
+
+This separation ensures that each Smart Wallet maintains autonomous control over its upgrade process while benefiting from the factory's standardized deployment patterns.
+
 ## Error Handling
 
 The contract defines comprehensive error types organized by category:
