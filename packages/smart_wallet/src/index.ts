@@ -149,6 +149,26 @@ export type StorageType = {tag: "Persistent", values: void} | {tag: "Instance", 
 
 export interface Client {
   /**
+   * Construct and simulate a upgrade transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   */
+  upgrade: ({new_wasm_hash}: {new_wasm_hash: Buffer}, options?: {
+    /**
+     * The fee to pay for the transaction. Default: BASE_FEE
+     */
+    fee?: number;
+
+    /**
+     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+     */
+    timeoutInSeconds?: number;
+
+    /**
+     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+     */
+    simulate?: boolean;
+  }) => Promise<AssembledTransaction<null>>
+
+  /**
    * Construct and simulate a add_signer transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
   add_signer: ({signer}: {signer: Signer}, options?: {
@@ -239,6 +259,7 @@ export class Client extends ContractClient {
         "AAAAAgAAAAAAAAAAAAAABlNpZ25lcgAAAAAAAQAAAAEAAAAAAAAAB0VkMjU1MTkAAAAAAgAAB9AAAAANRWQyNTUxOVNpZ25lcgAAAAAAB9AAAAAKU2lnbmVyUm9sZQAA",
         "AAAAAQAAAB1FZDI1NTE5IHNpZ25lciBpbXBsZW1lbnRhdGlvbgAAAAAAAAAAAAANRWQyNTUxOVNpZ25lcgAAAAAAAAEAAAAAAAAACnB1YmxpY19rZXkAAAAAA+4AAAAg",
         "AAAABAAAAAAAAAAAAAAABUVycm9yAAAAAAAAEwAAACVDb250cmFjdCBoYXMgYWxyZWFkeSBiZWVuIGluaXRpYWxpemVkAAAAAAAAEkFscmVhZHlJbml0aWFsaXplZAAAAAAAAAAAACVDb250cmFjdCBoYXMgbm90IGJlZW4gaW5pdGlhbGl6ZWQgeWV0AAAAAAAADk5vdEluaXRpYWxpemVkAAAAAAABAAAAG1N0b3JhZ2UgZW50cnkgd2FzIG5vdCBmb3VuZAAAAAAUU3RvcmFnZUVudHJ5Tm90Rm91bmQAAAAKAAAAHFN0b3JhZ2UgZW50cnkgYWxyZWFkeSBleGlzdHMAAAAZU3RvcmFnZUVudHJ5QWxyZWFkeUV4aXN0cwAAAAAAAAsAAAAoTm8gc2lnbmVycyBhcmUgY29uZmlndXJlZCBmb3IgdGhlIHdhbGxldAAAAAlOb1NpZ25lcnMAAAAAAAAUAAAAI1NpZ25lciBhbHJlYWR5IGV4aXN0cyBpbiB0aGUgd2FsbGV0AAAAABNTaWduZXJBbHJlYWR5RXhpc3RzAAAAABUAAAAiU2lnbmVyIHdhcyBub3QgZm91bmQgaW4gdGhlIHdhbGxldAAAAAAADlNpZ25lck5vdEZvdW5kAAAAAAAWAAAAKVNpZ25lciBoYXMgZXhwaXJlZCBhbmQgaXMgbm8gbG9uZ2VyIHZhbGlkAAAAAAAADVNpZ25lckV4cGlyZWQAAAAAAAAXAAAAAAAAABdDYW5ub3RSZXZva2VBZG1pblNpZ25lcgAAAAAYAAAAMk5vIG1hdGNoaW5nIHNpZ25hdHVyZSBmb3VuZCBmb3IgdGhlIGdpdmVuIGNyaXRlcmlhAAAAAAAZTWF0Y2hpbmdTaWduYXR1cmVOb3RGb3VuZAAAAAAAACgAAAAzU2lnbmF0dXJlIHZlcmlmaWNhdGlvbiBmYWlsZWQgZHVyaW5nIGF1dGhlbnRpY2F0aW9uAAAAABtTaWduYXR1cmVWZXJpZmljYXRpb25GYWlsZWQAAAAAKQAAABtJbnZhbGlkIHByb29mIHR5cGUgcHJvdmlkZWQAAAAAEEludmFsaWRQcm9vZlR5cGUAAAAqAAAAK05vIHByb29mcyBmb3VuZCBpbiB0aGUgYXV0aGVudGljYXRpb24gZW50cnkAAAAAE05vUHJvb2ZzSW5BdXRoRW50cnkAAAAAKwAAADtJbnN1ZmZpY2llbnQgcGVybWlzc2lvbnMgdG8gcGVyZm9ybSB0aGUgcmVxdWVzdGVkIG9wZXJhdGlvbgAAAAAXSW5zdWZmaWNpZW50UGVybWlzc2lvbnMAAAAAPAAAAC9JbnN1ZmZpY2llbnQgcGVybWlzc2lvbnMgZHVyaW5nIHdhbGxldCBjcmVhdGlvbgAAAAAhSW5zdWZmaWNpZW50UGVybWlzc2lvbnNPbkNyZWF0aW9uAAAAAAAAPQAAABxJbnZhbGlkIHBvbGljeSBjb25maWd1cmF0aW9uAAAADUludmFsaWRQb2xpY3kAAAAAAABQAAAAJkludmFsaWQgdGltZSByYW5nZSBzcGVjaWZpZWQgaW4gcG9saWN5AAAAAAAQSW52YWxpZFRpbWVSYW5nZQAAAFEAAAAgSW52YWxpZCBub3QtYWZ0ZXIgdGltZSBzcGVjaWZpZWQAAAATSW52YWxpZE5vdEFmdGVyVGltZQAAAABSAAAAIFJlcXVlc3RlZCByZXNvdXJjZSB3YXMgbm90IGZvdW5kAAAACE5vdEZvdW5kAAAAZA==",
+        "AAAAAAAAAAAAAAAHdXBncmFkZQAAAAABAAAAAAAAAA1uZXdfd2FzbV9oYXNoAAAAAAAD7gAAACAAAAAA",
         "AAAAAAAAAAAAAAANX19jb25zdHJ1Y3RvcgAAAAAAAAEAAAAAAAAAB3NpZ25lcnMAAAAD6gAAB9AAAAAGU2lnbmVyAAAAAAAA",
         "AAAAAAAAAAAAAAAKYWRkX3NpZ25lcgAAAAAAAQAAAAAAAAAGc2lnbmVyAAAAAAfQAAAABlNpZ25lcgAAAAAAAQAAA+kAAAPtAAAAAAAAAAM=",
         "AAAAAAAAAAAAAAANdXBkYXRlX3NpZ25lcgAAAAAAAAEAAAAAAAAABnNpZ25lcgAAAAAH0AAAAAZTaWduZXIAAAAAAAEAAAPpAAAD7QAAAAAAAAAD",
@@ -249,7 +270,8 @@ export class Client extends ContractClient {
     )
   }
   public readonly fromJSON = {
-    add_signer: this.txFromJSON<Result<void>>,
+    upgrade: this.txFromJSON<null>,
+        add_signer: this.txFromJSON<Result<void>>,
         update_signer: this.txFromJSON<Result<void>>,
         revoke_signer: this.txFromJSON<Result<void>>
   }
