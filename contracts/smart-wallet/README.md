@@ -108,7 +108,7 @@ pub enum SignerProof {
 
 ### Adding New Signer Types
 
-To add a new signer type (e.g., Secp256r1, WebAuthn), follow this pattern:
+To add a new signer type (e.g., WebAuthn, threshold signatures), follow this pattern:
 
 1. **Define the signer struct** in `src/auth/signers/`:
 ```rust
@@ -486,7 +486,7 @@ This enables secure automation while maintaining fine-grained control over agent
 
 The modular architecture supports future enhancements:
 
-- **Additional Signature Schemes**: Secp256r1, WebAuthn, threshold signatures
+- **Additional Signature Schemes**: WebAuthn, threshold signatures, multi-party signatures
 - **Advanced Policies**: Spending limits, rate limiting, multi-party approval
 - **Integration Patterns**: Cross-contract authorization, delegation mechanisms
 - **Monitoring**: Event emission for audit trails and analytics
