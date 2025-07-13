@@ -226,6 +226,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Soroban Documentation](https://soroban.stellar.org/)
 - [Stellar Network](https://stellar.org/)
+- [Crossmint Wallets Documentation](https://docs.crossmint.com/wallets/overview)
 - [Crossmint Platform](https://crossmint.com/)
 - [Smart Wallet Architecture](contracts/smart-wallet/README.md)
 
@@ -239,4 +240,4 @@ For questions and support:
 
 ---
 
-Built with ❤️ by [Crossmint](https://crossmint.com/) for the Stellar ecosystem.
+**Created by [Crossmint](https://crossmint.com/)** - The enterprise infrastructure for cross-chain applications. Learn more about [Crossmint Wallets](https://docs.crossmint.com/wallets/overview) and how they power the next generation of blockchain applications.
