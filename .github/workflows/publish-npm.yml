@@ -1,0 +1,57 @@
+name: Publish NPM Packages
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          
+      - name: Install Stellar CLI
+        run: |
+          curl -L https://github.com/stellar/stellar-cli/releases/download/v21.0.0/stellar-cli-21.0.0-x86_64-unknown-linux-gnu.tar.gz | tar xz
+          sudo mv stellar /usr/local/bin/
+          
+      - name: Build Rust contracts
+        run: |
+          cargo build --target wasm32-unknown-unknown --release
+          
+      - name: Generate TypeScript bindings
+        run: |
+          mkdir -p packages/factory packages/smart_wallet
+          stellar contract bindings typescript \
+            --output-dir packages/factory \
+            --wasm target/wasm32-unknown-unknown/release/crossmint_contract_factory.wasm \
+            --overwrite
+          stellar contract bindings typescript \
+            --output-dir packages/smart_wallet \
+            --wasm target/wasm32-unknown-unknown/release/smart_account.wasm \
+            --overwrite
+            
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build packages
+        run: npm run build
+        
+      - name: Publish to NPM
+        run: npm run publish-packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

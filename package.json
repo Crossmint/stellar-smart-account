@@ -1,0 +1,16 @@
+{
+  "name": "@crossmint/stellar-smart-account-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "publish-packages": "npm run build && npm publish --workspaces --access public"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}
