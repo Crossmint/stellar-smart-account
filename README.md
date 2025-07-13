@@ -226,7 +226,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-<img src="https://www.crossmint.com/assets/crossmint/logo.png" alt="Crossmint Logo" width="200" />
+<img src="https://www.crossmint.com/assets/crossmint/logo.png" alt="Crossmint Logo" width="120" />
 
 ### Built with ❤️ by **Crossmint**
 
