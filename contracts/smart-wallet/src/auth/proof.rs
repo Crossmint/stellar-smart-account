@@ -6,6 +6,7 @@ use crate::auth::signer::SignerKey;
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerProof {
     Ed25519(BytesN<64>),
+    Secp256k1(BytesN<64>, u32),
 }
 
 #[contracttype]
