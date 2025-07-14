@@ -24,7 +24,10 @@ impl WebAuthnTestUtils {
         ]
     }
 
-    pub fn generate_real_webauthn_signature(&self, challenge: &[u8]) -> (Bytes, Bytes, BytesN<64>) {
+    pub fn generate_real_webauthn_signature(
+        &self,
+        _challenge: &[u8],
+    ) -> (Bytes, Bytes, BytesN<64>) {
         let env = Env::default();
 
         let authenticator_data = [
