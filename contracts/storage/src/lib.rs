@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contracttype, Env, IntoVal, TryFromVal, Val};
+use soroban_sdk::{contracttype, symbol_short, Env, IntoVal, TryFromVal, Val};
 
 #[derive(Debug)]
 pub enum Error {
@@ -9,9 +9,25 @@ pub enum Error {
 }
 
 #[contracttype]
+#[derive(Clone)]
 pub enum StorageType {
     Persistent,
     Instance,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub enum StorageOperation {
+    Store,
+    Update,
+    Delete,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct StorageChangeEvent {
+    pub storage_type: StorageType,
+    pub operation: StorageOperation,
 }
 
 pub struct Storage {
@@ -75,6 +91,13 @@ impl Storage {
             return Err(Error::AlreadyExists);
         }
         self.execute_storage_set(env, key, value);
+
+        let event = StorageChangeEvent {
+            storage_type: self.storage_type.clone(),
+            operation: StorageOperation::Store,
+        };
+        env.events().publish((symbol_short!("storage"), symbol_short!("store")), event);
+
         Ok(())
     }
 
@@ -88,6 +111,13 @@ impl Storage {
             return Err(Error::NotFound);
         }
         self.execute_storage_set(env, key, value);
+
+        let event = StorageChangeEvent {
+            storage_type: self.storage_type.clone(),
+            operation: StorageOperation::Update,
+        };
+        env.events().publish((symbol_short!("storage"), symbol_short!("update")), event);
+
         Ok(())
     }
 
@@ -96,6 +126,13 @@ impl Storage {
             return Err(Error::NotFound);
         }
         self.execute_storage_remove(env, key);
+
+        let event = StorageChangeEvent {
+            storage_type: self.storage_type.clone(),
+            operation: StorageOperation::Delete,
+        };
+        env.events().publish((symbol_short!("storage"), symbol_short!("delete")), event);
+
         Ok(())
     }
 

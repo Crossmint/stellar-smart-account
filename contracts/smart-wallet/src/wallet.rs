@@ -7,14 +7,35 @@ use crate::interface::SmartWalletInterface;
 use initializable::{only_not_initialized, Initializable};
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
-    contract, contractimpl,
+    contract, contractimpl, contracttype,
     crypto::Hash,
-    log, panic_with_error, Env, Vec,
+    log, panic_with_error, symbol_short, Env, Vec,
 };
 use storage::Storage;
 use upgradeable::{SmartWalletUpgradeable, SmartWalletUpgradeableAuth};
 
 use crate::auth::proof::SignatureProofs;
+
+#[contracttype]
+#[derive(Clone)]
+pub struct SignerAddedEvent {
+    pub signer_key: SignerKey,
+    pub signer: Signer,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct SignerUpdatedEvent {
+    pub signer_key: SignerKey,
+    pub new_signer: Signer,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct SignerRevokedEvent {
+    pub signer_key: SignerKey,
+    pub revoked_signer: Signer,
+}
 
 /// SmartWallet is a multi-signature wallet contract that provides enhanced security
 /// through role-based access control and policy-based authorization.
@@ -101,13 +122,35 @@ impl SmartWalletInterface for SmartWallet {
         Self::require_auth_if_initialized(env);
         let key = signer.clone().into();
         Storage::default().store::<SignerKey, Signer>(env, &key, &signer)?;
+
+        let event = SignerAddedEvent {
+            signer_key: key.clone(),
+            signer: signer.clone(),
+        };
+        env.events().publish(
+            (symbol_short!("signer"), symbol_short!("added")),
+            event,
+        );
+
         Ok(())
     }
 
     fn update_signer(env: &Env, signer: Signer) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
         let key = signer.clone().into();
-        Storage::default().update::<SignerKey, Signer>(env, &key, &signer)?;
+
+        let storage = Storage::default();
+        storage.update::<SignerKey, Signer>(env, &key, &signer)?;
+
+        let event = SignerUpdatedEvent {
+            signer_key: key.clone(),
+            new_signer: signer.clone(),
+        };
+        env.events().publish(
+            (symbol_short!("signer"), symbol_short!("updated")),
+            event,
+        );
+
         Ok(())
     }
 
@@ -125,6 +168,15 @@ impl SmartWalletInterface for SmartWallet {
         }
 
         storage.delete::<SignerKey>(env, &signer_key)?;
+
+        let event = SignerRevokedEvent {
+            signer_key: signer_key.clone(),
+            revoked_signer: signer_to_revoke.clone(),
+        };
+        env.events().publish(
+            (symbol_short!("signer"), symbol_short!("revoked")),
+            event,
+        );
 
         Ok(())
     }
