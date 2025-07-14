@@ -6,6 +6,8 @@ import {
   Signer,
   SignerKey,
   SignerProof,
+  Secp256r1Signer,
+  Secp256r1Signature,
   xdr,
 } from "smart_wallet";
 import {
@@ -34,8 +36,9 @@ import { printAuthEntries } from "./utils.js";
  * This example shows:
  * 1. Factory contract deployment with role-based access control
  * 2. Smart wallet deployment using the factory
- * 3. Signer management (add, update, revoke)
- * 4. Placeholder for transaction signing and submission
+ * 3. Signer management (add Ed25519 and Secp256r1/passkey signers)
+ * 4. WebAuthn/passkey integration for authentication
+ * 5. Transaction signing and submission with multiple signer types
  */
 
 /**
@@ -334,11 +337,11 @@ async function deploySmartWallet(factoryContractId: string): Promise<string> {
 }
 
 /**
- * Step 4: Add additional signers to the smart wallet
+ * Step 4: Add additional Ed25519 signer to the smart wallet
  */
-async function addSigner(smartWalletContractId: string): Promise<void> {
+async function addEd25519Signer(smartWalletContractId: string): Promise<void> {
   console.log("\n" + "=".repeat(60));
-  console.log("➕ STEP 4: ADDING SIGNER TO SMART WALLET");
+  console.log("➕ STEP 4: ADDING ED25519 SIGNER TO SMART WALLET");
   console.log("=".repeat(60));
 
   const smartWalletClient = new SmartWalletClient({
@@ -387,19 +390,80 @@ async function addSigner(smartWalletContractId: string): Promise<void> {
     console.log("📤 Transaction submitted with hash:", txHash);
     await confirmTransaction(txHash, "Add signer");
 
-    console.log("✅ Signer added successfully");
+    console.log("✅ Ed25519 signer added successfully");
     console.log(
       "🔗 New signer public key:",
       DELEGATED_SIGNER_KEYPAIR.publicKey()
     );
   } catch (error) {
-    console.error("❌ Failed to add signer:", error);
+    console.error("❌ Failed to add Ed25519 signer:", error);
     throw error;
   }
 }
 
 /**
- * Step 5: Send a hello world transaction with smart wallet authorization
+ * Step 5: Add passkey (Secp256r1) signer to the smart wallet
+ */
+async function addPasskeySigner(smartWalletContractId: string): Promise<void> {
+  console.log("\n" + "=".repeat(60));
+  console.log("🔐 STEP 5: ADDING PASSKEY (SECP256R1) SIGNER TO SMART WALLET");
+  console.log("=".repeat(60));
+
+  const smartWalletClient = new SmartWalletClient({
+    contractId: smartWalletContractId,
+    networkPassphrase: NETWORK,
+    rpcUrl: RPC_URL,
+    allowHttp: false,
+    publicKey: TREASURY_KEYPAIR.publicKey(),
+  });
+
+  try {
+    const passkeySigner = createPasskeySigner();
+    
+    console.log("🔑 Creating passkey signer with:");
+    console.log("  Key ID:", Buffer.from((passkeySigner.values[0] as Secp256r1Signer).key_id).toString('hex'));
+    console.log("  Public Key:", Buffer.from((passkeySigner.values[0] as Secp256r1Signer).public_key).toString('hex'));
+
+    const addSignerTx = await smartWalletClient.add_signer(
+      {
+        signer: passkeySigner,
+      },
+      {
+        simulate: true,
+      }
+    );
+
+    printAuthEntries(addSignerTx);
+    await authorizeWithSmartWallet(
+      addSignerTx,
+      smartWalletContractId,
+      ADMIN_SIGNER_KEYPAIR,
+      smartWalletClient
+    );
+    await addSignerTx.simulate();
+    await addSignerTx.sign(basicNodeSigner(TREASURY_KEYPAIR, NETWORK));
+    const result = await addSignerTx.send();
+    const txHash = result.sendTransactionResponse?.hash;
+    if (!txHash) {
+      throw new Error(
+        "Add passkey signer transaction failed: " + JSON.stringify(result)
+      );
+    }
+
+    console.log("📤 Transaction submitted with hash:", txHash);
+    await confirmTransaction(txHash, "Add passkey signer");
+
+    console.log("✅ Passkey signer added successfully");
+    console.log("🔐 Passkey authentication is now enabled for this wallet");
+    console.log("🔗 Credential ID:", Buffer.from((passkeySigner.values[0] as Secp256r1Signer).key_id).toString('hex'));
+  } catch (error) {
+    console.error("❌ Failed to add passkey signer:", error);
+    throw error;
+  }
+}
+
+/**
+ * Step 6: Send a hello world transaction with smart wallet authorization
  */
 async function sendHelloWorldTransactionWithSmartWalletAuth(
   smartWalletContractId: string,
@@ -469,13 +533,13 @@ async function sendHelloWorldTransactionWithSmartWalletAuth(
 }
 
 /**
- * Step 6: Upgrade the smart wallet
+ * Step 7: Upgrade the smart wallet
  */
 async function upgradeSmartWallet(
   smartWalletContractId: string
 ): Promise<void> {
   console.log("\n" + "=".repeat(60));
-  console.log("➕ STEP 6: UPGRADING SMART WALLET");
+  console.log("⬆️ STEP 7: UPGRADING SMART WALLET");
   console.log("=".repeat(60));
 
   const smartWalletClient = new SmartWalletClient({
@@ -536,6 +600,37 @@ function createAdminSignerFromKeypair(adminSignerKeyPair: Keypair): Signer {
 }
 
 /**
+ * Create a Secp256r1 (passkey/WebAuthn) signer for testing
+ */
+function createPasskeySigner(): Signer {
+  const testPublicKey = Buffer.from([
+    0x04, 0x8d, 0x61, 0x7e, 0x65, 0xc9, 0x50, 0x8e, 0x64, 0xbc, 0xc5, 0x67, 0x3a, 0xc8,
+    0x2a, 0x67, 0x99, 0xda, 0x3c, 0x14, 0x46, 0x68, 0x2c, 0x25, 0x8c, 0x46, 0x3f, 0xff,
+    0xdf, 0x58, 0xdf, 0xd2, 0xfa, 0x3e, 0x6c, 0x37, 0x8b, 0x53, 0xd7, 0x95, 0xc4, 0xa4,
+    0xdf, 0xfb, 0x41, 0x99, 0xed, 0xd7, 0x86, 0x2f, 0x23, 0xab, 0xaf, 0x02, 0x03, 0xb4,
+    0xb8, 0x91, 0x1b, 0xa0, 0x56, 0x99, 0x94, 0xe1, 0x01,
+  ]);
+  
+  const testCredentialId = Buffer.from([
+    0x74, 0x65, 0x73, 0x74, 0x5f, 0x63, 0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61,
+    0x6c, 0x5f, 0x69, 0x64, 0x5f, 0x31,
+  ]);
+
+  const secp256r1Signer: Secp256r1Signer = {
+    key_id: testCredentialId,
+    public_key: testPublicKey,
+  };
+
+  return {
+    tag: "Secp256r1",
+    values: [
+      secp256r1Signer,
+      { tag: "Standard", values: undefined },
+    ] as const,
+  };
+}
+
+/**
  * Main example function demonstrating the complete workflow
  */
 async function main() {
@@ -553,15 +648,16 @@ async function main() {
     const factoryContractId = await deployFactory();
     await grantDeployerRole(factoryContractId);
     const smartWalletContractId = await deploySmartWallet(factoryContractId);
-    await addSigner(smartWalletContractId);
+    await addEd25519Signer(smartWalletContractId);
+    await addPasskeySigner(smartWalletContractId);
     await sendHelloWorldTransactionWithSmartWalletAuth(
       smartWalletContractId,
-      "5"
+      "6"
     );
     await upgradeSmartWallet(smartWalletContractId);
     await sendHelloWorldTransactionWithSmartWalletAuth(
       smartWalletContractId,
-      "7"
+      "8"
     );
 
     console.log("\n" + "=".repeat(60));
@@ -571,7 +667,8 @@ async function main() {
     console.log("🏭 Factory Contract ID:", factoryContractId);
     console.log("💼 Smart Wallet Contract ID:", smartWalletContractId);
     console.log("🔑 Admin Signer:", ADMIN_SIGNER_KEYPAIR.publicKey());
-    console.log("🔗 Delegated Signer:", DELEGATED_SIGNER_KEYPAIR.publicKey());
+    console.log("🔗 Ed25519 Delegated Signer:", DELEGATED_SIGNER_KEYPAIR.publicKey());
+    console.log("🔐 Passkey signer added with WebAuthn/Secp256r1 support");
   } catch (error) {
     console.error("❌ Example failed:", error);
     process.exit(1);
@@ -584,4 +681,4 @@ main()
   })
   .catch(console.error);
 
-export { deployFactory, grantDeployerRole, deploySmartWallet };
+export { deployFactory, grantDeployerRole, deploySmartWallet, addEd25519Signer, addPasskeySigner, createPasskeySigner };
