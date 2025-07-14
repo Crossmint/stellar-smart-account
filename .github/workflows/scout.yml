@@ -20,7 +20,7 @@ jobs:
       - name: Run Scout security analysis
         uses: coinfabrik/scout-actions@v3
         with:
-          target: '.'
+          target: 'contracts/smart-wallet'
 
       - name: Upload Scout report
         uses: actions/upload-artifact@v4
