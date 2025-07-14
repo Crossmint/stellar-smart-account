@@ -3,7 +3,7 @@ use soroban_sdk::contracterror;
 use storage::Error as StorageError;
 
 #[contracterror]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Error {
     // === Initialization Errors (0-9) ===
@@ -28,6 +28,8 @@ pub enum Error {
     /// Signer has expired and is no longer valid
     SignerExpired = 23,
     CannotRevokeAdminSigner = 24,
+    /// Insufficient permissions during wallet creation
+    InsufficientPermissionsOnCreation = 25,
 
     // === Authentication & Signature Errors (40-59) ===
     /// No matching signature found for the given criteria
@@ -42,8 +44,6 @@ pub enum Error {
     // === Permission Errors (60-79) ===
     /// Insufficient permissions to perform the requested operation
     InsufficientPermissions = 60,
-    /// Insufficient permissions during wallet creation
-    InsufficientPermissionsOnCreation = 61,
 
     // === Policy Errors (80-99) ===
     /// Invalid policy configuration

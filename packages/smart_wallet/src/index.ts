@@ -83,79 +83,45 @@ export interface Secp256r1Signer {
 }
 
 export const Errors = {
-  /**
-   * Contract has already been initialized
-   */
-  0: {message:"AlreadyInitialized"},
-  /**
-   * Contract has not been initialized yet
-   */
-  1: {message:"NotInitialized"},
-  /**
-   * Storage entry was not found
-   */
-  10: {message:"StorageEntryNotFound"},
-  /**
-   * Storage entry already exists
-   */
-  11: {message:"StorageEntryAlreadyExists"},
-  /**
-   * No signers are configured for the wallet
-   */
-  20: {message:"NoSigners"},
-  /**
-   * Signer already exists in the wallet
-   */
-  21: {message:"SignerAlreadyExists"},
-  /**
-   * Signer was not found in the wallet
-   */
-  22: {message:"SignerNotFound"},
-  /**
-   * Signer has expired and is no longer valid
-   */
-  23: {message:"SignerExpired"},
-  24: {message:"CannotRevokeAdminSigner"},
-  /**
-   * No matching signature found for the given criteria
-   */
-  40: {message:"MatchingSignatureNotFound"},
-  /**
-   * Signature verification failed during authentication
-   */
-  41: {message:"SignatureVerificationFailed"},
-  /**
-   * Invalid proof type provided
-   */
-  42: {message:"InvalidProofType"},
-  /**
-   * No proofs found in the authentication entry
-   */
-  43: {message:"NoProofsInAuthEntry"},
-  /**
-   * Insufficient permissions to perform the requested operation
-   */
-  60: {message:"InsufficientPermissions"},
-  /**
-   * Insufficient permissions during wallet creation
-   */
-  61: {message:"InsufficientPermissionsOnCreation"},
-  /**
-   * Invalid policy configuration
-   */
-  80: {message:"InvalidPolicy"},
-  /**
-   * Invalid time range specified in policy
-   */
-  81: {message:"InvalidTimeRange"},
-  /**
-   * Invalid not-after time specified
-   */
-  82: {message:"InvalidNotAfterTime"},
-  /**
-   * Requested resource was not found
-   */
-  100: {message:"NotFound"}
+  Initialization: {
+    AlreadyInitialized: {message: "Contract has already been initialized"},
+    NotInitialized: {message: "Contract has not been initialized yet"}
+  },
+  
+  Storage: {
+    EntryNotFound: {message: "Storage entry was not found"},
+    EntryAlreadyExists: {message: "Storage entry already exists"}
+  },
+  
+  SignerManagement: {
+    NoSigners: {message: "No signers are configured for the wallet"},
+    SignerAlreadyExists: {message: "Signer already exists in the wallet"},
+    SignerNotFound: {message: "Signer was not found in the wallet"},
+    SignerExpired: {message: "Signer has expired and is no longer valid"},
+    CannotRevokeAdminSigner: {message: "Cannot revoke admin signer"},
+    InsufficientPermissionsOnCreation: {message: "Insufficient permissions during wallet creation"}
+  },
+  
+  Authentication: {
+    MatchingSignatureNotFound: {message: "No matching signature found for the given criteria"},
+    SignatureVerificationFailed: {message: "Signature verification failed during authentication"},
+    InvalidProofType: {message: "Invalid proof type provided"},
+    NoProofsInAuthEntry: {message: "No proofs found in the authentication entry"}
+  },
+  
+  Permission: {
+    InsufficientPermissions: {message: "Insufficient permissions to perform the requested operation"}
+  },
+  
+  Policy: {
+    InvalidPolicy: {message: "Invalid policy configuration"},
+    InvalidTimeRange: {message: "Invalid time range specified in policy"},
+    InvalidNotAfterTime: {message: "Invalid not-after time specified"}
+  },
+  
+  Generic: {
+    NotFound: {message: "Requested resource was not found"}
+  }
 }
 
 export type StorageType = {tag: "Persistent", values: void} | {tag: "Instance", values: void};

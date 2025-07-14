@@ -458,15 +458,56 @@ This separation ensures that each Smart Wallet maintains autonomous control over
 
 ## Error Handling
 
-The contract defines comprehensive error types organized by category:
+The contract uses a hierarchical error system organized by domain for better semantic meaning and debugging:
 
-- **Initialization Errors (0-9)**: Contract setup issues
-- **Storage Errors (10-19)**: Data persistence problems  
-- **Signer Management Errors (20-39)**: Signer lifecycle issues
-- **Authentication & Signature Errors (40-59)**: Verification failures
-- **Permission Errors (60-79)**: Authorization failures
-- **Policy Errors (80-99)**: Policy validation issues
-- **Generic Errors (100+)**: General purpose errors
+### Error Structure
+
+The error system is organized into domain-specific error enums wrapped by a top-level `Error` enum:
+
+```rust
+#[contracterror]
+pub enum Error {
+    Initialization(InitializationError),
+    Storage(StorageErrorType),
+    SignerManagement(SignerManagementError),
+    Authentication(AuthenticationError),
+    Permission(PermissionError),
+    Policy(PolicyError),
+    Generic(GenericError),
+}
+```
+
+### Error Domains
+
+- **Initialization Errors**: Contract setup and lifecycle issues
+  - `AlreadyInitialized`, `NotInitialized`
+- **Storage Errors**: Data persistence and retrieval problems
+  - `EntryNotFound`, `EntryAlreadyExists`
+- **Signer Management Errors**: Signer lifecycle and configuration issues
+  - `NoSigners`, `SignerAlreadyExists`, `SignerNotFound`, `SignerExpired`, `CannotRevokeAdminSigner`, `InsufficientPermissionsOnCreation`
+- **Authentication Errors**: Cryptographic verification failures
+  - `MatchingSignatureNotFound`, `SignatureVerificationFailed`, `InvalidProofType`, `NoProofsInAuthEntry`
+- **Permission Errors**: Authorization and access control failures
+  - `InsufficientPermissions`
+- **Policy Errors**: Policy validation and configuration issues
+  - `InvalidPolicy`, `InvalidTimeRange`, `InvalidNotAfterTime`
+- **Generic Errors**: General purpose errors
+  - `NotFound`
+
+### Error Usage Examples
+
+```rust
+// Signer management error
+return Err(Error::SignerNotFound);
+
+// Authentication error
+return Err(Error::InvalidProofType);
+
+// Policy validation error
+return Err(Error::InvalidTimeRange);
+```
+
+This hierarchical structure provides better error categorization, improved debugging experience, and cleaner client-side error handling compared to numeric error codes.
 
 ## Usage Examples
 
