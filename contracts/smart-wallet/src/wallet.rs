@@ -127,10 +127,8 @@ impl SmartWalletInterface for SmartWallet {
             signer_key: key.clone(),
             signer: signer.clone(),
         };
-        env.events().publish(
-            (symbol_short!("signer"), symbol_short!("added")),
-            event,
-        );
+        env.events()
+            .publish((symbol_short!("signer"), symbol_short!("added")), event);
 
         Ok(())
     }
@@ -146,10 +144,8 @@ impl SmartWalletInterface for SmartWallet {
             signer_key: key.clone(),
             new_signer: signer.clone(),
         };
-        env.events().publish(
-            (symbol_short!("signer"), symbol_short!("updated")),
-            event,
-        );
+        env.events()
+            .publish((symbol_short!("signer"), symbol_short!("updated")), event);
 
         Ok(())
     }
@@ -173,10 +169,8 @@ impl SmartWalletInterface for SmartWallet {
             signer_key: signer_key.clone(),
             revoked_signer: signer_to_revoke.clone(),
         };
-        env.events().publish(
-            (symbol_short!("signer"), symbol_short!("revoked")),
-            event,
-        );
+        env.events()
+            .publish((symbol_short!("signer"), symbol_short!("revoked")), event);
 
         Ok(())
     }

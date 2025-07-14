@@ -96,7 +96,8 @@ impl Storage {
             storage_type: self.storage_type.clone(),
             operation: StorageOperation::Store,
         };
-        env.events().publish((symbol_short!("storage"), symbol_short!("store")), event);
+        env.events()
+            .publish((symbol_short!("storage"), symbol_short!("store")), event);
 
         Ok(())
     }
@@ -116,7 +117,8 @@ impl Storage {
             storage_type: self.storage_type.clone(),
             operation: StorageOperation::Update,
         };
-        env.events().publish((symbol_short!("storage"), symbol_short!("update")), event);
+        env.events()
+            .publish((symbol_short!("storage"), symbol_short!("update")), event);
 
         Ok(())
     }
@@ -131,7 +133,8 @@ impl Storage {
             storage_type: self.storage_type.clone(),
             operation: StorageOperation::Delete,
         };
-        env.events().publish((symbol_short!("storage"), symbol_short!("delete")), event);
+        env.events()
+            .publish((symbol_short!("storage"), symbol_short!("delete")), event);
 
         Ok(())
     }
