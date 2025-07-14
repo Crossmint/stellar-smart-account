@@ -4,11 +4,7 @@ use soroban_sdk::{map, testutils::BytesN as _, vec, BytesN};
 
 use crate::{
     account::SmartAccount,
-    auth::{
-        permissions::SignerRole,
-        proof::SignatureProofs,
-        signer::SignerKey,
-    },
+    auth::{permissions::SignerRole, proof::SignatureProofs, signer::SignerKey},
     error::Error,
     interface::SmartAccountInterface,
     tests::test_utils::{setup, Ed25519TestSigner, TestSignerTrait as _},
