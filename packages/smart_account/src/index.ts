@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import { Address } from '@stellar/stellar-sdk';
+import { Address } from "@stellar/stellar-sdk";
 import {
   AssembledTransaction,
   Client as ContractClient,
@@ -7,7 +7,7 @@ import {
   MethodOptions,
   Result,
   Spec as ContractSpec,
-} from '@stellar/stellar-sdk/contract';
+} from "@stellar/stellar-sdk/contract";
 import type {
   u32,
   i32,
@@ -20,39 +20,38 @@ import type {
   Option,
   Typepoint,
   Duration,
-} from '@stellar/stellar-sdk/contract';
-export * from '@stellar/stellar-sdk'
-export * as contract from '@stellar/stellar-sdk/contract'
-export * as rpc from '@stellar/stellar-sdk/rpc'
+} from "@stellar/stellar-sdk/contract";
+export * from "@stellar/stellar-sdk";
+export * as contract from "@stellar/stellar-sdk/contract";
+export * as rpc from "@stellar/stellar-sdk/rpc";
 
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   //@ts-ignore Buffer exists
   window.Buffer = window.Buffer || Buffer;
 }
 
+export type SignerPolicy =
+  | { tag: "TimeBased"; values: readonly [TimeBasedPolicy] }
+  | { tag: "ContractDenyList"; values: readonly [ContractDenyListPolicy] }
+  | { tag: "ContractAllowList"; values: readonly [ContractAllowListPolicy] };
 
-
-
-export type SignerPolicy = {tag: "TimeBased", values: readonly [TimeBasedPolicy]} | {tag: "ContractDenyList", values: readonly [ContractDenyListPolicy]} | {tag: "ContractAllowList", values: readonly [ContractAllowListPolicy]};
-
-export type SignerRole = {tag: "Admin", values: void} | {tag: "Standard", values: void} | {tag: "Restricted", values: readonly [Array<SignerPolicy>]};
-
+export type SignerRole =
+  | { tag: "Admin"; values: void }
+  | { tag: "Standard"; values: void }
+  | { tag: "Restricted"; values: readonly [Array<SignerPolicy>] };
 
 export interface ContractAllowListPolicy {
   allowed_contracts: Array<string>;
 }
 
-
 export interface ContractDenyListPolicy {
   denied_contracts: Array<string>;
 }
-
 
 export interface TimeBasedPolicy {
   not_after: u64;
   not_before: u64;
 }
-
 
 export interface Secp256r1Signature {
   authenticator_data: Buffer;
@@ -60,14 +59,19 @@ export interface Secp256r1Signature {
   signature: Buffer;
 }
 
-export type SignerProof = {tag: "Ed25519", values: readonly [Buffer]} | {tag: "Secp256r1", values: readonly [Secp256r1Signature]};
+export type SignerProof =
+  | { tag: "Ed25519"; values: readonly [Buffer] }
+  | { tag: "Secp256r1"; values: readonly [Secp256r1Signature] };
 
 export type SignatureProofs = readonly [Map<SignerKey, SignerProof>];
 
-export type SignerKey = {tag: "Ed25519", values: readonly [Buffer]} | {tag: "Secp256r1", values: readonly [Buffer]};
+export type SignerKey =
+  | { tag: "Ed25519"; values: readonly [Buffer] }
+  | { tag: "Secp256r1"; values: readonly [Buffer] };
 
-export type Signer = {tag: "Ed25519", values: readonly [Ed25519Signer, SignerRole]} | {tag: "Secp256r1", values: readonly [Secp256r1Signer, SignerRole]};
-
+export type Signer =
+  | { tag: "Ed25519"; values: readonly [Ed25519Signer, SignerRole] }
+  | { tag: "Secp256r1"; values: readonly [Secp256r1Signer, SignerRole] };
 
 /**
  * Ed25519 signer implementation
@@ -75,7 +79,6 @@ export type Signer = {tag: "Ed25519", values: readonly [Ed25519Signer, SignerRol
 export interface Ed25519Signer {
   public_key: Buffer;
 }
-
 
 export interface Secp256r1Signer {
   key_id: Buffer;
@@ -86,100 +89,101 @@ export const Errors = {
   /**
    * Contract has already been initialized
    */
-  0: {message:"AlreadyInitialized"},
+  0: { message: "AlreadyInitialized" },
   /**
    * Contract has not been initialized yet
    */
-  1: {message:"NotInitialized"},
+  1: { message: "NotInitialized" },
   /**
    * Storage entry was not found
    */
-  10: {message:"StorageEntryNotFound"},
+  10: { message: "StorageEntryNotFound" },
   /**
    * Storage entry already exists
    */
-  11: {message:"StorageEntryAlreadyExists"},
+  11: { message: "StorageEntryAlreadyExists" },
   /**
-   * No signers are configured for the wallet
+   * No signers are configured for the account
    */
-  20: {message:"NoSigners"},
+  20: { message: "NoSigners" },
   /**
-   * Signer already exists in the wallet
+   * Signer already exists in the account
    */
-  21: {message:"SignerAlreadyExists"},
+  21: { message: "SignerAlreadyExists" },
   /**
-   * Signer was not found in the wallet
+   * Signer was not found in the account
    */
-  22: {message:"SignerNotFound"},
+  22: { message: "SignerNotFound" },
   /**
    * Signer has expired and is no longer valid
    */
-  23: {message:"SignerExpired"},
-  24: {message:"CannotRevokeAdminSigner"},
+  23: { message: "SignerExpired" },
+  24: { message: "CannotRevokeAdminSigner" },
   /**
    * No matching signature found for the given criteria
    */
-  40: {message:"MatchingSignatureNotFound"},
+  40: { message: "MatchingSignatureNotFound" },
   /**
    * Signature verification failed during authentication
    */
-  41: {message:"SignatureVerificationFailed"},
+  41: { message: "SignatureVerificationFailed" },
   /**
    * Invalid proof type provided
    */
-  42: {message:"InvalidProofType"},
+  42: { message: "InvalidProofType" },
   /**
    * No proofs found in the authentication entry
    */
-  43: {message:"NoProofsInAuthEntry"},
+  43: { message: "NoProofsInAuthEntry" },
   /**
    * Insufficient permissions to perform the requested operation
    */
-  60: {message:"InsufficientPermissions"},
+  60: { message: "InsufficientPermissions" },
   /**
-   * Insufficient permissions during wallet creation
+   * Insufficient permissions during account creation
    */
-  61: {message:"InsufficientPermissionsOnCreation"},
+  61: { message: "InsufficientPermissionsOnCreation" },
   /**
    * Invalid policy configuration
    */
-  80: {message:"InvalidPolicy"},
+  80: { message: "InvalidPolicy" },
   /**
    * Invalid time range specified in policy
    */
-  81: {message:"InvalidTimeRange"},
+  81: { message: "InvalidTimeRange" },
   /**
    * Invalid not-after time specified
    */
-  82: {message:"InvalidNotAfterTime"},
+  82: { message: "InvalidNotAfterTime" },
   /**
    * Requested resource was not found
    */
-  100: {message:"NotFound"}
-}
-
+  100: { message: "NotFound" },
+};
 
 export interface SignerAddedEvent {
   signer: Signer;
   signer_key: SignerKey;
 }
 
-
 export interface SignerUpdatedEvent {
   new_signer: Signer;
   signer_key: SignerKey;
 }
-
 
 export interface SignerRevokedEvent {
   revoked_signer: Signer;
   signer_key: SignerKey;
 }
 
-export type StorageType = {tag: "Persistent", values: void} | {tag: "Instance", values: void};
+export type StorageType =
+  | { tag: "Persistent"; values: void }
+  | { tag: "Instance"; values: void };
 
-export type StorageOperation = {tag: "Store", values: void} | {tag: "Update", values: void} | {tag: "Delete", values: void};
-
+export type StorageOperation =
+  | { tag: "Store"; values: void }
+  | { tag: "Update"; values: void }
+  | { tag: "Delete"; values: void };
 
 export interface StorageChangeEvent {
   operation: StorageOperation;
@@ -190,88 +194,99 @@ export interface Client {
   /**
    * Construct and simulate a upgrade transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  upgrade: ({new_wasm_hash}: {new_wasm_hash: Buffer}, options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
+  upgrade: (
+    { new_wasm_hash }: { new_wasm_hash: Buffer },
+    options?: {
+      /**
+       * The fee to pay for the transaction. Default: BASE_FEE
+       */
+      fee?: number;
 
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
+      /**
+       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+       */
+      timeoutInSeconds?: number;
 
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<null>>
+      /**
+       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+       */
+      simulate?: boolean;
+    }
+  ) => Promise<AssembledTransaction<null>>;
 
   /**
    * Construct and simulate a add_signer transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  add_signer: ({signer}: {signer: Signer}, options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
+  add_signer: (
+    { signer }: { signer: Signer },
+    options?: {
+      /**
+       * The fee to pay for the transaction. Default: BASE_FEE
+       */
+      fee?: number;
 
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
+      /**
+       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+       */
+      timeoutInSeconds?: number;
 
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<Result<void>>>
+      /**
+       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+       */
+      simulate?: boolean;
+    }
+  ) => Promise<AssembledTransaction<Result<void>>>;
 
   /**
    * Construct and simulate a update_signer transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  update_signer: ({signer}: {signer: Signer}, options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
+  update_signer: (
+    { signer }: { signer: Signer },
+    options?: {
+      /**
+       * The fee to pay for the transaction. Default: BASE_FEE
+       */
+      fee?: number;
 
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
+      /**
+       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+       */
+      timeoutInSeconds?: number;
 
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<Result<void>>>
+      /**
+       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+       */
+      simulate?: boolean;
+    }
+  ) => Promise<AssembledTransaction<Result<void>>>;
 
   /**
    * Construct and simulate a revoke_signer transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  revoke_signer: ({signer_key}: {signer_key: SignerKey}, options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
+  revoke_signer: (
+    { signer_key }: { signer_key: SignerKey },
+    options?: {
+      /**
+       * The fee to pay for the transaction. Default: BASE_FEE
+       */
+      fee?: number;
 
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
+      /**
+       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+       */
+      timeoutInSeconds?: number;
 
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<Result<void>>>
-
+      /**
+       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+       */
+      simulate?: boolean;
+    }
+  ) => Promise<AssembledTransaction<Result<void>>>;
 }
 export class Client extends ContractClient {
   static async deploy<T = Client>(
-        /** Constructor/Initialization Args for the contract's `__constructor` method */
-        {signers}: {signers: Array<Signer>},
+    /** Constructor/Initialization Args for the contract's `__constructor` method */
+    { signers }: { signers: Array<Signer> },
     /** Options for initializing a Client as well as for calling a method, with extras specific to deploying. */
     options: MethodOptions &
       Omit<ContractClientOptions, "contractId"> & {
@@ -283,11 +298,12 @@ export class Client extends ContractClient {
         format?: "hex" | "base64";
       }
   ): Promise<AssembledTransaction<T>> {
-    return ContractClient.deploy({signers}, options)
+    return ContractClient.deploy({ signers }, options);
   }
   constructor(public readonly options: ContractClientOptions) {
     super(
-      new ContractSpec([ "AAAAAgAAAAAAAAAAAAAADFNpZ25lclBvbGljeQAAAAMAAAABAAAAAAAAAAlUaW1lQmFzZWQAAAAAAAABAAAH0AAAAA9UaW1lQmFzZWRQb2xpY3kAAAAAAQAAAAAAAAAQQ29udHJhY3REZW55TGlzdAAAAAEAAAfQAAAAFkNvbnRyYWN0RGVueUxpc3RQb2xpY3kAAAAAAAEAAAAAAAAAEUNvbnRyYWN0QWxsb3dMaXN0AAAAAAAAAQAAB9AAAAAXQ29udHJhY3RBbGxvd0xpc3RQb2xpY3kA",
+      new ContractSpec([
+        "AAAAAgAAAAAAAAAAAAAADFNpZ25lclBvbGljeQAAAAMAAAABAAAAAAAAAAlUaW1lQmFzZWQAAAAAAAABAAAH0AAAAA9UaW1lQmFzZWRQb2xpY3kAAAAAAQAAAAAAAAAQQ29udHJhY3REZW55TGlzdAAAAAEAAAfQAAAAFkNvbnRyYWN0RGVueUxpc3RQb2xpY3kAAAAAAAEAAAAAAAAAEUNvbnRyYWN0QWxsb3dMaXN0AAAAAAAAAQAAB9AAAAAXQ29udHJhY3RBbGxvd0xpc3RQb2xpY3kA",
         "AAAAAgAAAAAAAAAAAAAAClNpZ25lclJvbGUAAAAAAAMAAAAAAAAAAAAAAAVBZG1pbgAAAAAAAAAAAAAAAAAACFN0YW5kYXJkAAAAAQAAAAAAAAAKUmVzdHJpY3RlZAAAAAAAAQAAA+oAAAfQAAAADFNpZ25lclBvbGljeQ==",
         "AAAAAQAAAAAAAAAAAAAAF0NvbnRyYWN0QWxsb3dMaXN0UG9saWN5AAAAAAEAAAAAAAAAEWFsbG93ZWRfY29udHJhY3RzAAAAAAAD6gAAABM=",
         "AAAAAQAAAAAAAAAAAAAAFkNvbnRyYWN0RGVueUxpc3RQb2xpY3kAAAAAAAEAAAAAAAAAEGRlbmllZF9jb250cmFjdHMAAAPqAAAAEw==",
@@ -311,14 +327,15 @@ export class Client extends ContractClient {
         "AAAAAAAAAsNDdXN0b20gYXV0aG9yaXphdGlvbiBmdW5jdGlvbiBpbnZva2VkIGJ5IHRoZSBTb3JvYmFuIHJ1bnRpbWUuCgpUaGlzIGZ1bmN0aW9uIGltcGxlbWVudHMgdGhlIHdhbGxldCdzIGF1dGhvcml6YXRpb24gbG9naWMgd2l0aCBvcHRpbWl6YXRpb25zIGZvciBTdGVsbGFyIGNvc3RzOgoxLiBWZXJpZmllcyB0aGF0IGFsbCBwcm92aWRlZCBzaWduYXR1cmVzIGFyZSBjcnlwdG9ncmFwaGljYWxseSB2YWxpZAoyLiBDaGVja3MgdGhhdCBhdCBsZWFzdCBvbmUgYXV0aG9yaXplZCBzaWduZXIgaGFzIGFwcHJvdmVkIGVhY2ggb3BlcmF0aW9uCjMuIEVuc3VyZXMgc2lnbmVycyBoYXZlIHRoZSByZXF1aXJlZCBwZXJtaXNzaW9ucyBmb3IgdGhlIHJlcXVlc3RlZCBvcGVyYXRpb25zCgoKIyBBcmd1bWVudHMKKiBgZW52YCAtIFRoZSBjb250cmFjdCBlbnZpcm9ubWVudAoqIGBzaWduYXR1cmVfcGF5bG9hZGAgLSBIYXNoIG9mIHRoZSBkYXRhIHRoYXQgd2FzIHNpZ25lZAoqIGBhdXRoX3BheWxvYWRzYCAtIE1hcCBvZiBzaWduZXIga2V5cyB0byB0aGVpciBzaWduYXR1cmUgcHJvb2ZzCiogYGF1dGhfY29udGV4dHNgIC0gTGlzdCBvZiBvcGVyYXRpb25zIGJlaW5nIGF1dGhvcml6ZWQKCiMgUmV0dXJucwoqIGBPaygoKSlgIGlmIGF1dGhvcml6YXRpb24gc3VjY2VlZHMKKiBgRXJyKEVycm9yKWAgaWYgYXV0aG9yaXphdGlvbiBmYWlscyBmb3IgYW55IHJlYXNvbgAAAAAMX19jaGVja19hdXRoAAAAAwAAAAAAAAARc2lnbmF0dXJlX3BheWxvYWQAAAAAAAPuAAAAIAAAAAAAAAANYXV0aF9wYXlsb2FkcwAAAAAAB9AAAAAPU2lnbmF0dXJlUHJvb2ZzAAAAAAAAAAANYXV0aF9jb250ZXh0cwAAAAAAA+oAAAfQAAAAB0NvbnRleHQAAAAAAQAAA+kAAAPtAAAAAAAAAAM=",
         "AAAAAgAAAAAAAAAAAAAAC1N0b3JhZ2VUeXBlAAAAAAIAAAAAAAAAAAAAAApQZXJzaXN0ZW50AAAAAAAAAAAAAAAAAAhJbnN0YW5jZQ==",
         "AAAAAgAAAAAAAAAAAAAAEFN0b3JhZ2VPcGVyYXRpb24AAAADAAAAAAAAAAAAAAAFU3RvcmUAAAAAAAAAAAAAAAAAAAZVcGRhdGUAAAAAAAAAAAAAAAAABkRlbGV0ZQAA",
-        "AAAAAQAAAAAAAAAAAAAAElN0b3JhZ2VDaGFuZ2VFdmVudAAAAAAAAgAAAAAAAAAJb3BlcmF0aW9uAAAAAAAH0AAAABBTdG9yYWdlT3BlcmF0aW9uAAAAAAAAAAxzdG9yYWdlX3R5cGUAAAfQAAAAC1N0b3JhZ2VUeXBlAA==" ]),
+        "AAAAAQAAAAAAAAAAAAAAElN0b3JhZ2VDaGFuZ2VFdmVudAAAAAAAAgAAAAAAAAAJb3BlcmF0aW9uAAAAAAAH0AAAABBTdG9yYWdlT3BlcmF0aW9uAAAAAAAAAAxzdG9yYWdlX3R5cGUAAAfQAAAAC1N0b3JhZ2VUeXBlAA==",
+      ]),
       options
-    )
+    );
   }
   public readonly fromJSON = {
     upgrade: this.txFromJSON<null>,
-        add_signer: this.txFromJSON<Result<void>>,
-        update_signer: this.txFromJSON<Result<void>>,
-        revoke_signer: this.txFromJSON<Result<void>>
-  }
+    add_signer: this.txFromJSON<Result<void>>,
+    update_signer: this.txFromJSON<Result<void>>,
+    revoke_signer: this.txFromJSON<Result<void>>,
+  };
 }

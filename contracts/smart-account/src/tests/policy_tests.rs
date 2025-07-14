@@ -2,10 +2,10 @@ use crate::tests::test_utils::TestSignerTrait as _;
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{vec, Address};
 
+use crate::account::SmartAccount;
 use crate::auth::permissions::{SignerPolicy, SignerRole};
 use crate::auth::policy::{ContractAllowListPolicy, ContractDenyListPolicy, TimeBasedPolicy};
 use crate::tests::test_utils::{setup, Ed25519TestSigner};
-use crate::wallet::SmartAccount;
 
 //
 // Allowlist policy

@@ -5,6 +5,7 @@ use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{map, testutils::BytesN as _, vec, Address, BytesN, IntoVal};
 
 use crate::{
+    account::SmartAccount,
     auth::{
         permissions::{SignerPolicy, SignerRole},
         policy::{ContractAllowListPolicy, ContractDenyListPolicy, TimeBasedPolicy},
@@ -15,7 +16,6 @@ use crate::{
         get_token_auth_context, get_update_signer_auth_context, setup, Ed25519TestSigner,
         TestSignerTrait as _,
     },
-    wallet::SmartAccount,
 };
 
 extern crate std;

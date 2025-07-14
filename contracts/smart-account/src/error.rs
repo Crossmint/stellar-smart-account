@@ -19,11 +19,11 @@ pub enum Error {
     StorageEntryAlreadyExists = 11,
 
     // === Signer Management Errors (20-39) ===
-    /// No signers are configured for the wallet
+    /// No signers are configured for the account
     NoSigners = 20,
-    /// Signer already exists in the wallet
+    /// Signer already exists in the account
     SignerAlreadyExists = 21,
-    /// Signer was not found in the wallet
+    /// Signer was not found in the account
     SignerNotFound = 22,
     /// Signer has expired and is no longer valid
     SignerExpired = 23,
@@ -42,7 +42,7 @@ pub enum Error {
     // === Permission Errors (60-79) ===
     /// Insufficient permissions to perform the requested operation
     InsufficientPermissions = 60,
-    /// Insufficient permissions during wallet creation
+    /// Insufficient permissions during account creation
     InsufficientPermissionsOnCreation = 61,
 
     // === Policy Errors (80-99) ===

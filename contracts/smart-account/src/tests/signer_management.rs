@@ -3,6 +3,7 @@
 use soroban_sdk::{map, testutils::BytesN as _, vec, BytesN, IntoVal};
 
 use crate::{
+    account::SmartAccount,
     auth::{
         permissions::SignerRole,
         proof::{SignatureProofs, SignerProof},
@@ -11,7 +12,6 @@ use crate::{
     error::Error,
     interface::SmartAccountInterface,
     tests::test_utils::{get_token_auth_context, setup, Ed25519TestSigner, TestSignerTrait as _},
-    wallet::SmartAccount,
 };
 
 extern crate std;

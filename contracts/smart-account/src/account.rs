@@ -37,10 +37,10 @@ pub struct SignerRevokedEvent {
     pub revoked_signer: Signer,
 }
 
-/// SmartAccount is a multi-signature wallet contract that provides enhanced security
+/// SmartAccount is a multi-signature account contract that provides enhanced security
 /// through role-based access control and policy-based authorization.
 ///
-/// The wallet supports different signers with different signer roles (Admin, Standard, Restricted) with customizable
+/// The account supports different signers with different signer roles (Admin, Standard, Restricted) with customizable
 /// policies for fine-grained permission management.
 #[contract]
 pub struct SmartAccount;
@@ -83,7 +83,7 @@ impl SmartAccount {
 /// # Panics
 ///
 /// If a initialization precondition is not met, the contract will panic with an error.
-/// If the wallet is already initialized, the contract will panic with an error.
+/// If the account is already initialized, the contract will panic with an error.
 #[contractimpl]
 impl SmartAccountInterface for SmartAccount {
     fn __constructor(env: Env, signers: Vec<Signer>) {
@@ -193,7 +193,7 @@ impl CustomAccountInterface for SmartAccount {
 
     /// Custom authorization function invoked by the Soroban runtime.
     ///
-    /// This function implements the wallet's authorization logic with optimizations for Stellar costs:
+    /// This function implements the account's authorization logic with optimizations for Stellar costs:
     /// 1. Verifies that all provided signatures are cryptographically valid
     /// 2. Checks that at least one authorized signer has approved each operation
     /// 3. Ensures signers have the required permissions for the requested operations
