@@ -1,24 +1,24 @@
-# Smart Wallet Contract Architecture
+# Smart Account Contract Architecture
 
-The Smart Wallet is a multi-signature wallet contract built on Soroban that provides enhanced security through role-based access control and policy-based authorization. It supports multiple cryptographic signature schemes and allows for fine-grained permission management suitable for both human users and AI agents.
+The Smart Account is a multi-signature account contract built on Soroban that provides enhanced security through role-based access control and policy-based authorization. It supports multiple cryptographic signature schemes and allows for fine-grained permission management suitable for both human users and AI agents.
 
 ## Overview
 
-The Smart Wallet contract implements a flexible authentication system that combines:
+The Smart Account contract implements a flexible authentication system that combines:
 - **Multiple signature schemes** (Ed25519 and Secp256r1/WebAuthn, extensible to others)
 - **Role-based access control** (Admin, Standard, Restricted)
 - **Policy-based restrictions** (time-based, contract allow/deny lists)
 - **Multi-signature support** with customizable authorization logic
 
-This architecture enables sophisticated permission systems for enterprise blockchain applications, supporting use cases from simple multi-sig wallets to complex automated systems with AI agent integration.
+This architecture enables sophisticated permission systems for enterprise blockchain applications, supporting use cases from simple multi-sig accounts to complex automated systems with AI agent integration.
 
 ## Core Architecture
 
 ### Contract Structure
 
 ```
-SmartWallet
-├── SmartWalletInterface     # Administrative operations
+SmartAccount
+├── SmartAccountInterface    # Administrative operations
 │   ├── __constructor()      # Initialize with signers
 │   ├── add_signer()        # Add new signer
 │   ├── update_signer()     # Modify existing signer
@@ -31,9 +31,9 @@ SmartWallet
 
 ```mermaid
 graph TB
-    subgraph "Smart Wallet Contract"
-        SW[SmartWallet]
-        SWI[SmartWalletInterface]
+    subgraph "Smart Account Contract"
+        SW[SmartAccount]
+        SWI[SmartAccountInterface]
         CAI[CustomAccountInterface]
         
         SW --> SWI
@@ -255,76 +255,76 @@ pub enum SignerPolicy {
 
 ## Authentication Flow and Sequence
 
-### Smart Wallet Validation Sequence
+### Smart Account Validation Sequence
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant SorobanRuntime as Soroban Runtime
-    participant SmartWallet as Smart Wallet
+    participant SmartAccount as Smart Account
     participant Storage
     participant Signer
     participant Policy
     
     Client->>SorobanRuntime: Submit transaction with authorization
-    SorobanRuntime->>SmartWallet: __check_auth(signature_payload, signature_proofs, auth_contexts)
+    SorobanRuntime->>SmartAccount: __check_auth(signature_payload, signature_proofs, auth_contexts)
     
-    Note over SmartWallet: Step 1: Validate signature proofs
-    SmartWallet->>SmartWallet: Check signature_proofs not empty
+    Note over SmartAccount: Step 1: Validate signature proofs
+    SmartAccount->>SmartAccount: Check signature_proofs not empty
     
-    Note over SmartWallet: Step 2: Pre-validate signer existence
+    Note over SmartAccount: Step 2: Pre-validate signer existence
     loop For each (signer_key, _) in signature_proofs
-        SmartWallet->>Storage: has(signer_key)
-        Storage-->>SmartWallet: Exists/Not found
+        SmartAccount->>Storage: has(signer_key)
+        Storage-->>SmartAccount: Exists/Not found
         alt Signer not found
-            SmartWallet-->>SorobanRuntime: Error: SignerNotFound
+            SmartAccount-->>SorobanRuntime: Error: SignerNotFound
             SorobanRuntime-->>Client: Transaction failure
         end
     end
     
-    Note over SmartWallet: Step 3: Verify signatures and cache signers
+    Note over SmartAccount: Step 3: Verify signatures and cache signers
     loop For each (signer_key, proof) in signature_proofs
-        SmartWallet->>Storage: get_signer(signer_key)
-        Storage-->>SmartWallet: Return signer (safe after has() check)
-        SmartWallet->>Signer: verify(signature_payload, proof)
-        Signer-->>SmartWallet: Signature valid/invalid
-        SmartWallet->>SmartWallet: Cache verified signer
+        SmartAccount->>Storage: get_signer(signer_key)
+        Storage-->>SmartAccount: Return signer (safe after has() check)
+        SmartAccount->>Signer: verify(signature_payload, proof)
+        Signer-->>SmartAccount: Signature valid/invalid
+        SmartAccount->>SmartAccount: Cache verified signer
     end
     
-    Note over SmartWallet: Step 4: Check permissions with early exit
+    Note over SmartAccount: Step 4: Check permissions with early exit
     loop For each auth_context
-        SmartWallet->>SmartWallet: context_authorized = false
+        SmartAccount->>SmartAccount: context_authorized = false
         loop For each (signer_key, _) in signature_proofs
-            SmartWallet->>SmartWallet: Get cached signer
-            SmartWallet->>Signer: role.is_authorized(context)
+            SmartAccount->>SmartAccount: Get cached signer
+            SmartAccount->>Signer: role.is_authorized(context)
             
             alt Signer role is Admin
-                Signer-->>SmartWallet: Authorized
-                SmartWallet->>SmartWallet: context_authorized = true, break loop
+                Signer-->>SmartAccount: Authorized
+                SmartAccount->>SmartAccount: context_authorized = true, break loop
             else Signer role is Standard
                 Signer->>Signer: Check if operation is admin-only
-                Signer-->>SmartWallet: Authorized/Denied
+                Signer-->>SmartAccount: Authorized/Denied
                 alt Authorized
-                    SmartWallet->>SmartWallet: context_authorized = true, break loop
+                    SmartAccount->>SmartAccount: context_authorized = true, break loop
                 end
             else Signer role is Restricted
                 loop For each policy in role
                     Signer->>Policy: is_authorized(env, context)
                     Policy-->>Signer: Policy result
                 end
-                Signer-->>SmartWallet: All policies passed/failed
+                Signer-->>SmartAccount: All policies passed/failed
                 alt All policies passed
-                    SmartWallet->>SmartWallet: context_authorized = true, break loop
+                    SmartAccount->>SmartAccount: context_authorized = true, break loop
                 end
             end
         end
         alt context_authorized == false
-            SmartWallet-->>SorobanRuntime: Error: InsufficientPermissions
+            SmartAccount-->>SorobanRuntime: Error: InsufficientPermissions
             SorobanRuntime-->>Client: Transaction failure
         end
     end
     
-    SmartWallet-->>SorobanRuntime: Authorization successful
+    SmartAccount-->>SorobanRuntime: Authorization successful
     SorobanRuntime-->>Client: Transaction success
 ```
 
@@ -364,18 +364,18 @@ Where:
 
 ### Sequence Numbers and Nonce Handling
 
-The Smart Wallet relies on Soroban's built-in sequence number mechanism for replay protection:
+The Smart Account relies on Soroban's built-in sequence number mechanism for replay protection:
 
 1. **Soroban Account Sequence**: Each account has an incrementing sequence number
 2. **Transaction Ordering**: Transactions must be submitted with correct sequence numbers
 3. **Replay Protection**: Used sequence numbers cannot be reused
 4. **Multi-sig Coordination**: All signers must agree on the same sequence number
 
-The wallet does not implement custom nonce handling, instead leveraging Soroban's native account sequence system for transaction ordering and replay protection.
+The account does not implement custom nonce handling, instead leveraging Soroban's native account sequence system for transaction ordering and replay protection.
 
 ## Contract Upgradeability
 
-The Smart Wallet supports contract upgrades through Soroban's built-in upgradeability mechanism, which allows updating the contract's WebAssembly bytecode without changing the contract address or requiring proxy patterns.
+The Smart Account supports contract upgrades through Soroban's built-in upgradeability mechanism, which allows updating the contract's WebAssembly bytecode without changing the contract address or requiring proxy patterns.
 
 ### Upgrade Mechanism
 
@@ -394,7 +394,7 @@ Key characteristics of Soroban contract upgrades:
 
 ### Permission Requirements
 
-Contract upgrades are controlled by the Smart Wallet's role-based permission system:
+Contract upgrades are controlled by the Smart Account's role-based permission system:
 
 | Signer Role | Upgrade Permission | Description |
 |-------------|-------------------|-------------|
@@ -417,7 +417,7 @@ if signer.role() == SignerRole::Admin {
 ```mermaid
 sequenceDiagram
     participant Admin as Admin Signer
-    participant SW as Smart Wallet
+    participant SW as Smart Account
     participant Soroban as Soroban Runtime
     participant Storage as Contract Storage
     
@@ -451,10 +451,10 @@ sequenceDiagram
 
 The `CrossmintContractFactory` handles initial deployment but does not manage upgrades:
 - **Initial Deployment**: Factory deploys contracts with role-based access control
-- **Upgrade Management**: Individual Smart Wallet contracts handle their own upgrades
+- **Upgrade Management**: Individual Smart Account contracts handle their own upgrades
 - **Permission Inheritance**: Admin roles established during deployment control upgrade access
 
-This separation ensures that each Smart Wallet maintains autonomous control over its upgrade process while benefiting from the factory's standardized deployment patterns.
+This separation ensures that each Smart Account maintains autonomous control over its upgrade process while benefiting from the factory's standardized deployment patterns.
 
 ## Error Handling
 
@@ -473,7 +473,7 @@ The contract defines comprehensive error types organized by category:
 ### Basic Multi-Signature Setup
 
 ```rust
-// Initialize wallet with admin and standard signers
+// Initialize account with admin and standard signers
 let admin_signer = Signer::Ed25519(
     Ed25519Signer::new(admin_pubkey),
     SignerRole::Admin
@@ -484,7 +484,7 @@ let user_signer = Signer::Ed25519(
     SignerRole::Standard
 );
 
-SmartWallet::__constructor(env, vec![admin_signer, user_signer]);
+SmartAccount::__constructor(env, vec![admin_signer, user_signer]);
 ```
 
 ### Time-Restricted Signer
@@ -501,7 +501,7 @@ let restricted_signer = Signer::Ed25519(
     SignerRole::Restricted(vec![SignerPolicy::TimeBased(time_policy)])
 );
 
-SmartWallet::add_signer(&env, restricted_signer)?;
+SmartAccount::add_signer(&env, restricted_signer)?;
 ```
 
 ### Contract-Specific Authorization
@@ -520,7 +520,7 @@ let trading_signer = Signer::Ed25519(
 
 ## AI Agent Integration
 
-The Smart Wallet architecture is designed to support AI agent integration through:
+The Smart Account architecture is designed to support AI agent integration through:
 
 - **Programmatic Signer Management**: Agents can be granted specific roles and policies
 - **Time-Based Access**: Temporary access grants for automated operations

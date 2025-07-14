@@ -1,4 +1,4 @@
-/// This module exports the basic functionality for the Smart Wallet auth system
+/// This module exports the basic functionality for the Smart Account auth system
 ///
 /// ## Core Objects and Classes
 ///
@@ -50,7 +50,7 @@
 /// 4. **Proofs** provide cryptographic evidence for authorization
 ///
 /// This allows for flexible authorization schemes from simple admin access to complex
-/// multi-signature wallets with time-based and contract-specific restrictions.
+/// multi-signature accounts with time-based and contract-specific restrictions.
 pub mod permissions;
 pub mod policy;
 pub mod proof;

@@ -3,7 +3,7 @@ import { hash, Keypair, Networks, rpc } from "@stellar/stellar-sdk";
 export const NETWORK = Networks.TESTNET;
 export const RPC_URL = "https://soroban-testnet.stellar.org";
 export const SERVER = new rpc.Server(RPC_URL);
-export const SW_WASM_HASH =
+export const SA_WASM_HASH =
   "a2ab113b01005162e48519af6e83d01505b8118ae6f39dd18756b4f258970276";
 export const FACTORY_WASM_HASH =
   "aec59d18628f303aa09beb8c91a0e488d3b775f2b96c17af3998a85135b2251a";

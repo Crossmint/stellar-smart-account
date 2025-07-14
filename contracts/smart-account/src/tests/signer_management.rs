@@ -3,15 +3,15 @@
 use soroban_sdk::{map, testutils::BytesN as _, vec, BytesN, IntoVal};
 
 use crate::{
+    account::SmartAccount,
     auth::{
         permissions::SignerRole,
         proof::{SignatureProofs, SignerProof},
         signer::SignerKey,
     },
     error::Error,
-    interface::SmartWalletInterface,
+    interface::SmartAccountInterface,
     tests::test_utils::{get_token_auth_context, setup, Ed25519TestSigner, TestSignerTrait as _},
-    wallet::SmartWallet,
 };
 
 extern crate std;
@@ -23,7 +23,7 @@ fn test_revoke_admin_signer_prevented() {
     let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard);
 
     let contract_id = env.register(
-        SmartWallet,
+        SmartAccount,
         (vec![
             &env,
             admin_signer.into_signer(&env),
@@ -39,7 +39,7 @@ fn test_revoke_admin_signer_prevented() {
 
     env.mock_all_auths();
     let result = env.as_contract(&contract_id, || {
-        SmartWallet::revoke_signer(&env, admin_signer_key)
+        SmartAccount::revoke_signer(&env, admin_signer_key)
     });
 
     assert_eq!(result.unwrap_err(), Error::CannotRevokeAdminSigner);
@@ -52,7 +52,7 @@ fn test_revoke_standard_signer_allowed() {
     let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard);
 
     let contract_id = env.register(
-        SmartWallet,
+        SmartAccount,
         (vec![
             &env,
             admin_signer.into_signer(&env),
@@ -68,7 +68,7 @@ fn test_revoke_standard_signer_allowed() {
 
     env.mock_all_auths();
     let result = env.as_contract(&contract_id, || {
-        SmartWallet::revoke_signer(&env, standard_signer_key)
+        SmartAccount::revoke_signer(&env, standard_signer_key)
     });
 
     assert!(result.is_ok());

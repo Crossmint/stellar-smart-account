@@ -17,9 +17,9 @@ importers:
       factory:
         specifier: file:../packages/factory
         version: file:../packages/factory
-      smart_wallet:
-        specifier: file:../packages/smart_wallet
-        version: file:../packages/smart_wallet
+      smart_account:
+        specifier: file:../packages/smart_account
+        version: file:../packages/smart_account
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -431,8 +431,8 @@ packages:
     engines: {node: '>= 0.10'}
     hasBin: true
 
-  smart_wallet@file:../packages/smart_wallet:
-    resolution: {directory: ../packages/smart_wallet, type: directory}
+  smart_account@file:../packages/smart_account:
+    resolution: {directory: ../packages/smart_account, type: directory}
 
   sodium-native@4.3.3:
     resolution: {integrity: sha512-OnxSlN3uyY8D0EsLHpmm2HOFmKddQVvEMmsakCrXUzSd8kjjbzL413t4ZNF3n0UxSwNgwTyUvkmZHTfuCeiYSw==}
@@ -841,7 +841,7 @@ snapshots:
       safe-buffer: 5.2.1
       to-buffer: 1.2.1
 
-  smart_wallet@file:../packages/smart_wallet:
+  smart_account@file:../packages/smart_account:
     dependencies:
       '@stellar/stellar-sdk': 13.3.0
       buffer: 6.0.3
