@@ -20,11 +20,7 @@ jobs:
       - name: Run Scout security analysis
         uses: coinfabrik/scout-actions@v3
         with:
-          working_directory: '.'
-          verbose: true
-          fail_on_error: true
-          comment_pr: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          target: '.'
 
       - name: Upload Scout report
         uses: actions/upload-artifact@v4
