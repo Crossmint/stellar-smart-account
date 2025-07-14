@@ -1,0 +1,34 @@
+name: Scout Security Analysis
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  scout-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+      repository-projects: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Scout security analysis
+        uses: coinfabrik/scout-actions@v3
+        with:
+          working_directory: '.'
+          verbose: true
+          fail_on_error: true
+          comment_pr: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Scout report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: scout-report
+          path: ${{ github.workspace }}/report.md
