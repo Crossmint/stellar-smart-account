@@ -1,4 +1,3 @@
-#![cfg(test)]
 
 use soroban_sdk::auth::{Context, ContractContext};
 use soroban_sdk::testutils::Address as _;
@@ -690,7 +689,7 @@ fn test_auth_mixed_valid_invalid_signatures() {
         (standard_key.clone(), invalid_proof)
     ]);
 
-    env.try_invoke_contract_check_auth::<Error>(
+    let _ = env.try_invoke_contract_check_auth::<Error>(
         &contract_id,
         &payload,
         auth_payloads.into_val(&env),

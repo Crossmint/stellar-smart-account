@@ -42,6 +42,7 @@ pub fn get_update_signer_auth_context(e: &Env, contract_id: &Address, signer: Si
 
 pub trait TestSignerTrait {
     fn generate(role: SignerRole) -> Self;
+    #[allow(clippy::wrong_self_convention)]
     fn into_signer(&self, env: &Env) -> Signer;
     fn sign(&self, env: &Env, payload: &BytesN<32>) -> (SignerKey, SignerProof);
 }
@@ -60,8 +61,9 @@ impl TestSignerTrait for Ed25519TestSigner {
         Self(Keypair::generate(&mut StdRng::from_entropy()), role)
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn into_signer(&self, env: &Env) -> Signer {
-        let Ed25519TestSigner(keypair, role) = self;
+        let Ed25519TestSigner(_keypair, role) = self;
         Signer::Ed25519(Ed25519Signer::new(self.public_key(env)), role.clone())
     }
 

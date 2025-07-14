@@ -1,17 +1,17 @@
 #![cfg(test)]
 
-use soroban_sdk::{map, testutils::BytesN as _, vec, BytesN, IntoVal};
+use soroban_sdk::{map, testutils::BytesN as _, vec, BytesN};
 
 use crate::{
     account::SmartAccount,
     auth::{
         permissions::SignerRole,
-        proof::{SignatureProofs, SignerProof},
+        proof::SignatureProofs,
         signer::SignerKey,
     },
     error::Error,
     interface::SmartAccountInterface,
-    tests::test_utils::{get_token_auth_context, setup, Ed25519TestSigner, TestSignerTrait as _},
+    tests::test_utils::{setup, Ed25519TestSigner, TestSignerTrait as _},
 };
 
 extern crate std;
@@ -33,7 +33,7 @@ fn test_revoke_admin_signer_prevented() {
 
     let payload = BytesN::random(&env);
     let (signer_key, proof) = admin_signer.sign(&env, &payload);
-    let auth_payloads = SignatureProofs(map![&env, (signer_key.clone(), proof.clone())]);
+    let _auth_payloads = SignatureProofs(map![&env, (signer_key.clone(), proof.clone())]);
 
     let admin_signer_key = SignerKey::Ed25519(admin_signer.public_key(&env));
 
@@ -62,7 +62,7 @@ fn test_revoke_standard_signer_allowed() {
 
     let payload = BytesN::random(&env);
     let (signer_key, proof) = admin_signer.sign(&env, &payload);
-    let auth_payloads = SignatureProofs(map![&env, (signer_key.clone(), proof.clone())]);
+    let _auth_payloads = SignatureProofs(map![&env, (signer_key.clone(), proof.clone())]);
 
     let standard_signer_key = SignerKey::Ed25519(standard_signer.public_key(&env));
 
