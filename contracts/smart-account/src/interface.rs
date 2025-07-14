@@ -3,7 +3,7 @@ use soroban_sdk::{Env, Vec};
 use crate::auth::signer::{Signer, SignerKey};
 use crate::error::Error;
 
-pub trait SmartWalletInterface {
+pub trait SmartAccountInterface {
     fn __constructor(env: Env, signers: Vec<Signer>);
 
     // Admin operations

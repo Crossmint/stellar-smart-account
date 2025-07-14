@@ -3,7 +3,7 @@ use crate::auth::permissions::{AuthorizationCheck, PolicyValidator};
 use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
 use crate::error::Error;
-use crate::interface::SmartWalletInterface;
+use crate::interface::SmartAccountInterface;
 use initializable::{only_not_initialized, Initializable};
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
@@ -12,7 +12,7 @@ use soroban_sdk::{
     log, panic_with_error, symbol_short, Env, Vec,
 };
 use storage::Storage;
-use upgradeable::{SmartWalletUpgradeable, SmartWalletUpgradeableAuth};
+use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
 
 use crate::auth::proof::SignatureProofs;
 
@@ -37,19 +37,19 @@ pub struct SignerRevokedEvent {
     pub revoked_signer: Signer,
 }
 
-/// SmartWallet is a multi-signature wallet contract that provides enhanced security
+/// SmartAccount is a multi-signature wallet contract that provides enhanced security
 /// through role-based access control and policy-based authorization.
 ///
 /// The wallet supports different signers with different signer roles (Admin, Standard, Restricted) with customizable
 /// policies for fine-grained permission management.
 #[contract]
-pub struct SmartWallet;
+pub struct SmartAccount;
 
-// Implements SmartWalletUpgradeable trait to allow the contract to be upgraded
+// Implements SmartAccountUpgradeable trait to allow the contract to be upgraded
 // by authorized signers through the upgrade mechanism
-upgradeable::impl_upgradeable!(SmartWallet);
+upgradeable::impl_upgradeable!(SmartAccount);
 
-impl SmartWalletUpgradeableAuth for SmartWallet {
+impl SmartAccountUpgradeableAuth for SmartAccount {
     fn _require_auth_upgrade(e: &Env) {
         e.current_contract_address().require_auth();
     }
@@ -58,9 +58,9 @@ impl SmartWalletUpgradeableAuth for SmartWallet {
 // Implements Initializable trait to allow the contract to be initialized.
 // that allows the deployer to set the initial signer configuration without
 // an explicit authorization for those signers
-impl Initializable for SmartWallet {}
+impl Initializable for SmartAccount {}
 
-impl SmartWallet {
+impl SmartAccount {
     /// Only requires authorization if the contract is already initialized.
     fn require_auth_if_initialized(env: &Env) {
         if Self::is_initialized(env) {
@@ -70,11 +70,11 @@ impl SmartWallet {
 }
 
 // ============================================================================
-// SmartWalletInterface implementation
+// SmartAccountInterface implementation
 // ============================================================================
 
-/// Implementation of the SmartWalletInterface trait that defines the public interface
-/// for all administrative operations on the smart wallet.
+/// Implementation of the SmartAccountInterface trait that defines the public interface
+/// for all administrative operations on the smart account.
 ///
 /// # Arguments
 /// * `env` - The contract environment
@@ -85,7 +85,7 @@ impl SmartWallet {
 /// If a initialization precondition is not met, the contract will panic with an error.
 /// If the wallet is already initialized, the contract will panic with an error.
 #[contractimpl]
-impl SmartWalletInterface for SmartWallet {
+impl SmartAccountInterface for SmartAccount {
     fn __constructor(env: Env, signers: Vec<Signer>) {
         only_not_initialized!(&env);
 
@@ -112,10 +112,10 @@ impl SmartWalletInterface for SmartWallet {
                         .unwrap_or_else(|e| panic_with_error!(env, e));
                 }
             }
-            SmartWallet::add_signer(&env, signer).unwrap_or_else(|e| panic_with_error!(env, e));
+            SmartAccount::add_signer(&env, signer).unwrap_or_else(|e| panic_with_error!(env, e));
         });
 
-        SmartWallet::initialize(&env).unwrap_or_else(|e| panic_with_error!(env, e));
+        SmartAccount::initialize(&env).unwrap_or_else(|e| panic_with_error!(env, e));
     }
 
     fn add_signer(env: &Env, signer: Signer) -> Result<(), Error> {
@@ -180,12 +180,12 @@ impl SmartWalletInterface for SmartWallet {
 // CustomAccountInterface implementation
 // ============================================================================
 
-/// Implementation of Soroban's CustomAccountInterface for smart wallet authorization.
+/// Implementation of Soroban's CustomAccountInterface for smart account authorization.
 ///
 /// This provides the custom authorization logic that the Soroban runtime uses
-/// to verify whether operations are authorized by the wallet's signers.
+/// to verify whether operations are authorized by the account's signers.
 #[contractimpl]
-impl CustomAccountInterface for SmartWallet {
+impl CustomAccountInterface for SmartAccount {
     /// The signature type used for authorization proofs.
     /// Contains a map of signer keys to their corresponding signature proofs.
     type Signature = SignatureProofs;

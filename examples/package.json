@@ -1,22 +1,22 @@
 {
-  "name": "stellar-smart-wallet-examples",
+  "name": "stellar-smart-account-examples",
   "version": "1.0.0",
-  "description": "TypeScript examples for Stellar Smart Wallet deployment and usage",
+  "description": "TypeScript examples for Stellar Smart Account deployment and usage",
   "type": "module",
-  "main": "smart-wallet-deployment.js",
+  "main": "smart-account-deployment.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/smart-wallet-operations.js",
-    "dev": "npm run prebuild && tsx smart-wallet-operations.ts",
+    "start": "node dist/smart-account-operations.js",
+    "dev": "npm run prebuild && tsx smart-account-operations.ts",
     "prebuild": "stellar contract build && npm run generate-bindings && npm run build-packages",
-    "generate-bindings": "cd ../packages/smart_wallet && stellar contract bindings typescript --wasm ../../target/wasm32v1-none/release/smart_wallet.wasm --output-dir temp --overwrite && cp temp/src/index.ts src/index.ts && rm -rf temp && cd ../factory && stellar contract bindings typescript --wasm ../../target/wasm32v1-none/release/contract_factory.wasm --output-dir temp --overwrite && cp temp/src/index.ts src/index.ts && rm -rf temp",
-    "build-packages": "cd ../packages/smart_wallet && pnpm install && pnpm run build && cd ../factory && pnpm install && pnpm run build"
+    "generate-bindings": "cd ../packages/smart_account && stellar contract bindings typescript --wasm ../../target/wasm32v1-none/release/smart_account.wasm --output-dir temp --overwrite && cp temp/src/index.ts src/index.ts && rm -rf temp && cd ../factory && stellar contract bindings typescript --wasm ../../target/wasm32v1-none/release/contract_factory.wasm --output-dir temp --overwrite && cp temp/src/index.ts src/index.ts && rm -rf temp",
+    "build-packages": "cd ../packages/smart_account && pnpm install && pnpm run build && cd ../factory && pnpm install && pnpm run build"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "13.3.0",
     "buffer": "^6.0.3",
     "factory": "file:../packages/factory",
-    "smart_wallet": "file:../packages/smart_wallet"
+    "smart_account": "file:../packages/smart_account"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -27,7 +27,7 @@
     "stellar",
     "soroban",
     "smart-contracts",
-    "smart-wallet",
+    "smart-account",
     "blockchain",
     "typescript"
   ],

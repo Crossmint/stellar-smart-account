@@ -2,7 +2,7 @@ import { AssembledTransaction } from "@stellar/stellar-sdk/contract";
 import { Address, Transaction, xdr } from "factory";
 
 /**
- * 🎨 Pretty print authorization entries for smart wallet transactions
+ * 🎨 Pretty print authorization entries for smart account transactions
  * Displays signer info, authorization contexts, and transaction details in a cool format
  */
 export function printAuthEntries(tx: AssembledTransaction<unknown>) {

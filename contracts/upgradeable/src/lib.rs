@@ -13,7 +13,7 @@ pub enum Error {
 
 pub const MIGRATING: Symbol = symbol_short!("MIGRATING");
 
-pub trait SmartWalletUpgradeable: SmartWalletUpgradeableAuth {
+pub trait SmartAccountUpgradeable: SmartAccountUpgradeableAuth {
     fn upgrade(env: &Env, new_wasm_hash: BytesN<32>) {
         Self::_require_auth_upgrade(env);
         enable_migration(env);
@@ -21,8 +21,8 @@ pub trait SmartWalletUpgradeable: SmartWalletUpgradeableAuth {
     }
 }
 
-pub trait SmartWalletUpgradeableMigratable:
-    SmartWalletUpgradeableAuth + SmartWalletUpgradeableMigratableInternal
+pub trait SmartAccountUpgradeableMigratable:
+    SmartAccountUpgradeableAuth + SmartAccountUpgradeableMigratableInternal
 {
     fn upgrade(e: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
         Self::_require_auth_upgrade(e);
@@ -38,16 +38,16 @@ pub trait SmartWalletUpgradeableMigratable:
     }
 }
 
-pub trait SmartWalletUpgradeableMigratableInternal {
+pub trait SmartAccountUpgradeableMigratableInternal {
     type MigrationData: FromVal<Env, Val>;
     fn _migrate(e: &Env, migration_data: &Self::MigrationData);
 }
 
-pub trait SmartWalletUpgradeableAuth {
+pub trait SmartAccountUpgradeableAuth {
     fn _require_auth_upgrade(e: &Env);
 }
 
-/// Macro to implement SmartWalletUpgradeable for a contract type.
+/// Macro to implement SmartAccountUpgradeable for a contract type.
 /// This generates the necessary contractimpl block with the upgrade function.
 ///
 /// # Usage
@@ -58,7 +58,7 @@ pub trait SmartWalletUpgradeableAuth {
 macro_rules! impl_upgradeable {
     ($contract_type:ident) => {
         #[soroban_sdk::contractimpl]
-        impl SmartWalletUpgradeable for $contract_type {
+        impl SmartAccountUpgradeable for $contract_type {
             fn upgrade(env: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
                 Self::_require_auth_upgrade(env);
                 $crate::enable_migration(env);

@@ -1,4 +1,4 @@
-/// This module exports the basic functionality for the Smart Wallet auth system
+/// This module exports the basic functionality for the Smart Account auth system
 ///
 /// ## Core Objects and Classes
 ///
