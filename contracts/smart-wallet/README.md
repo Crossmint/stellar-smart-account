@@ -458,15 +458,80 @@ This separation ensures that each Smart Wallet maintains autonomous control over
 
 ## Error Handling
 
-The contract defines comprehensive error types organized by category:
+The contract uses a flat error system with semantic naming and domain organization for better clarity and debugging:
 
-- **Initialization Errors (0-9)**: Contract setup issues
-- **Storage Errors (10-19)**: Data persistence problems  
-- **Signer Management Errors (20-39)**: Signer lifecycle issues
-- **Authentication & Signature Errors (40-59)**: Verification failures
-- **Permission Errors (60-79)**: Authorization failures
-- **Policy Errors (80-99)**: Policy validation issues
-- **Generic Errors (100+)**: General purpose errors
+### Error Structure
+
+The error system uses a single enum with descriptive variants organized by domain:
+
+```rust
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum Error {
+    // Initialization Domain (0-9)
+    AlreadyInitialized = 0,
+    NotInitialized = 1,
+    
+    // Storage Domain (10-19)
+    StorageEntryNotFound = 10,
+    StorageEntryAlreadyExists = 11,
+    
+    // Signer Management Domain (20-39)
+    NoSigners = 20,
+    SignerAlreadyExists = 21,
+    SignerNotFound = 22,
+    SignerExpired = 23,
+    CannotRevokeAdminSigner = 24,
+    InsufficientPermissionsOnCreation = 25,
+    
+    // Authentication Domain (40-59)
+    MatchingSignatureNotFound = 40,
+    SignatureVerificationFailed = 41,
+    InvalidProofType = 42,
+    NoProofsInAuthEntry = 43,
+    
+    // Permission Domain (60-79)
+    InsufficientPermissions = 60,
+    
+    // Policy Domain (80-99)
+    InvalidPolicy = 80,
+    InvalidTimeRange = 81,
+    InvalidNotAfterTime = 82,
+    
+    // Generic Domain (100+)
+    NotFound = 100,
+}
+```
+
+### Error Domain Helpers
+
+The error system includes helper methods for domain categorization:
+
+```rust
+// Check error domain
+if error.is_signer_management_error() {
+    // Handle signer-related errors
+}
+
+// Get error domain as string
+let domain = error.domain(); // Returns "SignerManagement", "Authentication", etc.
+```
+
+### Error Usage Examples
+
+```rust
+// Signer management error
+return Err(Error::SignerNotFound);
+
+// Authentication error
+return Err(Error::InvalidProofType);
+
+// Policy validation error
+return Err(Error::InvalidTimeRange);
+```
+
+This structure provides better semantic clarity, improved debugging experience, and cleaner client-side error handling while maintaining Soroban compatibility.
 
 ## Usage Examples
 
