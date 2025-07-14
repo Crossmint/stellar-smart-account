@@ -6,8 +6,8 @@
   "main": "smart-wallet-deployment.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/smart-wallet-deployment.js",
-    "dev": "tsx smart-wallet-deployment.ts"
+    "start": "node dist/smart-wallet-operations.js",
+    "dev": "tsx smart-wallet-operations.ts"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "13.3.0",
