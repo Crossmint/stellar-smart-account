@@ -517,8 +517,6 @@ return Err(Error::InvalidProofType);
 return Err(Error::InvalidTimeRange);
 ```
 
-This flat structure with semantic naming provides clear error identification while maintaining domain organization through consistent naming conventions.
-
 ## Usage Examples
 
 ### Basic Multi-Signature Setup
