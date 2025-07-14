@@ -7,7 +7,10 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/smart-wallet-operations.js",
-    "dev": "tsx smart-wallet-operations.ts"
+    "dev": "npm run prebuild && tsx smart-wallet-operations.ts",
+    "prebuild": "stellar contract build && npm run generate-bindings && npm run build-packages",
+    "generate-bindings": "cd ../packages/smart_wallet && stellar contract bindings typescript --wasm ../../target/wasm32v1-none/release/smart_wallet.wasm --output-dir temp --overwrite && cp temp/src/index.ts src/index.ts && rm -rf temp && cd ../factory && stellar contract bindings typescript --wasm ../../target/wasm32v1-none/release/contract_factory.wasm --output-dir temp --overwrite && cp temp/src/index.ts src/index.ts && rm -rf temp",
+    "build-packages": "cd ../packages/smart_wallet && pnpm install && pnpm run build && cd ../factory && pnpm install && pnpm run build"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "13.3.0",
@@ -17,7 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "tsx": "^4.0.0",
+    "tsx": "^4.20.3",
     "typescript": "^5.6.2"
   },
   "keywords": [
