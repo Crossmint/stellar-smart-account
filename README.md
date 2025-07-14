@@ -1,4 +1,4 @@
-# Stellar Smart Account System
+# Stellar Smart Account
 
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org)
 [![Soroban SDK](https://img.shields.io/badge/soroban--sdk-22.0.0-blue.svg)](https://soroban.stellar.org/)
