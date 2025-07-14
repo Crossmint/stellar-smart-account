@@ -458,41 +458,51 @@ This separation ensures that each Smart Wallet maintains autonomous control over
 
 ## Error Handling
 
-The contract uses a hierarchical error system organized by domain for better semantic meaning and debugging:
+The contract uses a flat error system with semantic naming for better clarity and debugging:
 
 ### Error Structure
 
-The error system is organized into domain-specific error enums wrapped by a top-level `Error` enum:
+The error system uses a single enum with descriptive variants organized by domain:
 
 ```rust
 #[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
 pub enum Error {
-    Initialization(InitializationError),
-    Storage(StorageErrorType),
-    SignerManagement(SignerManagementError),
-    Authentication(AuthenticationError),
-    Permission(PermissionError),
-    Policy(PolicyError),
-    Generic(GenericError),
+    // Initialization Errors (0-9)
+    AlreadyInitialized = 0,
+    NotInitialized = 1,
+    
+    // Storage Errors (10-19)
+    StorageEntryNotFound = 10,
+    StorageEntryAlreadyExists = 11,
+    
+    // Signer Management Errors (20-39)
+    NoSigners = 20,
+    SignerAlreadyExists = 21,
+    SignerNotFound = 22,
+    SignerExpired = 23,
+    CannotRevokeAdminSigner = 24,
+    InsufficientPermissionsOnCreation = 25,
+    
+    // Authentication & Signature Errors (40-59)
+    MatchingSignatureNotFound = 40,
+    SignatureVerificationFailed = 41,
+    InvalidProofType = 42,
+    NoProofsInAuthEntry = 43,
+    
+    // Permission Errors (60-79)
+    InsufficientPermissions = 60,
+    
+    // Policy Errors (80-99)
+    InvalidPolicy = 80,
+    InvalidTimeRange = 81,
+    InvalidNotAfterTime = 82,
+    
+    // Generic Errors (100+)
+    NotFound = 100,
 }
 ```
-
-### Error Domains
-
-- **Initialization Errors**: Contract setup and lifecycle issues
-  - `AlreadyInitialized`, `NotInitialized`
-- **Storage Errors**: Data persistence and retrieval problems
-  - `EntryNotFound`, `EntryAlreadyExists`
-- **Signer Management Errors**: Signer lifecycle and configuration issues
-  - `NoSigners`, `SignerAlreadyExists`, `SignerNotFound`, `SignerExpired`, `CannotRevokeAdminSigner`, `InsufficientPermissionsOnCreation`
-- **Authentication Errors**: Cryptographic verification failures
-  - `MatchingSignatureNotFound`, `SignatureVerificationFailed`, `InvalidProofType`, `NoProofsInAuthEntry`
-- **Permission Errors**: Authorization and access control failures
-  - `InsufficientPermissions`
-- **Policy Errors**: Policy validation and configuration issues
-  - `InvalidPolicy`, `InvalidTimeRange`, `InvalidNotAfterTime`
-- **Generic Errors**: General purpose errors
-  - `NotFound`
 
 ### Error Usage Examples
 
@@ -507,7 +517,7 @@ return Err(Error::InvalidProofType);
 return Err(Error::InvalidTimeRange);
 ```
 
-This hierarchical structure provides better error categorization, improved debugging experience, and cleaner client-side error handling compared to numeric error codes.
+This flat structure with semantic naming provides clear error identification while maintaining domain organization through consistent naming conventions.
 
 ## Usage Examples
 

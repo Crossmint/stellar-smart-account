@@ -1,4 +1,4 @@
-. Ivs insta# Stellar Smart Account System
+# Stellar Smart Account System
 
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org)
 [![Soroban SDK](https://img.shields.io/badge/soroban--sdk-22.0.0-blue.svg)](https://soroban.stellar.org/)
@@ -10,7 +10,7 @@ A comprehensive smart contract system for Stellar/Soroban that provides enterpri
 ## 🌟 Features
 
 - **🔐 Multi-Signature Wallet**: Advanced smart wallet with customizable authentication
-- **🏭 Contract Factory**: Secure deployment system with role-based access control
+- **🏭 Contract Factory**: Secure deployment system with role-based access control  
 - **🎯 Role-Based Permissions**: Admin, Standard, and Restricted signer roles
 - **📋 Policy System**: Time-based, contract allow/deny lists, and extensible policies
 - **🤖 AI Agent Ready**: Built for both human users and automated systems
@@ -98,7 +98,7 @@ cd ../factory && npm install
 ### Policy Types
 
 - **Time-Based**: Restrict signer validity to specific time windows
-- **Contract Allow List**: Only permit interactions with specified contracts
+- **Contract Allow List**: Only permit interactions with specified contracts  
 - **Contract Deny List**: Block interactions with specified contracts
 - **Extensible**: Add custom policies for spending limits, rate limiting, etc.
 
