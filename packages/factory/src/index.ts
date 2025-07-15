@@ -107,6 +107,29 @@ export interface Client {
   }) => Promise<AssembledTransaction<string>>
 
   /**
+   * Construct and simulate a deploy_and_invoke transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Deploys the contract and immediately invokes a function on it in the same transaction.
+   * 
+   * This has to be authorized by an address with the `deployer` role.
+   */
+  deploy_and_invoke: ({caller, wasm_hash, salt, constructor_args, function_name, function_args}: {caller: string, wasm_hash: Buffer, salt: Buffer, constructor_args: Array<any>, function_name: string, function_args: Array<any>}, options?: {
+    /**
+     * The fee to pay for the transaction. Default: BASE_FEE
+     */
+    fee?: number;
+
+    /**
+     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+     */
+    timeoutInSeconds?: number;
+
+    /**
+     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+     */
+    simulate?: boolean;
+  }) => Promise<AssembledTransaction<readonly [string, any]>>
+
+  /**
    * Construct and simulate a get_deployed_address transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
   get_deployed_address: ({salt}: {salt: Buffer}, options?: {
@@ -389,6 +412,7 @@ export class Client extends ContractClient {
       new ContractSpec([ "AAAAAAAAADJDb25zdHJ1Y3QgdGhlIGRlcGxveWVyIHdpdGggYSBnaXZlbiBhZG1pbiBhZGRyZXNzLgAAAAAADV9fY29uc3RydWN0b3IAAAAAAAABAAAAAAAAAAVhZG1pbgAAAAAAABMAAAAA",
         "AAAAAAAAAIREZXBsb3lzIHRoZSBjb250cmFjdCBvbiBiZWhhbGYgb2YgdGhlIGBDb250cmFjdEZhY3RvcnlgIGNvbnRyYWN0LgoKVGhpcyBoYXMgdG8gYmUgYXV0aG9yaXplZCBieSBhbiBhZGRyZXNzIHdpdGggdGhlIGBkZXBsb3llcmAgcm9sZS4AAAAGZGVwbG95AAAAAAAEAAAAAAAAAAZjYWxsZXIAAAAAABMAAAAAAAAACXdhc21faGFzaAAAAAAAA+4AAAAgAAAAAAAAAARzYWx0AAAD7gAAACAAAAAAAAAAEGNvbnN0cnVjdG9yX2FyZ3MAAAPqAAAAAAAAAAEAAAAT",
         "AAAAAAAAAKlVcGxvYWRzIHRoZSBjb250cmFjdCBXQVNNIGFuZCBkZXBsb3lzIGl0IG9uIGJlaGFsZiBvZiB0aGUgYENvbnRyYWN0RmFjdG9yeWAgY29udHJhY3QuCgp1c2luZyB0aGF0IGhhc2guIFRoaXMgaGFzIHRvIGJlIGF1dGhvcml6ZWQgYnkgYW4gYWRkcmVzcyB3aXRoIHRoZSBgZGVwbG95ZXJgIHJvbGUuAAAAAAAAEXVwbG9hZF9hbmRfZGVwbG95AAAAAAAABAAAAAAAAAAGY2FsbGVyAAAAAAATAAAAAAAAAAp3YXNtX2J5dGVzAAAAAAAOAAAAAAAAAARzYWx0AAAD7gAAACAAAAAAAAAAEGNvbnN0cnVjdG9yX2FyZ3MAAAPqAAAAAAAAAAEAAAAT",
+        "AAAAAAAAAJlEZXBsb3lzIHRoZSBjb250cmFjdCBhbmQgaW1tZWRpYXRlbHkgaW52b2tlcyBhIGZ1bmN0aW9uIG9uIGl0IGluIHRoZSBzYW1lIHRyYW5zYWN0aW9uLgoKVGhpcyBoYXMgdG8gYmUgYXV0aG9yaXplZCBieSBhbiBhZGRyZXNzIHdpdGggdGhlIGBkZXBsb3llcmAgcm9sZS4AAAAAAAARZGVwbG95X2FuZF9pbnZva2UAAAAAAAAGAAAAAAAAAAZjYWxsZXIAAAAAABMAAAAAAAAACXdhc21faGFzaAAAAAAAA+4AAAAgAAAAAAAAAARzYWx0AAAD7gAAACAAAAAAAAAAEGNvbnN0cnVjdG9yX2FyZ3MAAAPqAAAAAAAAAAAAAAANZnVuY3Rpb25fbmFtZQAAAAAAABEAAAAAAAAADWZ1bmN0aW9uX2FyZ3MAAAAAAAPqAAAAAAAAAAEAAAPtAAAAAgAAABMAAAAA",
         "AAAAAAAAAAAAAAAUZ2V0X2RlcGxveWVkX2FkZHJlc3MAAAABAAAAAAAAAARzYWx0AAAD7gAAACAAAAABAAAAEw==",
         "AAAAAAAAAAAAAAAIaGFzX3JvbGUAAAACAAAAAAAAAAdhY2NvdW50AAAAABMAAAAAAAAABHJvbGUAAAARAAAAAQAAA+gAAAAE",
         "AAAAAAAAAAAAAAAVZ2V0X3JvbGVfbWVtYmVyX2NvdW50AAAAAAAAAQAAAAAAAAAEcm9sZQAAABEAAAABAAAABA==",
@@ -411,6 +435,7 @@ export class Client extends ContractClient {
   public readonly fromJSON = {
     deploy: this.txFromJSON<string>,
         upload_and_deploy: this.txFromJSON<string>,
+        deploy_and_invoke: this.txFromJSON<readonly [string, any]>,
         get_deployed_address: this.txFromJSON<string>,
         has_role: this.txFromJSON<Option<u32>>,
         get_role_member_count: this.txFromJSON<u32>,

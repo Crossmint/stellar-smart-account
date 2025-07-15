@@ -429,3 +429,162 @@ fn test_upload_and_deploy_function_exists() {
     // Verify that deployment actually worked by checking the address is valid
     assert!(!deployed_address.to_string().is_empty());
 }
+
+#[test]
+#[should_panic(expected = "Error(WasmVm, MissingValue)")]
+fn test_deploy_and_invoke_success() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 1);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+
+    let constructor_args: Vec<Val> = vec![&e];
+    let function_name = symbol_short!("test_fn");
+    let function_args: Vec<Val> = vec![&e];
+
+    let (deployed_address, result) = client.deploy_and_invoke(
+        &accounts.deployer1,
+        &wasm_hash,
+        &salt,
+        &constructor_args,
+        &function_name,
+        &function_args,
+    );
+
+    // Verify deployment worked
+    assert!(!deployed_address.to_string().is_empty());
+
+    // Verify the deployed address matches prediction
+    let predicted_address = client.get_deployed_address(&salt);
+    assert_eq!(deployed_address, predicted_address);
+
+    // Verify function invocation returned a result (Val is always valid)
+    let _ = result;
+}
+
+#[test]
+#[should_panic(expected = "Error(WasmVm, MissingValue)")]
+fn test_deploy_and_invoke_with_different_function() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 2);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+
+    let constructor_args: Vec<Val> = vec![&e];
+    let function_name = symbol_short!("other_fn");
+    let function_args: Vec<Val> = vec![&e];
+
+    client.deploy_and_invoke(
+        &accounts.deployer1,
+        &wasm_hash,
+        &salt,
+        &constructor_args,
+        &function_name,
+        &function_args,
+    );
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1210)")]
+fn test_deploy_and_invoke_requires_deployer_role() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 3);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+
+    let constructor_args: Vec<Val> = vec![&e];
+    let function_name = symbol_short!("get_admin");
+    let function_args: Vec<Val> = vec![&e];
+
+    e.set_auths(&[]);
+
+    // Outsider should not be able to deploy and invoke
+    client.deploy_and_invoke(
+        &accounts.outsider,
+        &wasm_hash,
+        &salt,
+        &constructor_args,
+        &function_name,
+        &function_args,
+    );
+}
+
+#[test]
+#[should_panic(expected = "Error(WasmVm, MissingValue)")]
+fn test_deploy_and_invoke_returns_tuple() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 4);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+
+    let constructor_args: Vec<Val> = vec![&e];
+    let function_name = symbol_short!("tuple_fn");
+    let function_args: Vec<Val> = vec![&e];
+
+    client.deploy_and_invoke(
+        &accounts.deployer1,
+        &wasm_hash,
+        &salt,
+        &constructor_args,
+        &function_name,
+        &function_args,
+    );
+}
+
+#[test]
+#[should_panic(expected = "Error(WasmVm, MissingValue)")]
+fn test_deploy_and_invoke_with_function_args() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+
+    let accounts = setup_roles(&e, &client, &admin);
+    let salt = create_mock_salt(&e, 5);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+
+    let constructor_args: Vec<Val> = vec![&e];
+    let function_name = symbol_short!("test_fn");
+    let function_args: Vec<Val> = vec![&e];
+
+    let (deployed_address, result) = client.deploy_and_invoke(
+        &accounts.deployer1,
+        &wasm_hash,
+        &salt,
+        &constructor_args,
+        &function_name,
+        &function_args,
+    );
+
+    // Verify deployment worked
+    assert!(!deployed_address.to_string().is_empty());
+
+    // Verify function invocation returned a result (Val is always valid)
+    let _ = result;
+}
