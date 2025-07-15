@@ -80,15 +80,22 @@ impl ContractFactory {
         salt: BytesN<32>,
         constructor_args: Vec<Val>,
     ) -> Address {
-        let _predicted_address = env
+        let predicted_address = env
             .deployer()
             .with_current_contract(salt.clone())
             .deployed_address();
 
-        
-        env.deployer()
-            .with_current_contract(salt)
-            .deploy_v2(wasm_hash, constructor_args)
+        match env.try_invoke_contract::<(), soroban_sdk::Error>(
+            &predicted_address,
+            &symbol_short!("deployed"),
+            soroban_sdk::vec![&env],
+        ) {
+            Ok(_) => predicted_address,
+            Err(_) => env
+                .deployer()
+                .with_current_contract(salt)
+                .deploy_v2(wasm_hash, constructor_args),
+        }
     }
 
     /// Uploads and deploys the contract idempotently.
@@ -100,9 +107,24 @@ impl ContractFactory {
         salt: BytesN<32>,
         constructor_args: Vec<Val>,
     ) -> Address {
-        let wasm_hash = env.deployer().upload_contract_wasm(wasm_bytes);
+        let predicted_address = env
+            .deployer()
+            .with_current_contract(salt.clone())
+            .deployed_address();
 
-        Self::deploy_idempotent(env, caller, wasm_hash, salt, constructor_args)
+        match env.try_invoke_contract::<(), soroban_sdk::Error>(
+            &predicted_address,
+            &symbol_short!("deployed"),
+            soroban_sdk::vec![&env],
+        ) {
+            Ok(_) => predicted_address,
+            Err(_) => {
+                let wasm_hash = env.deployer().upload_contract_wasm(wasm_bytes);
+                env.deployer()
+                    .with_current_contract(salt)
+                    .deploy_v2(wasm_hash, constructor_args)
+            }
+        }
     }
 }
 
