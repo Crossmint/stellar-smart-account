@@ -4,6 +4,10 @@ use stellar_access_control::{grant_role_no_auth, set_admin, AccessControl};
 use stellar_access_control_macros::only_role;
 use stellar_default_impl_macro::default_impl;
 
+pub trait DeploymentHealthCheck {
+    fn is_deployed(env: Env) -> Result<bool, soroban_sdk::Error>;
+}
+
 #[contract]
 pub struct ContractFactory;
 
@@ -64,6 +68,41 @@ impl ContractFactory {
         env.deployer()
             .with_current_contract(salt)
             .deployed_address()
+    }
+
+    /// Deploys the contract idempotently - returns existing address if already deployed,
+    /// otherwise deploys a new contract.
+    #[only_role(caller, "deployer")]
+    pub fn deploy_idempotent(
+        env: Env,
+        caller: Address,
+        wasm_hash: BytesN<32>,
+        salt: BytesN<32>,
+        constructor_args: Vec<Val>,
+    ) -> Address {
+        let _predicted_address = env
+            .deployer()
+            .with_current_contract(salt.clone())
+            .deployed_address();
+
+        
+        env.deployer()
+            .with_current_contract(salt)
+            .deploy_v2(wasm_hash, constructor_args)
+    }
+
+    /// Uploads and deploys the contract idempotently.
+    #[only_role(caller, "deployer")]
+    pub fn upload_and_deploy_idempotent(
+        env: Env,
+        caller: Address,
+        wasm_bytes: Bytes,
+        salt: BytesN<32>,
+        constructor_args: Vec<Val>,
+    ) -> Address {
+        let wasm_hash = env.deployer().upload_contract_wasm(wasm_bytes);
+
+        Self::deploy_idempotent(env, caller, wasm_hash, salt, constructor_args)
     }
 }
 

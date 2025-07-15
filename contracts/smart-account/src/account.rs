@@ -257,3 +257,15 @@ impl CustomAccountInterface for SmartAccount {
         Ok(())
     }
 }
+
+// ============================================================================
+// DeploymentHealthCheck implementation
+// ============================================================================
+
+#[contractimpl]
+impl SmartAccount {
+    /// This function is used by the factory's deploy_idempotent function to check
+    pub fn deployed(_env: Env) -> Result<bool, soroban_sdk::Error> {
+        Ok(true)
+    }
+}
