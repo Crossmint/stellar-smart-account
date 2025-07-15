@@ -8,7 +8,6 @@ use soroban_sdk::{
 };
 
 use crate::test_constants::SMART_ACCOUNT_WASM;
-
 use crate::{ContractFactory, ContractFactoryClient};
 
 #[contract]
@@ -78,7 +77,8 @@ fn create_mock_salt(e: &Env, value: u8) -> BytesN<32> {
 
 // Helper function to create test contract WASM
 fn create_test_contract_wasm(e: &Env) -> BytesN<32> {
-    e.register(TestContract, ())
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(e, SMART_ACCOUNT_WASM);
+    e.deployer().upload_contract_wasm(wasm_bytes)
 }
 
 // Helper function to create a simple test signer for function arguments
@@ -460,7 +460,7 @@ fn test_upload_and_deploy_function_exists() {
     let accounts = setup_roles(&e, &client, &admin);
     let salt = create_mock_salt(&e, 1);
 
-    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, &TestContract::contract_data(&e).wasm);
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
     let constructor_args: Vec<Val> = vec![&e];
 
     let deployed_address =
@@ -477,15 +477,15 @@ fn test_deploy_and_invoke_success() {
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
-    let accounts = setup_roles(&e, &client, &admin);
+    let _accounts = setup_roles(&e, &client, &admin);
     let salt = create_mock_salt(&e, 1);
 
-    let wasm_hash = create_test_contract_wasm(&e);
+    let _wasm_hash = create_test_contract_wasm(&e);
 
     let test_signer = create_test_signer(&e);
-    let constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
-    let function_name = Symbol::new(&e, "add_signer");
-    let function_args: Vec<Val> = vec![&e, test_signer];
+    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
+    let _function_name = Symbol::new(&e, "add_signer");
+    let _function_args: Vec<Val> = vec![&e, test_signer];
 
     let predicted_address = client.get_deployed_address(&salt);
     assert!(!predicted_address.to_string().is_empty());
@@ -507,15 +507,15 @@ fn test_deploy_and_invoke_with_different_function() {
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
-    let accounts = setup_roles(&e, &client, &admin);
+    let _accounts = setup_roles(&e, &client, &admin);
     let salt = create_mock_salt(&e, 2);
 
-    let wasm_hash = create_test_contract_wasm(&e);
+    let _wasm_hash = create_test_contract_wasm(&e);
 
     let test_signer = create_test_signer(&e);
-    let constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
-    let function_name = Symbol::new(&e, "add_signer");
-    let function_args: Vec<Val> = vec![&e, test_signer];
+    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
+    let _function_name = Symbol::new(&e, "add_signer");
+    let _function_args: Vec<Val> = vec![&e, test_signer];
 
     // let (deployed_address, _result) = client.deploy_and_invoke(
     //     &accounts.deployer1,
@@ -569,15 +569,15 @@ fn test_deploy_and_invoke_returns_tuple() {
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
-    let accounts = setup_roles(&e, &client, &admin);
+    let _accounts = setup_roles(&e, &client, &admin);
     let salt = create_mock_salt(&e, 4);
 
-    let wasm_hash = create_test_contract_wasm(&e);
+    let _wasm_hash = create_test_contract_wasm(&e);
 
     let test_signer = create_test_signer(&e);
-    let constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
-    let function_name = Symbol::new(&e, "add_signer");
-    let function_args: Vec<Val> = vec![&e, test_signer];
+    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
+    let _function_name = Symbol::new(&e, "add_signer");
+    let _function_args: Vec<Val> = vec![&e, test_signer];
 
     // let (deployed_address, _result) = client.deploy_and_invoke(
     //     &accounts.deployer1,
@@ -600,15 +600,15 @@ fn test_deploy_and_invoke_with_function_args() {
     let admin = Address::generate(&e);
     let client = create_factory_client(&e, &admin);
 
-    let accounts = setup_roles(&e, &client, &admin);
+    let _accounts = setup_roles(&e, &client, &admin);
     let salt = create_mock_salt(&e, 5);
 
-    let wasm_hash = create_test_contract_wasm(&e);
+    let _wasm_hash = create_test_contract_wasm(&e);
 
     let test_signer = create_test_signer(&e);
-    let constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
-    let function_name = Symbol::new(&e, "add_signer");
-    let function_args: Vec<Val> = vec![&e, test_signer];
+    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
+    let _function_name = Symbol::new(&e, "add_signer");
+    let _function_args: Vec<Val> = vec![&e, test_signer];
 
     // let (deployed_address, _result) = client.deploy_and_invoke(
     //     &accounts.deployer1,
