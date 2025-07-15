@@ -483,7 +483,7 @@ fn test_deploy_and_invoke_success() {
     let _wasm_hash = create_test_contract_wasm(&e);
 
     let test_signer = create_test_signer(&e);
-    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
+    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer].into_val(&e)];
     let _function_name = Symbol::new(&e, "add_signer");
     let _function_args: Vec<Val> = vec![&e, test_signer];
 
@@ -513,7 +513,7 @@ fn test_deploy_and_invoke_with_different_function() {
     let _wasm_hash = create_test_contract_wasm(&e);
 
     let test_signer = create_test_signer(&e);
-    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
+    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer].into_val(&e)];
     let _function_name = Symbol::new(&e, "add_signer");
     let _function_args: Vec<Val> = vec![&e, test_signer];
 
@@ -545,7 +545,7 @@ fn test_deploy_and_invoke_requires_deployer_role() {
     let wasm_hash = create_test_contract_wasm(&e);
 
     let test_signer = create_test_signer(&e);
-    let constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
+    let constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer].into_val(&e)];
     let function_name = Symbol::new(&e, "add_signer");
     let function_args: Vec<Val> = vec![&e, test_signer];
 
@@ -575,7 +575,7 @@ fn test_deploy_and_invoke_returns_tuple() {
     let _wasm_hash = create_test_contract_wasm(&e);
 
     let test_signer = create_test_signer(&e);
-    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
+    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer].into_val(&e)];
     let _function_name = Symbol::new(&e, "add_signer");
     let _function_args: Vec<Val> = vec![&e, test_signer];
 
@@ -606,7 +606,7 @@ fn test_deploy_and_invoke_with_function_args() {
     let _wasm_hash = create_test_contract_wasm(&e);
 
     let test_signer = create_test_signer(&e);
-    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer.clone()].into_val(&e)];
+    let _constructor_args: Vec<Val> = vec![&e, vec![&e, test_signer].into_val(&e)];
     let _function_name = Symbol::new(&e, "add_signer");
     let _function_args: Vec<Val> = vec![&e, test_signer];
 
