@@ -222,97 +222,177 @@ sequenceDiagram
 ### Threat Table
 
 <table>
-<tr>
-<th>Thread</th>
-<th>Issues</th>
-</tr>
-<tr>
-<td>Spoofing</td>
-<td>
-<strong>Spoof.1</strong> - (Authorization Flow) An attacker compromises a signer's private key (Ed25519 or Secp256r1) and impersonates them to authorize malicious transactions. <br>
-<strong>Spoof.2</strong> - (WebAuthn Flow) An attacker performs a man-in-the-middle attack during WebAuthn/Passkey authentication, intercepting and replaying authentication challenges to spoof legitimate users. <br>
-<strong>Spoof.3</strong> - (Contract Upgrade) An attacker creates a malicious smart contract that mimics the legitimate smart account interface and tricks users into interacting with it instead of the real contract. <br>
-<strong>Spoof.4</strong> - (Signature Replay) An attacker captures valid signatures from previous transactions and attempts to replay them in new contexts to bypass authorization checks. <br>
-<strong>Spoof.5</strong> - (Signer Impersonation) An attacker generates key pairs that could potentially collide with existing signer public keys, attempting to impersonate legitimate signers.
-</td>
-</tr>
-<tr>
-<td>Tampering</td>
-<td>
-<strong>Tamper.1</strong> - (Signature Payload) An attacker modifies the signature payload hash after signature generation but before verification, potentially allowing unauthorized operations to be executed. <br>
-<strong>Tamper.2</strong> - (Contract Storage) An attacker exploits a vulnerability in the contract storage mechanism to modify signer data, policies, or authorization rules stored in the contract. <br>
-<strong>Tamper.3</strong> - (Authorization Context) An attacker manipulates the authorization context parameters during the __check_auth call to bypass permission checks or escalate privileges. <br>
-<strong>Tamper.4</strong> - (Policy Modification) A restricted signer finds a way to modify their own policy restrictions (spending limits, time constraints) to gain unauthorized access. <br>
-<strong>Tamper.5</strong> - (Upgrade Tampering) An attacker intercepts and modifies upgrade transactions to deploy malicious contract code instead of legitimate upgrades. <br>
-<strong>Tamper.6</strong> - (Nonce Manipulation) An attacker manipulates the nonce system to enable signature replay attacks or bypass transaction ordering constraints.
-</td>
-</tr>
-<tr>
-<td>Repudiation</td>
-<td>
-<strong>Repudiate.1</strong> - (Transaction Denial) A signer authorizes a high-value transaction but later denies having signed it, claiming their key was compromised, making it difficult to prove legitimate authorization. <br>
-<strong>Repudiate.2</strong> - (Admin Action Denial) An admin signer performs critical operations (signer addition/removal, contract upgrades) but denies responsibility when questioned about the changes. <br>
-<strong>Repudiate.3</strong> - (Policy Bypass) A restricted signer exploits policy loopholes to perform unauthorized actions but denies intentional policy violation, claiming the action was within their perceived permissions. <br>
-<strong>Repudiate.4</strong> - (Upgrade Authorization) Multiple admin signers participate in a controversial contract upgrade but each denies being the primary authorizer, creating accountability gaps. <br>
-<strong>Repudiate.5</strong> - (Signature Timestamp) Due to lack of precise timestamp logging, signers can deny the timing of their authorization, making it difficult to establish the sequence of events for audit purposes.
-</td>
-</tr>
-<tr>
-<td>Information Disclosure</td>
-<td>
-<strong>Info.1</strong> - (Signer Enumeration) An attacker analyzes on-chain transaction patterns to enumerate all signers associated with a smart account, revealing the account's security structure and potential high-value targets. <br>
-<strong>Info.2</strong> - (Policy Revelation) By observing which transactions are authorized or rejected, an attacker can reverse-engineer the policy restrictions of restricted signers, learning spending limits, time constraints, and authorization patterns. <br>
-<strong>Info.3</strong> - (Authorization Pattern Analysis) An attacker performs statistical analysis of authorization patterns to identify which signers are most active, their authorization frequency, and potential operational security patterns. <br>
-<strong>Info.4</strong> - (WebAuthn Metadata Leakage) WebAuthn authentication flows may leak device information, user agent details, or biometric capabilities that could be used for targeted attacks. <br>
-<strong>Info.5</strong> - (Storage Data Exposure) Contract storage queries reveal more information than necessary about internal signer configurations, policy parameters, or authorization state that could aid in attack planning. <br>
-<strong>Info.6</strong> - (Signature Algorithm Disclosure) By analyzing signature formats, an attacker can determine which signature algorithms each signer uses, potentially targeting weaker cryptographic implementations.
-</td>
-</tr>
-<tr>
-<td>Denial of Service</td>
-<td>
-<strong>DoS.1</strong> - (Resource Exhaustion) An attacker submits transactions with maximum allowed signatures and complex authorization contexts to exhaust contract computational resources and prevent legitimate transactions. <br>
-<strong>DoS.2</strong> - (Invalid Signature Flood) An attacker floods the smart account with transactions containing invalid signatures, forcing the contract to waste resources on signature verification failures. <br>
-<strong>DoS.3</strong> - (Policy Evaluation Overload) An attacker targets restricted signers with transactions designed to trigger computationally expensive policy evaluations, overwhelming the contract's processing capacity. <br>
-<strong>DoS.4</strong> - (Nonce Exhaustion) An attacker attempts to exhaust the nonce space or create nonce conflicts that prevent legitimate transactions from being processed. <br>
-<strong>DoS.5</strong> - (Storage Bloat) An attacker exploits signer management functions to create excessive storage entries, potentially hitting storage limits and preventing new signers from being added. <br>
-<strong>DoS.6</strong> - (Upgrade Lock) An attacker initiates but never completes upgrade transactions, potentially locking the contract in an intermediate state that prevents both normal operations and legitimate upgrades.
-</td>
-</tr>
-<tr>
-<td>Elevation of Privilege</td>
-<td>
-<strong>Elevation.1</strong> - (Role Escalation) A restricted signer exploits a vulnerability in the authorization logic to gain standard or admin privileges without proper authorization from existing admin signers. <br>
-<strong>Elevation.2</strong> - (Policy Bypass) A restricted signer discovers a way to bypass policy restrictions (spending limits, time constraints, contract deny-lists) and perform unauthorized high-privilege operations. <br>
-<strong>Elevation.3</strong> - (Upgrade Hijacking) A standard signer finds a way to authorize contract upgrades despite not having admin privileges, potentially installing malicious code or backdoors. <br>
-<strong>Elevation.4</strong> - (Cross-Context Privilege) A signer with limited permissions in one context exploits the authorization system to gain broader permissions across multiple contexts within the same transaction. <br>
-<strong>Elevation.5</strong> - (Signer Self-Elevation) A signer exploits the signer management system to modify their own role or permissions without authorization from admin signers. <br>
-<strong>Elevation.6</strong> - (Emergency Access) An attacker exploits emergency or recovery mechanisms intended for legitimate account recovery to gain unauthorized admin access to the smart account. <br>
-<strong>Elevation.7</strong> - (Contract Interface Confusion) An attacker exploits differences between the SmartAccountInterface and CustomAccountInterface to gain elevated privileges through interface confusion attacks.
-</td>
-</tr>
+  <tr>
+    <th>Thread</th>
+    <th>Issues</th>
+  </tr>
+  <tr>
+    <td>Spoofing</td>
+    <td>
+      <strong>Spoof.1</strong> - (Authorization Flow) An attacker compromises a signer's private key (Ed25519 or Secp256r1) and impersonates them to authorize malicious transactions. <br>
+      <strong>Spoof.2</strong> - (Contract Upgrade) An attacker creates a malicious smart contract that mimics the legitimate smart account interface and tricks users into interacting with it instead of the real contract. <br>
+      <strong>Spoof.3</strong> - (Signature Replay) An attacker captures valid signatures from previous transactions and attempts to replay them in new contexts to bypass authorization checks.
+    </td>
+  </tr>
+  <tr>
+    <td>Tampering</td>
+    <td>
+      <strong>Tamper.1</strong> - (Signature Payload) An attacker modifies the signature payload hash after signature generation but before verification, potentially allowing unauthorized operations to be executed. <br>
+      <strong>Tamper.2</strong> - (Contract Storage) An attacker exploits a vulnerability in the contract storage mechanism to modify signer data, policies, or authorization rules stored in the contract. <br>
+      <strong>Tamper.3</strong> - (Policy Modification) A restricted signer finds a way to modify their own policy restrictions (spending limits, time constraints) to gain unauthorized access. <br>
+      <strong>Tamper.4</strong> - (Upgrade Tampering) An attacker intercepts and modifies upgrade transactions to deploy malicious contract code instead of legitimate upgrades. <br>
+      <strong>Tamper.5</strong> - (Nonce Manipulation) An attacker manipulates the nonce system to enable signature replay attacks or bypass transaction ordering constraints.
+    </td>
+  </tr>
+  <tr>
+    <td>Repudiation</td>
+    <td>
+      <strong>Repudiate.1</strong> - (Transaction Denial) A signer authorizes a high-value transaction but later denies having signed it, claiming their key was compromised, making it difficult to prove legitimate authorization. <br>
+      <strong>Repudiate.2</strong> - (Admin Action Denial) An admin signer performs critical operations (signer addition/removal, contract upgrades) but denies responsibility when questioned about the changes. <br>
+      <strong>Repudiate.3</strong> - (Policy Bypass) A restricted signer exploits policy loopholes to perform unauthorized actions but denies intentional policy violation, claiming the action was within their perceived permissions. <br>
+      <strong>Repudiate.4</strong> - (Upgrade Authorization) Multiple admin signers participate in a controversial contract upgrade but each denies being the primary authorizer, creating accountability gaps.
+    </td>
+  </tr>
+  <tr>
+    <td>Information Disclosure</td>
+    <td>
+      <strong>Info.1</strong> - (Signer Enumeration) An attacker analyzes on-chain transaction patterns to enumerate all signers associated with a smart account, revealing the account's security structure and potential high-value targets. <br>
+    </td>
+  </tr>
+  <tr>
+    <td>Denial of Service</td>
+    <td>
+      <strong>DoS.1</strong> - (Resource Exhaustion) An attacker submits transactions with maximum allowed signatures and complex authorization contexts to exhaust contract computational resources and prevent legitimate transactions. <br>
+      <strong>DoS.2</strong> - (Nonce Exhaustion) An attacker attempts to exhaust the nonce space or create nonce conflicts that prevent legitimate transactions from being processed. <br>
+      <strong>DoS.3</strong> - (Upgrade Lock) An attacker initiates but never completes upgrade transactions, potentially locking the contract in an intermediate state that prevents both normal operations and legitimate upgrades.
+    </td>
+  </tr>
+  <tr>
+    <td>Elevation of Privilege</td>
+    <td>
+      <strong>Elevation.1</strong> - (Role Escalation) A restricted signer exploits a vulnerability in the authorization logic to gain standard or admin privileges without proper authorization from existing admin signers. <br>
+      <strong>Elevation.2</strong> - (Upgrade Hijacking) A standard signer finds a way to authorize contract upgrades despite not having admin privileges, potentially installing malicious code or backdoors. <br>
+      <strong>Elevation.3</strong> - (Signer Self-Elevation) A signer exploits the signer management system to modify their own role or permissions without authorization from admin signers. <br>
+      <strong>Elevation.4</strong> - (Emergency Access) An attacker exploits emergency or recovery mechanisms intended for legitimate account recovery to gain unauthorized admin access to the smart account. <br>
+      <strong>Elevation.5</strong> - (Contract Interface Confusion) An attacker exploits differences between the SmartAccountInterface and CustomAccountInterface to gain elevated privileges through interface confusion attacks.
+    </td>
+  </tr>
 </table>
 
 ## What are we going to do about it?
+
+<table>
+  <tr>
+    <th>Threat</th>
+    <th>Remediation</th>
+  </tr>
+  <tr>
+    <td>Spoofing</td>
+    <td>
+      <strong>Spoof.1</strong><br>
+      <strong>S1R1</strong> - Enforce secure private key management on the client side, as this is a fundamental risk in any key-based system. To mitigate the impact of a key compromise, scope permissions to limit the potential attack surface. For example, a day-to-day key can be configured with spending limits, while high-value operations require a more secure, less frequently used key.
+      <br><br>
+      <strong>Spoof.2</strong><br>
+      <strong>S2R1</strong> - Rely on the Soroban authorization framework, which cryptographically ties every authorization entry to a specific `invoker_contract_address`. This ensures that a signature intended for one contract cannot be used to authorize an invocation on another, preventing contract spoofing.
+      <br><br>
+      <strong>Spoof.3</strong><br>
+      <strong>S3R1</strong> - Utilize Soroban's built-in nonce mechanism. Each signature payload must include a unique, randomly generated nonce that is consumed upon use. This makes it impossible to replay a valid signature in a different transaction and ensures each authorization is unique.
+    </td>
+  </tr>
+  <tr>
+    <td>Tampering</td>
+    <td>
+      <strong>Tamper.1</strong><br>
+      <strong>T1R1</strong> - Ensure that the contract re-calculates and verifies the signature payload hash against the provided signature in every `__check_auth` call. Since the payload itself is signed, any tampering will invalidate the signature, causing the authorization to fail.
+      <br><br>
+      <strong>Tamper.2</strong><br>
+      <strong>T2R1</strong> - Implement strict access controls for all state-modifying operations. <br>1. Protect all functions that modify critical storage (e.g., signer configuration, policies) with admin-level authorization checks. <br>2. Derive storage keys for signers from their public keys to prevent accidental or malicious overwrites. <br>3. Use strictly defined data types for all stored objects to prevent injection attacks via serialization.
+      <br><br>
+      <strong>Tamper.3</strong><br>
+      <strong>T3R1</strong> - Restrict all contract state modification functions, including those for signer permissions and policies, to admin signers. This prevents a standard or restricted signer from modifying their own roles or policies.
+      <br><br>
+      <strong>Tamper.4</strong><br>
+      <strong>T4R1</strong> - Treat contract upgrades as a standard, high-privilege transaction that must be authorized by admin signers. Any tampering with the upgrade parameters (e.g., the Wasm hash) will invalidate the transaction's signature payload, causing the authorization to be rejected.
+      <br><br>
+      <strong>Tamper.5</strong><br>
+      <strong>T5R1</strong> - Enforce the use of Soroban's nonce mechanism within the signature payload. The nonce must be validated and consumed upon use, preventing any manipulation or replay of the authorization.
+    </td>
+  </tr>
+  <tr>
+    <td>Repudiation</td>
+    <td>
+      <strong>Repudiate.1</strong><br>
+      <strong>R1R1</strong> - Leverage the inherent non-repudiation of public-key cryptography. By requiring a valid cryptographic signature for every transaction, we create a permanent and publicly verifiable on-chain record that proves a specific key authorized the action.
+      <br><br>
+      <strong>Repudiate.2</strong><br>
+      <strong>R2R1</strong> - Enforce that all administrative operations are standard transactions that require a cryptographic signature from an admin. This creates a non-repudiable on-chain audit trail for all sensitive actions.
+      <br><br>
+      <strong>Repudiate.3</strong><br>
+      <strong>R3R1</strong> - Store all authorization policies on-chain and ensure they can only be modified via admin-signed transactions. This provides a verifiable, timestamped history of policy configurations, making it impossible to repudiate actions by claiming a misunderstanding of permissions.
+      <br><br>
+      <strong>Repudiate.4</strong><br>
+      <strong>R4R1</strong> - Require every authorizing party to provide a distinct signature within the transaction's authorization entry. When an operation requires multiple signers, this ensures that the participation of each party is explicitly and individually recorded on-chain, clarifying accountability.
+    </td>
+  </tr>
+  <tr>
+    <td>Information Disclosure</td>
+    <td>
+      <strong>Info.1</strong><br>
+      <strong>I1R1</strong> - Accept that signer public keys will be public as an inherent property of the system. Mitigate the risk by ensuring all authorization logic relies exclusively on cryptographic signature validation, not on the obscurity of the signers.
+    </td>
+  </tr>
+  <tr>
+    <td>Denial of Service</td>
+    <td>
+      <strong>DoS.1</strong><br>
+      <strong>D1R1</strong> - Rely on the Stellar network's transaction pricing model to handle the computational costs of context verification. To prevent abuse, pre-validate that all signing keys in a transaction exist in the account's signer registry before performing costly signature verification. This ensures transactions with invalid signers fail early and cheaply.
+      <br><br>
+      <strong>DoS.2</strong><br>
+      <strong>D2R1</strong> - Rely on Soroban's use of a large, random nonce space (2^64). This makes nonce exhaustion computationally infeasible for an attacker.
+      <br><br>
+      <strong>DoS.3</strong><br>
+      <strong>D3R1</strong> - Restrict upgrade initiation to admin signers. Since an upgrade does not lock the contract from further state changes, a stalled or failed upgrade can be superseded by a new, valid upgrade transaction from an admin, preventing a lock state.
+    </td>
+  </tr>
+  <tr>
+    <td>Elevation of Privilege</td>
+    <td>
+      <strong>Elevation.1</strong><br>
+      <strong>E1R1</strong> - Implement and enforce a strict, hierarchical role-based access control (RBAC) model. Protect all administrative functions, including role modifications, with an `require_admin` check that ensures only admin signers can authorize them.
+      <br><br>
+      <strong>Elevation.2</strong><br>
+      <strong>E2R1</strong> - Protect the `upgrade` function with the same `require_admin` check as other sensitive operations. This prevents standard or restricted signers from authorizing code changes.
+      <br><br>
+      <strong>Elevation.3</strong><br>
+      <strong>E3R1</strong> - Restrict all signer management functions (add, update, remove) to admin signers. Ensure the logic prevents a signer from modifying their own permissions unless they are already an admin.
+      <br><br>
+      <strong>Elevation.4</strong><br>
+      <strong>E4R1</strong> - Do not implement any special emergency or back-door recovery mechanisms that could bypass the standard authorization flow. All recovery scenarios must be handled through the existing admin-controlled signer management system.
+      <br><br>
+      <strong>Elevation.5</strong><br>
+      <strong>E5R1</strong> - Implement both the `SmartAccountInterface` and `CustomAccountInterface` on the same contract to share the same storage and authorization logic. This ensures all calls are subject to the same unified permission checks, preventing privilege escalation through interface confusion.
+    </td>
+  </tr>
+</table>
 
 ## Did we do a good job?
 
 ### Has the data flow diagram been referenced since it was created?
 
-<!-- Answer here -->
+Definitely! It was quite useful for having a visual mental model of the authorization mechanism.
 
 ### Did the STRIDE model uncover any new design issues or concerns that had not been previously addressed or thought of?
 
-<!-- Answer here -->
+Yes. We've realized the risk of leaving the contract in a vulnerable state after an upgrade if a required data migration is not performed correctly. This will be taken into account for future upgrades.
 
 ### Did the treatments identified in the "What are we going to do about it" section adequately address the issues identified?
 
-<!-- Answer here -->
+Yes, and they will serve as the starting point for any further analysis.
 
 ### Have additional issues been found after the threat model?
 
-<!-- Answer here -->
+Not yet.
 
 ### Any additional thoughts or insights on the threat modeling process that could help improve it next time?
 
-<!-- Answer here -->
+No.
