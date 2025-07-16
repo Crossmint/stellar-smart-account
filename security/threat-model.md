@@ -2,7 +2,57 @@
 
 ## Description
 
-This threat model analyzes the security aspects of the Smart Account authentication flow, focusing on the critical `__check_auth` function that validates authorization for contract operations.
+### What is a Smart Account?
+
+A **Smart Account** is an advanced account implementation built on Stellar's Soroban smart contract platform that provides programmable authorization logic through a custom smart contract. Unlike traditional Stellar accounts that rely solely on Ed25519 signatures and basic multisig thresholds, smart accounts implement Soroban's `CustomAccountInterface` to enable sophisticated, policy-driven authorization rules.
+
+This smart account is an **upgradeable smart contract** that implements both the `SmartAccountInterface` (for account management operations) and Soroban's `CustomAccountInterface` (for transaction authorization). It leverages Stellar's account abstraction framework to decouple authentication logic from application-specific authorization rules, allowing for much more granular control over who can authorize what types of transactions.
+
+The key innovation is moving from Stellar's traditional "signature + threshold" model to a **role-based, policy-driven authorization system** where different signers can have different permission levels and constraints.
+
+### Key Features
+
+#### 🔄 **Fully Authorized Upgradeability**
+- Smart contract code can be upgraded through the standard signer permission system
+- Upgrades require proper authorization from signers with sufficient permissions
+- No special backdoors or admin keys - upgrades follow the same authorization rules as other operations
+
+#### 👥 **Hierarchical Signer Types**
+
+**Admin Signers**
+- Can authorize any transaction for the wallet
+- Full control over signer configuration (add, update, revoke signers)
+- Can authorize contract upgrades
+- Cannot be revoked (prevents account lockout)
+
+**Standard Signers**  
+- Can authorize most transactions
+- Cannot modify signer configuration or upgrade the contract
+- Ideal for day-to-day operations while maintaining security boundaries
+
+**Restricted Signers**
+- Subject to a modular, policy-based permission system
+- Support for granular permissions such as:
+  - Token spending limits
+  - Contract interaction deny-listing
+  - Time-based restrictions
+  - Custom authorization policies
+- Extensible framework for adding new permission types
+
+#### 🔐 **Multi-Signature Algorithm Support**
+
+**Ed25519 Signatures**
+- Traditional cryptographic signatures
+- Backward compatible with existing Stellar tooling
+
+**Secp256r1 Signatures** 
+- Enables **Passkey/WebAuthn** authentication flows
+- Provides better user experience through biometric authentication
+- Supports hardware security keys and platform authenticators
+- Eliminates the need for users to manage seed phrases
+
+This dual signature support allows the smart account to bridge traditional crypto workflows with modern web authentication standards, making it more accessible to mainstream users while maintaining the security guarantees expected in the Stellar ecosystem.
+
 
 ### Smart Account Authentication Flow
 
