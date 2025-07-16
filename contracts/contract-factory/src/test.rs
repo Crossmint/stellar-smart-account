@@ -7,7 +7,7 @@ use soroban_sdk::{
 };
 
 use crate::test_constants::SMART_ACCOUNT_WASM;
-use crate::{ContractFactory, ContractFactoryClient};
+use crate::{ContractDeploymentArgs, ContractFactory, ContractFactoryClient};
 
 fn create_factory_client<'a>(e: &Env, admin: &Address) -> ContractFactoryClient<'a> {
     let address = e.register(ContractFactory, (admin,));
@@ -365,7 +365,14 @@ fn test_address_prediction_before_and_after_deployment() {
     e.set_auths(&[]);
     e.mock_all_auths_allowing_non_root_auth();
 
-    let deployed_address = client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args);
+    let deployed_address = client.deploy(
+        &accounts.deployer1,
+        &ContractDeploymentArgs {
+            wasm_hash,
+            salt: salt.clone(),
+            constructor_args,
+        },
+    );
 
     assert_eq!(predicted_address, deployed_address);
 
@@ -388,14 +395,35 @@ fn test_deploy_idempotency() {
 
     let predicted_address = client.get_deployed_address(&salt);
 
-    let deployed_address1 =
-        client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args);
+    let deployed_address1 = client.deploy(
+        &accounts.deployer1,
+        &ContractDeploymentArgs {
+            wasm_hash,
+            salt,
+            constructor_args: constructor_args.clone(),
+        },
+    );
+
+    // Create a copy of salt for later use
+    let salt_copy = create_mock_salt(&e, 1);
 
     // Verify first deployment returns the predicted address
     assert_eq!(deployed_address1, predicted_address);
 
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        client.deploy(&accounts.deployer1, &wasm_hash, &salt, &constructor_args)
+        let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+        let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+        let salt = create_mock_salt(&e, 1);
+        let constructor_args: Vec<Val> = vec![&e];
+
+        client.deploy(
+            &accounts.deployer1,
+            &ContractDeploymentArgs {
+                wasm_hash,
+                salt,
+                constructor_args,
+            },
+        )
     }));
 
     // Verify that second deployment failed (the error type Error(Storage, ExistingValue)
@@ -405,7 +433,7 @@ fn test_deploy_idempotency() {
     );
 
     // Verify that get_deployed_address still returns the same address (address prediction is idempotent)
-    let predicted_address_after = client.get_deployed_address(&salt);
+    let predicted_address_after = client.get_deployed_address(&salt_copy);
     assert_eq!(predicted_address, predicted_address_after);
     assert_eq!(deployed_address1, predicted_address_after);
 }
