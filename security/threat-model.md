@@ -158,17 +158,6 @@ sequenceDiagram
                 else Non-admin operation
                     loop For each policy in signer.role.policies
                         Signer->>Policy: policy.is_authorized(env, context)
-                        
-                        alt Time-based Policy
-                            Policy->>Policy: Check current_time >= not_before && current_time <= not_after
-                            Policy-->>Signer: Time policy result
-                        else Contract Allow List Policy
-                            Policy->>Policy: Check if context.contract in allowed_contracts
-                            Policy-->>Signer: Allow list policy result
-                        else Contract Deny List Policy
-                            Policy->>Policy: Check if context.contract NOT in denied_contracts
-                            Policy-->>Signer: Deny list policy result
-                        end
                     end
                     
                     alt All policies passed
