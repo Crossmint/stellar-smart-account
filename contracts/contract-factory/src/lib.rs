@@ -45,7 +45,7 @@ impl ContractFactory {
     /// Deploys the contract on behalf of the `ContractFactory` contract.
     ///
     /// This has to be authorized by an address with the `deployer` role.
-    // #[only_role(caller, "deployer")]
+    #[only_role(caller, "deployer")]
     pub fn deploy(env: &Env, caller: Address, deployment_args: ContractDeploymentArgs) -> Address {
         // Deploy the contract using the uploaded Wasm with given hash on behalf
         // of the current contract.
