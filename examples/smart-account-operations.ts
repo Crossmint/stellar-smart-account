@@ -291,12 +291,14 @@ async function deploySmartAccount(factoryContractId: string): Promise<string> {
     const deployTx = await factoryClient.deploy(
       {
         caller: DEPLOYER_KEYPAIR.publicKey(),
-        wasm_hash: Buffer.from(SA_WASM_HASH, "hex"),
-        salt: salt,
-        constructor_args: smartAccountClient.spec.funcArgsToScVals(
-          CONSTRUCTOR_FUNC,
-          constructor_args
-        ),
+        deployment_args: {
+          wasm_hash: Buffer.from(SA_WASM_HASH, "hex"),
+          salt: salt,
+          constructor_args: smartAccountClient.spec.funcArgsToScVals(
+            CONSTRUCTOR_FUNC,
+            constructor_args
+          ),
+        },
       },
       {
         simulate: true,
@@ -398,6 +400,115 @@ async function addSigner(smartAccountContractId: string): Promise<void> {
   }
 }
 
+/**
+ * Step 3/4: Deploy and invoke a contract with the smart account
+ */
+async function deployAndInvokeContractWithSmartAccount(
+  factoryContractId: string
+): Promise<string> {
+  console.log("\n" + "=".repeat(60));
+  console.log(
+    "➕ STEP 3/4 (Alternative): DEPLOYING AND INVOKING CONTRACT WITH SMART ACCOUNT"
+  );
+  console.log("=".repeat(60));
+  const salt = Buffer.from(crypto.getRandomValues(new Uint8Array(32)));
+  const factoryClient = new FactoryClient({
+    contractId: factoryContractId,
+    networkPassphrase: NETWORK,
+    rpcUrl: RPC_URL,
+    allowHttp: false,
+    publicKey: TREASURY_KEYPAIR.publicKey(),
+  });
+  const walletAddress = (await factoryClient.get_deployed_address({ salt }))
+    .result;
+
+  console.log("📍 Predicted smart account address:", walletAddress);
+  const smartAccountClient = new SmartAccountClient({
+    contractId: walletAddress,
+    networkPassphrase: NETWORK,
+    rpcUrl: RPC_URL,
+    allowHttp: false,
+    publicKey: TREASURY_KEYPAIR.publicKey(),
+  });
+  const addSignerArgs = {
+    signer: {
+      tag: "Ed25519",
+      values: [
+        {
+          public_key: Buffer.from(DELEGATED_SIGNER_KEYPAIR.rawPublicKey()),
+        },
+        { tag: "Standard", values: undefined },
+      ] as const,
+    },
+  };
+  console.log("📍 Encoding signer args:", addSignerArgs);
+  const addSignerVal = smartAccountClient.spec.funcArgsToScVals(
+    "add_signer",
+    addSignerArgs
+  );
+  console.log("📍 Encoded signer args");
+  // Requires both deployer and wallet auth
+  const combinedTx = await factoryClient.deploy_account_and_invoke(
+    {
+      caller: DEPLOYER_KEYPAIR.publicKey(),
+      deployment_args: {
+        wasm_hash: Buffer.from(SA_WASM_HASH, "hex"),
+        salt: salt,
+        constructor_args: smartAccountClient.spec.funcArgsToScVals(
+          CONSTRUCTOR_FUNC,
+          {
+            signers: [createAdminSignerFromKeypair(ADMIN_SIGNER_KEYPAIR)],
+          }
+        ),
+      },
+      calls: [
+        // Requires wallet auth
+        {
+          contract_id: walletAddress,
+          func: "add_signer",
+          args: addSignerVal,
+        },
+        // Requires wallet auth
+        {
+          contract_id: HELLO_WORLD_CONTRACT_ID,
+          func: "hello",
+          args: [
+            nativeToScVal(walletAddress, {
+              type: "address",
+            }),
+          ],
+        },
+      ],
+    },
+    {
+      simulate: true,
+    }
+  );
+
+  console.log("📍 Combined transaction simulated successfully. Signing...");
+  printAuthEntries(combinedTx);
+  await authorizeWithSmartAccount(
+    combinedTx,
+    walletAddress,
+    ADMIN_SIGNER_KEYPAIR,
+    smartAccountClient
+  );
+  await combinedTx.signAuthEntries({
+    address: DEPLOYER_KEYPAIR.publicKey(),
+    ...basicNodeSigner(DEPLOYER_KEYPAIR, NETWORK),
+  });
+  await combinedTx.simulate();
+  await combinedTx.sign(basicNodeSigner(TREASURY_KEYPAIR, NETWORK));
+  const result = await combinedTx.send();
+  const txHash = result.sendTransactionResponse?.hash;
+  if (!txHash) {
+    throw new Error("Combined transaction failed: " + JSON.stringify(result));
+  }
+  console.log("📤 Transaction submitted with hash:", txHash);
+  await confirmTransaction(txHash, "Combined transaction");
+  console.log("✅ Combined transaction completed successfully");
+  return walletAddress;
+}
 /**
  * Step 5: Send a hello world transaction with smart account authorization
  */
@@ -552,8 +663,10 @@ async function main() {
   try {
     const factoryContractId = await deployFactory();
     await grantDeployerRole(factoryContractId);
-    const smartAccountContractId = await deploySmartAccount(factoryContractId);
-    await addSigner(smartAccountContractId);
+    const _smartAccountContractId = await deploySmartAccount(factoryContractId);
+    await addSigner(_smartAccountContractId);
+    const smartAccountContractId =
+      await deployAndInvokeContractWithSmartAccount(factoryContractId);
     await sendHelloWorldTransactionWithSmartAccountAuth(
       smartAccountContractId,
       "5"

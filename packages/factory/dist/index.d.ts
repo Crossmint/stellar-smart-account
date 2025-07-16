@@ -4,6 +4,19 @@ import type { u32, Option } from '@stellar/stellar-sdk/contract';
 export * from '@stellar/stellar-sdk';
 export * as contract from '@stellar/stellar-sdk/contract';
 export * as rpc from '@stellar/stellar-sdk/rpc';
+export interface ContractCall {
+    args: Array<any>;
+    contract_id: string;
+    func: string;
+}
+export interface ContractDeploymentArgs {
+    constructor_args: Array<any>;
+    salt: Buffer;
+    wasm_hash: Buffer;
+}
+export interface ContractDeployedEvent {
+    contract_id: string;
+}
 export declare const AccessControlError: {
     1210: {
         message: string;
@@ -69,11 +82,9 @@ export interface Client {
      *
      * This has to be authorized by an address with the `deployer` role.
      */
-    deploy: ({ caller, wasm_hash, salt, constructor_args }: {
+    deploy: ({ caller, deployment_args }: {
         caller: string;
-        wasm_hash: Buffer;
-        salt: Buffer;
-        constructor_args: Array<any>;
+        deployment_args: ContractDeploymentArgs;
     }, options?: {
         /**
          * The fee to pay for the transaction. Default: BASE_FEE
@@ -88,6 +99,32 @@ export interface Client {
          */
         simulate?: boolean;
     }) => Promise<AssembledTransaction<string>>;
+    /**
+     * Construct and simulate a deploy_account_and_invoke transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+     * Deploys a smart account on behalf of the `ContractFactory` contract.
+     * and calls a function that could require auth for that deployed account.
+     *
+     * This has to be authorized by an address with the `deployer` role and by
+     * the account own authorization
+     */
+    deploy_account_and_invoke: ({ caller, deployment_args, calls }: {
+        caller: string;
+        deployment_args: ContractDeploymentArgs;
+        calls: Array<ContractCall>;
+    }, options?: {
+        /**
+         * The fee to pay for the transaction. Default: BASE_FEE
+         */
+        fee?: number;
+        /**
+         * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+         */
+        timeoutInSeconds?: number;
+        /**
+         * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+         */
+        simulate?: boolean;
+    }) => Promise<AssembledTransaction<any>>;
     /**
      * Construct and simulate a upload_and_deploy transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
      * Uploads the contract WASM and deploys it on behalf of the `ContractFactory` contract.
@@ -383,6 +420,7 @@ export declare class Client extends ContractClient {
     constructor(options: ContractClientOptions);
     readonly fromJSON: {
         deploy: (json: string) => AssembledTransaction<string>;
+        deploy_account_and_invoke: (json: string) => AssembledTransaction<any>;
         upload_and_deploy: (json: string) => AssembledTransaction<string>;
         get_deployed_address: (json: string) => AssembledTransaction<string>;
         has_role: (json: string) => AssembledTransaction<Option<number>>;

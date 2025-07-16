@@ -4,9 +4,9 @@ export const NETWORK = Networks.TESTNET;
 export const RPC_URL = "https://soroban-testnet.stellar.org";
 export const SERVER = new rpc.Server(RPC_URL);
 export const SA_WASM_HASH =
-  "a2ab113b01005162e48519af6e83d01505b8118ae6f39dd18756b4f258970276";
+  "48b4c6cd009e8a95874441d63d0665dd85e1c2fc3e35290e2ab5e5dc95af1878";
 export const FACTORY_WASM_HASH =
-  "aec59d18628f303aa09beb8c91a0e488d3b775f2b96c17af3998a85135b2251a";
+  "5610c6af5c162a6b5aaeab2cec15de7bcc5d827d3e42bdaff7d839038493756b";
 
 export const ADMIN_SIGNER_DERIVATION_PATH =
   "PLACEHOLDER_SIGNER_DERIVATION_PATH";
