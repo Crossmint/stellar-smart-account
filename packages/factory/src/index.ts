@@ -41,7 +41,7 @@ export interface ContractCall {
 }
 
 
-export interface ContractDeployment {
+export interface ContractDeploymentArgs {
   constructor_args: Array<any>;
   salt: Buffer;
   wasm_hash: Buffer;
@@ -85,7 +85,7 @@ export interface Client {
    * 
    * This has to be authorized by an address with the `deployer` role.
    */
-  deploy: ({caller, wasm_hash, salt, constructor_args}: {caller: string, wasm_hash: Buffer, salt: Buffer, constructor_args: Array<any>}, options?: {
+  deploy: ({caller, deployment_args}: {caller: string, deployment_args: ContractDeploymentArgs}, options?: {
     /**
      * The fee to pay for the transaction. Default: BASE_FEE
      */
@@ -103,9 +103,14 @@ export interface Client {
   }) => Promise<AssembledTransaction<string>>
 
   /**
-   * Construct and simulate a deploy_and_invoke transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Construct and simulate a deploy_account_and_invoke transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Deploys a smart account on behalf of the `ContractFactory` contract.
+   * and calls a function that could require auth for that deployed account.
+   * 
+   * This has to be authorized by an address with the `deployer` role and by
+   * the account own authorization
    */
-  deploy_and_invoke: ({deployer, deployment, call}: {deployer: string, deployment: ContractDeployment, call: ContractCall}, options?: {
+  deploy_account_and_invoke: ({caller, deployment_args, calls}: {caller: string, deployment_args: ContractDeploymentArgs, calls: Array<ContractCall>}, options?: {
     /**
      * The fee to pay for the transaction. Default: BASE_FEE
      */
@@ -426,11 +431,11 @@ export class Client extends ContractClient {
   constructor(public readonly options: ContractClientOptions) {
     super(
       new ContractSpec([ "AAAAAQAAAAAAAAAAAAAADENvbnRyYWN0Q2FsbAAAAAMAAAAAAAAABGFyZ3MAAAPqAAAAAAAAAAAAAAALY29udHJhY3RfaWQAAAAAEwAAAAAAAAAEZnVuYwAAABE=",
-        "AAAAAQAAAAAAAAAAAAAAEkNvbnRyYWN0RGVwbG95bWVudAAAAAAAAwAAAAAAAAAQY29uc3RydWN0b3JfYXJncwAAA+oAAAAAAAAAAAAAAARzYWx0AAAD7gAAACAAAAAAAAAACXdhc21faGFzaAAAAAAAA+4AAAAg",
+        "AAAAAQAAAAAAAAAAAAAAFkNvbnRyYWN0RGVwbG95bWVudEFyZ3MAAAAAAAMAAAAAAAAAEGNvbnN0cnVjdG9yX2FyZ3MAAAPqAAAAAAAAAAAAAAAEc2FsdAAAA+4AAAAgAAAAAAAAAAl3YXNtX2hhc2gAAAAAAAPuAAAAIA==",
         "AAAAAQAAAAAAAAAAAAAAFUNvbnRyYWN0RGVwbG95ZWRFdmVudAAAAAAAAAEAAAAAAAAAC2NvbnRyYWN0X2lkAAAAABM=",
         "AAAAAAAAADJDb25zdHJ1Y3QgdGhlIGRlcGxveWVyIHdpdGggYSBnaXZlbiBhZG1pbiBhZGRyZXNzLgAAAAAADV9fY29uc3RydWN0b3IAAAAAAAABAAAAAAAAAAVhZG1pbgAAAAAAABMAAAAA",
-        "AAAAAAAAAIREZXBsb3lzIHRoZSBjb250cmFjdCBvbiBiZWhhbGYgb2YgdGhlIGBDb250cmFjdEZhY3RvcnlgIGNvbnRyYWN0LgoKVGhpcyBoYXMgdG8gYmUgYXV0aG9yaXplZCBieSBhbiBhZGRyZXNzIHdpdGggdGhlIGBkZXBsb3llcmAgcm9sZS4AAAAGZGVwbG95AAAAAAAEAAAAAAAAAAZjYWxsZXIAAAAAABMAAAAAAAAACXdhc21faGFzaAAAAAAAA+4AAAAgAAAAAAAAAARzYWx0AAAD7gAAACAAAAAAAAAAEGNvbnN0cnVjdG9yX2FyZ3MAAAPqAAAAAAAAAAEAAAAT",
-        "AAAAAAAAAAAAAAARZGVwbG95X2FuZF9pbnZva2UAAAAAAAADAAAAAAAAAAhkZXBsb3llcgAAABMAAAAAAAAACmRlcGxveW1lbnQAAAAAB9AAAAASQ29udHJhY3REZXBsb3ltZW50AAAAAAAAAAAABGNhbGwAAAfQAAAADENvbnRyYWN0Q2FsbAAAAAEAAAAA",
+        "AAAAAAAAAIREZXBsb3lzIHRoZSBjb250cmFjdCBvbiBiZWhhbGYgb2YgdGhlIGBDb250cmFjdEZhY3RvcnlgIGNvbnRyYWN0LgoKVGhpcyBoYXMgdG8gYmUgYXV0aG9yaXplZCBieSBhbiBhZGRyZXNzIHdpdGggdGhlIGBkZXBsb3llcmAgcm9sZS4AAAAGZGVwbG95AAAAAAACAAAAAAAAAAZjYWxsZXIAAAAAABMAAAAAAAAAD2RlcGxveW1lbnRfYXJncwAAAAfQAAAAFkNvbnRyYWN0RGVwbG95bWVudEFyZ3MAAAAAAAEAAAAT",
+        "AAAAAAAAAPNEZXBsb3lzIGEgc21hcnQgYWNjb3VudCBvbiBiZWhhbGYgb2YgdGhlIGBDb250cmFjdEZhY3RvcnlgIGNvbnRyYWN0LgphbmQgY2FsbHMgYSBmdW5jdGlvbiB0aGF0IGNvdWxkIHJlcXVpcmUgYXV0aCBmb3IgdGhhdCBkZXBsb3llZCBhY2NvdW50LgoKVGhpcyBoYXMgdG8gYmUgYXV0aG9yaXplZCBieSBhbiBhZGRyZXNzIHdpdGggdGhlIGBkZXBsb3llcmAgcm9sZSBhbmQgYnkKdGhlIGFjY291bnQgb3duIGF1dGhvcml6YXRpb24AAAAAGWRlcGxveV9hY2NvdW50X2FuZF9pbnZva2UAAAAAAAADAAAAAAAAAAZjYWxsZXIAAAAAABMAAAAAAAAAD2RlcGxveW1lbnRfYXJncwAAAAfQAAAAFkNvbnRyYWN0RGVwbG95bWVudEFyZ3MAAAAAAAAAAAAFY2FsbHMAAAAAAAPqAAAH0AAAAAxDb250cmFjdENhbGwAAAABAAAAAA==",
         "AAAAAAAAAKlVcGxvYWRzIHRoZSBjb250cmFjdCBXQVNNIGFuZCBkZXBsb3lzIGl0IG9uIGJlaGFsZiBvZiB0aGUgYENvbnRyYWN0RmFjdG9yeWAgY29udHJhY3QuCgp1c2luZyB0aGF0IGhhc2guIFRoaXMgaGFzIHRvIGJlIGF1dGhvcml6ZWQgYnkgYW4gYWRkcmVzcyB3aXRoIHRoZSBgZGVwbG95ZXJgIHJvbGUuAAAAAAAAEXVwbG9hZF9hbmRfZGVwbG95AAAAAAAABAAAAAAAAAAGY2FsbGVyAAAAAAATAAAAAAAAAAp3YXNtX2J5dGVzAAAAAAAOAAAAAAAAAARzYWx0AAAD7gAAACAAAAAAAAAAEGNvbnN0cnVjdG9yX2FyZ3MAAAPqAAAAAAAAAAEAAAAT",
         "AAAAAAAAAAAAAAAUZ2V0X2RlcGxveWVkX2FkZHJlc3MAAAABAAAAAAAAAARzYWx0AAAD7gAAACAAAAABAAAAEw==",
         "AAAAAAAAAAAAAAAIaGFzX3JvbGUAAAACAAAAAAAAAAdhY2NvdW50AAAAABMAAAAAAAAABHJvbGUAAAARAAAAAQAAA+gAAAAE",
@@ -453,7 +458,7 @@ export class Client extends ContractClient {
   }
   public readonly fromJSON = {
     deploy: this.txFromJSON<string>,
-        deploy_and_invoke: this.txFromJSON<any>,
+        deploy_account_and_invoke: this.txFromJSON<any>,
         upload_and_deploy: this.txFromJSON<string>,
         get_deployed_address: this.txFromJSON<string>,
         has_role: this.txFromJSON<Option<u32>>,

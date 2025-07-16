@@ -9,7 +9,7 @@ export interface ContractCall {
     contract_id: string;
     func: string;
 }
-export interface ContractDeployment {
+export interface ContractDeploymentArgs {
     constructor_args: Array<any>;
     salt: Buffer;
     wasm_hash: Buffer;
@@ -82,11 +82,9 @@ export interface Client {
      *
      * This has to be authorized by an address with the `deployer` role.
      */
-    deploy: ({ caller, wasm_hash, salt, constructor_args }: {
+    deploy: ({ caller, deployment_args }: {
         caller: string;
-        wasm_hash: Buffer;
-        salt: Buffer;
-        constructor_args: Array<any>;
+        deployment_args: ContractDeploymentArgs;
     }, options?: {
         /**
          * The fee to pay for the transaction. Default: BASE_FEE
@@ -102,12 +100,17 @@ export interface Client {
         simulate?: boolean;
     }) => Promise<AssembledTransaction<string>>;
     /**
-     * Construct and simulate a deploy_and_invoke transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+     * Construct and simulate a deploy_account_and_invoke transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+     * Deploys a smart account on behalf of the `ContractFactory` contract.
+     * and calls a function that could require auth for that deployed account.
+     *
+     * This has to be authorized by an address with the `deployer` role and by
+     * the account own authorization
      */
-    deploy_and_invoke: ({ deployer, deployment, call }: {
-        deployer: string;
-        deployment: ContractDeployment;
-        call: ContractCall;
+    deploy_account_and_invoke: ({ caller, deployment_args, calls }: {
+        caller: string;
+        deployment_args: ContractDeploymentArgs;
+        calls: Array<ContractCall>;
     }, options?: {
         /**
          * The fee to pay for the transaction. Default: BASE_FEE
@@ -417,7 +420,7 @@ export declare class Client extends ContractClient {
     constructor(options: ContractClientOptions);
     readonly fromJSON: {
         deploy: (json: string) => AssembledTransaction<string>;
-        deploy_and_invoke: (json: string) => AssembledTransaction<any>;
+        deploy_account_and_invoke: (json: string) => AssembledTransaction<any>;
         upload_and_deploy: (json: string) => AssembledTransaction<string>;
         get_deployed_address: (json: string) => AssembledTransaction<string>;
         has_role: (json: string) => AssembledTransaction<Option<number>>;

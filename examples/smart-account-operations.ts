@@ -291,12 +291,14 @@ async function deploySmartAccount(factoryContractId: string): Promise<string> {
     const deployTx = await factoryClient.deploy(
       {
         caller: DEPLOYER_KEYPAIR.publicKey(),
-        wasm_hash: Buffer.from(SA_WASM_HASH, "hex"),
-        salt: salt,
-        constructor_args: smartAccountClient.spec.funcArgsToScVals(
-          CONSTRUCTOR_FUNC,
-          constructor_args
-        ),
+        deployment_args: {
+          wasm_hash: Buffer.from(SA_WASM_HASH, "hex"),
+          salt: salt,
+          constructor_args: smartAccountClient.spec.funcArgsToScVals(
+            CONSTRUCTOR_FUNC,
+            constructor_args
+          ),
+        },
       },
       {
         simulate: true,
@@ -445,10 +447,11 @@ async function deployAndInvokeContractWithSmartAccount(
     addSignerArgs
   );
   console.log("📍 Encoded signer args");
-  const combinedTx = await factoryClient.deploy_and_invoke(
+  // Requires both deployer and wallet auth
+  const combinedTx = await factoryClient.deploy_account_and_invoke(
     {
-      deployer: DEPLOYER_KEYPAIR.publicKey(),
-      deployment: {
+      caller: DEPLOYER_KEYPAIR.publicKey(),
+      deployment_args: {
         wasm_hash: Buffer.from(SA_WASM_HASH, "hex"),
         salt: salt,
         constructor_args: smartAccountClient.spec.funcArgsToScVals(
@@ -458,11 +461,24 @@ async function deployAndInvokeContractWithSmartAccount(
           }
         ),
       },
-      call: {
-        contract_id: walletAddress,
-        func: "add_signer",
-        args: addSignerVal,
-      },
+      calls: [
+        // Requires wallet auth
+        {
+          contract_id: walletAddress,
+          func: "add_signer",
+          args: addSignerVal,
+        },
+        // Requires wallet auth
+        {
+          contract_id: HELLO_WORLD_CONTRACT_ID,
+          func: "hello",
+          args: [
+            nativeToScVal(walletAddress, {
+              type: "address",
+            }),
+          ],
+        },
+      ],
     },
     {
       simulate: true,
