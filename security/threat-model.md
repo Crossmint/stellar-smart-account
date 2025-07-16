@@ -19,42 +19,58 @@ The key innovation is moving from Stellar's traditional "signature + threshold" 
 
 #### 👥 **Hierarchical Signer Types**
 
-**Admin Signers**
-- Can authorize any transaction for the wallet
-- Full control over signer configuration (add, update, revoke signers)
-- Can authorize contract upgrades
-- Cannot be revoked (prevents account lockout)
-
-**Standard Signers**  
-- Can authorize most transactions
-- Cannot modify signer configuration or upgrade the contract
-- Ideal for day-to-day operations while maintaining security boundaries
-
-**Restricted Signers**
-- Subject to a modular, policy-based permission system
-- Support for granular permissions such as:
-  - Token spending limits
-  - Contract interaction deny-listing
-  - Time-based restrictions
-  - Custom authorization policies
-- Extensible framework for adding new permission types
+| Signer Type | Permissions & Capabilities |
+|---|---|
+| **Admin Signers** | • Can authorize any transaction for the wallet<br>• Full control over signer configuration (add, update, revoke signers)<br>• Can authorize contract upgrades<br>• Cannot be revoked (prevents account lockout) |
+| **Standard Signers** | • Can authorize most transactions<br>• Cannot modify signer configuration or upgrade the contract<br>• Ideal for day-to-day operations while maintaining security boundaries |
+| **Restricted Signers** | • Subject to a modular, policy-based permission system<br>• Ideal for security-sensitive scenarios requiring controlled access<br>• Perfect for delegating permissions to AI agents, automated systems, or third-party services<br>• Support for granular permissions such as:<br>&nbsp;&nbsp;- Token spending limits<br>&nbsp;&nbsp;- Contract interaction deny-listing<br>&nbsp;&nbsp;- Time-based restrictions<br>&nbsp;&nbsp;- Custom authorization policies<br>• Extensible framework for adding new permission types |
 
 #### 🔐 **Multi-Signature Algorithm Support**
 
-**Ed25519 Signatures**
-- Traditional cryptographic signatures
-- Backward compatible with existing Stellar tooling
-
-**Secp256r1 Signatures** 
-- Enables **Passkey/WebAuthn** authentication flows
-- Provides better user experience through biometric authentication
-- Supports hardware security keys and platform authenticators
-- Eliminates the need for users to manage seed phrases
+| Signature Algorithm | Features & Capabilities |
+|---|---|
+| **Ed25519 Signatures** | • Traditional cryptographic signatures<br>• Backward compatible with existing Stellar tooling |
+| **Secp256r1 Signatures** | • Enables **Passkey/WebAuthn** authentication flows<br>• Provides better user experience through biometric authentication<br>• Supports hardware security keys and platform authenticators<br>• Eliminates the need for users to manage seed phrases |
 
 This dual signature support allows the smart account to bridge traditional crypto workflows with modern web authentication standards, making it more accessible to mainstream users while maintaining the security guarantees expected in the Stellar ecosystem.
 
 
 ### Smart Account Authentication Flow
+
+#### Simplified Authorization Flow
+
+The Smart Account implements a strict security model with the following core principles:
+
+1. **Universal Authorization Requirement**: Every execution context (transaction operation) MUST be authorized by at least one signer with sufficient permissions
+2. **Cryptographic Integrity**: All signatures provided MUST be cryptographically valid and verifiable
+3. **Hierarchical Permission Model**: Authorization success depends on the signer's role and the operation being performed
+
+**Step-by-Step Authorization Process:**
+
+1. **Signature Validation Phase**
+   - Verify all provided signatures are cryptographically correct (Ed25519 or Secp256r1)
+   - Confirm all signing keys exist in the smart account's signer registry
+   - Reject the entire transaction if any signature is invalid
+
+2. **Authorization Check Phase**
+   - For each execution context in the transaction:
+     - Iterate through all verified signers until one with sufficient permissions is found
+     - **Admin Signers**: Automatically authorized for all operations
+     - **Standard Signers**: Authorized for non-admin operations only
+     - **Restricted Signers**: Subject to policy evaluation (spending limits, time restrictions, etc.)
+   - **Critical Security Guarantee**: If NO signer with sufficient permissions is found for ANY context, the entire transaction fails
+
+3. **Early Exit Optimization**
+   - Authorization stops immediately when the first valid signer is found for each context
+   - This prevents unnecessary computation while maintaining security guarantees
+
+**Security Model Summary:**
+- **Fail-Safe Default**: Deny all operations unless explicitly authorized
+- **No Partial Success**: All contexts must be authorized or the entire transaction fails
+- **Cryptographic Foundation**: All authorization decisions are based on verified signatures using Stellar battle-tested cryptographic primitives
+- **Role-Based Access Control**: Different signer types have different authorization capabilities
+
+#### Complete Authentication Flow
 
 The following sequence diagram illustrates the complete authentication flow when a contract requires authorization from a Smart Account:
 
@@ -186,13 +202,7 @@ sequenceDiagram
     TokenContract-->>User: Transaction successful
 ```
 
-### Key Security Components
 
-1. **Multi-layered Validation**: The system performs signature existence checks before expensive cryptographic operations
-2. **Early Exit Optimization**: Authorization stops as soon as one valid signer is found for each context
-3. **Role-based Authorization**: Admin, Standard, and Restricted roles with different permission levels
-4. **Policy Enforcement**: Time-based, contract allow/deny list policies for fine-grained control
-5. **Cryptographic Verification**: Support for Ed25519 and Secp256r1 signature schemes
 
 ## What can go wrong?
 
