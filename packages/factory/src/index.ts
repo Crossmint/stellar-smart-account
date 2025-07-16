@@ -33,6 +33,25 @@ if (typeof window !== 'undefined') {
 
 
 
+
+export interface ContractCall {
+  args: Array<any>;
+  contract_id: string;
+  func: string;
+}
+
+
+export interface ContractDeployment {
+  constructor_args: Array<any>;
+  salt: Buffer;
+  wasm_hash: Buffer;
+}
+
+
+export interface ContractDeployedEvent {
+  contract_id: string;
+}
+
 export const AccessControlError = {
   1210: {message:"Unauthorized"},
   1211: {message:"AdminNotSet"},
@@ -82,6 +101,26 @@ export interface Client {
      */
     simulate?: boolean;
   }) => Promise<AssembledTransaction<string>>
+
+  /**
+   * Construct and simulate a deploy_and_invoke transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   */
+  deploy_and_invoke: ({deployer, deployment, call}: {deployer: string, deployment: ContractDeployment, call: ContractCall}, options?: {
+    /**
+     * The fee to pay for the transaction. Default: BASE_FEE
+     */
+    fee?: number;
+
+    /**
+     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+     */
+    timeoutInSeconds?: number;
+
+    /**
+     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+     */
+    simulate?: boolean;
+  }) => Promise<AssembledTransaction<any>>
 
   /**
    * Construct and simulate a upload_and_deploy transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -386,8 +425,12 @@ export class Client extends ContractClient {
   }
   constructor(public readonly options: ContractClientOptions) {
     super(
-      new ContractSpec([ "AAAAAAAAADJDb25zdHJ1Y3QgdGhlIGRlcGxveWVyIHdpdGggYSBnaXZlbiBhZG1pbiBhZGRyZXNzLgAAAAAADV9fY29uc3RydWN0b3IAAAAAAAABAAAAAAAAAAVhZG1pbgAAAAAAABMAAAAA",
+      new ContractSpec([ "AAAAAQAAAAAAAAAAAAAADENvbnRyYWN0Q2FsbAAAAAMAAAAAAAAABGFyZ3MAAAPqAAAAAAAAAAAAAAALY29udHJhY3RfaWQAAAAAEwAAAAAAAAAEZnVuYwAAABE=",
+        "AAAAAQAAAAAAAAAAAAAAEkNvbnRyYWN0RGVwbG95bWVudAAAAAAAAwAAAAAAAAAQY29uc3RydWN0b3JfYXJncwAAA+oAAAAAAAAAAAAAAARzYWx0AAAD7gAAACAAAAAAAAAACXdhc21faGFzaAAAAAAAA+4AAAAg",
+        "AAAAAQAAAAAAAAAAAAAAFUNvbnRyYWN0RGVwbG95ZWRFdmVudAAAAAAAAAEAAAAAAAAAC2NvbnRyYWN0X2lkAAAAABM=",
+        "AAAAAAAAADJDb25zdHJ1Y3QgdGhlIGRlcGxveWVyIHdpdGggYSBnaXZlbiBhZG1pbiBhZGRyZXNzLgAAAAAADV9fY29uc3RydWN0b3IAAAAAAAABAAAAAAAAAAVhZG1pbgAAAAAAABMAAAAA",
         "AAAAAAAAAIREZXBsb3lzIHRoZSBjb250cmFjdCBvbiBiZWhhbGYgb2YgdGhlIGBDb250cmFjdEZhY3RvcnlgIGNvbnRyYWN0LgoKVGhpcyBoYXMgdG8gYmUgYXV0aG9yaXplZCBieSBhbiBhZGRyZXNzIHdpdGggdGhlIGBkZXBsb3llcmAgcm9sZS4AAAAGZGVwbG95AAAAAAAEAAAAAAAAAAZjYWxsZXIAAAAAABMAAAAAAAAACXdhc21faGFzaAAAAAAAA+4AAAAgAAAAAAAAAARzYWx0AAAD7gAAACAAAAAAAAAAEGNvbnN0cnVjdG9yX2FyZ3MAAAPqAAAAAAAAAAEAAAAT",
+        "AAAAAAAAAAAAAAARZGVwbG95X2FuZF9pbnZva2UAAAAAAAADAAAAAAAAAAhkZXBsb3llcgAAABMAAAAAAAAACmRlcGxveW1lbnQAAAAAB9AAAAASQ29udHJhY3REZXBsb3ltZW50AAAAAAAAAAAABGNhbGwAAAfQAAAADENvbnRyYWN0Q2FsbAAAAAEAAAAA",
         "AAAAAAAAAKlVcGxvYWRzIHRoZSBjb250cmFjdCBXQVNNIGFuZCBkZXBsb3lzIGl0IG9uIGJlaGFsZiBvZiB0aGUgYENvbnRyYWN0RmFjdG9yeWAgY29udHJhY3QuCgp1c2luZyB0aGF0IGhhc2guIFRoaXMgaGFzIHRvIGJlIGF1dGhvcml6ZWQgYnkgYW4gYWRkcmVzcyB3aXRoIHRoZSBgZGVwbG95ZXJgIHJvbGUuAAAAAAAAEXVwbG9hZF9hbmRfZGVwbG95AAAAAAAABAAAAAAAAAAGY2FsbGVyAAAAAAATAAAAAAAAAAp3YXNtX2J5dGVzAAAAAAAOAAAAAAAAAARzYWx0AAAD7gAAACAAAAAAAAAAEGNvbnN0cnVjdG9yX2FyZ3MAAAPqAAAAAAAAAAEAAAAT",
         "AAAAAAAAAAAAAAAUZ2V0X2RlcGxveWVkX2FkZHJlc3MAAAABAAAAAAAAAARzYWx0AAAD7gAAACAAAAABAAAAEw==",
         "AAAAAAAAAAAAAAAIaGFzX3JvbGUAAAACAAAAAAAAAAdhY2NvdW50AAAAABMAAAAAAAAABHJvbGUAAAARAAAAAQAAA+gAAAAE",
@@ -410,6 +453,7 @@ export class Client extends ContractClient {
   }
   public readonly fromJSON = {
     deploy: this.txFromJSON<string>,
+        deploy_and_invoke: this.txFromJSON<any>,
         upload_and_deploy: this.txFromJSON<string>,
         get_deployed_address: this.txFromJSON<string>,
         has_role: this.txFromJSON<Option<u32>>,

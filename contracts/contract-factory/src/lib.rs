@@ -1,11 +1,38 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, BytesN, Env, Val, Vec};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, log, symbol_short, vec, Address, Bytes, BytesN, Env,
+    Symbol, Val, Vec,
+};
 use stellar_access_control::{grant_role_no_auth, set_admin, AccessControl};
 use stellar_access_control_macros::only_role;
 use stellar_default_impl_macro::default_impl;
 
+const DEPLOYED_CONTRACT: Symbol = symbol_short!("DEPLOYED");
+
 #[contract]
 pub struct ContractFactory;
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContractCall {
+    contract_id: Address,
+    func: Symbol,
+    args: Vec<Val>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContractDeployment {
+    wasm_hash: BytesN<32>,
+    salt: BytesN<32>,
+    constructor_args: Vec<Val>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContractDeployedEvent {
+    contract_id: Address,
+}
 
 #[contractimpl]
 impl ContractFactory {
@@ -20,7 +47,7 @@ impl ContractFactory {
     /// This has to be authorized by an address with the `deployer` role.
     #[only_role(caller, "deployer")]
     pub fn deploy(
-        env: Env,
+        env: &Env,
         caller: Address,
         wasm_hash: BytesN<32>,
         salt: BytesN<32>,
@@ -34,9 +61,49 @@ impl ContractFactory {
         // authorization rules, but all the contracts will still be deployed
         // by the same `ContractFactory` contract address.
 
-        env.deployer()
+        let contract_id = env
+            .deployer()
             .with_current_contract(salt)
-            .deploy_v2(wasm_hash, constructor_args)
+            .deploy_v2(wasm_hash, constructor_args);
+        env.events().publish(
+            vec![env, DEPLOYED_CONTRACT],
+            vec![
+                env,
+                ContractDeployedEvent {
+                    contract_id: contract_id.clone(),
+                },
+            ],
+        );
+        contract_id
+    }
+
+    /// Deploys a smart account on behalf of the `ContractFactory` contract.
+    /// and calls a function that could require auth for that deployed account.
+    ///
+    /// This has to be authorized by an address with the `deployer` role and by
+    /// the account own authorization
+    pub fn deploy_account_and_invoke(
+        env: &Env,
+        caller: Address,
+        deployment: ContractDeployment,
+        call: ContractCall,
+    ) -> Val {
+        // Requires auth for the deployer
+        let contract_id = Self::deploy(
+            env,
+            caller,
+            deployment.wasm_hash,
+            deployment.salt,
+            deployment.constructor_args,
+        );
+
+        contract_id.require_auth();
+        let ContractCall {
+            contract_id,
+            func,
+            args,
+        } = call;
+        env.invoke_contract(&contract_id, &func, args)
     }
 
     /// Uploads the contract WASM and deploys it on behalf of the `ContractFactory` contract.
