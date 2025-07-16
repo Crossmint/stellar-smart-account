@@ -10,29 +10,29 @@ The following sequence diagram illustrates the complete authentication flow when
 
 ```mermaid
 sequenceDiagram
-    participant Actor
-    participant ContractA as Contract A
-    participant SorobanRuntime as Soroban Runtime
-    participant SmartAccount as Smart Account Contract
-    participant Storage as Contract Storage
-    participant Signer as Signer Implementation
-    participant Policy as Policy System
+    participant User
+    participant ContractA as "Contract A"
+    participant Runtime as "Soroban Runtime"
+    participant SmartAccount as "Smart Account Contract"
+    participant Storage as "Contract Storage"
+    participant Signer as "Signer Implementation"
+    participant Policy as "Policy System"
     
-    Note over Actor, Policy: Transaction Initiation
-    Actor->>ContractA: Submit transaction with authorization
+    Note over User, Policy: Transaction Initiation
+    User->>ContractA: Submit transaction with authorization
     ContractA->>ContractA: Execute business logic
-    ContractA->>SorobanRuntime: require_auth(smart_account_address)
+    ContractA->>Runtime: require_auth(smart_account_address)
     
-    Note over SorobanRuntime, SmartAccount: Authorization Check
-    SorobanRuntime->>SmartAccount: __check_auth(signature_payload, signature_proofs, auth_contexts)
+    Note over Runtime, SmartAccount: Authorization Check
+    Runtime->>SmartAccount: __check_auth(signature_payload, signature_proofs, auth_contexts)
     
     Note over SmartAccount: Step 1: Validate Input
     SmartAccount->>SmartAccount: Check signature_proofs not empty
     alt No signatures provided
-        SmartAccount-->>SorobanRuntime: Error: NoProofsInAuthEntry
-        SorobanRuntime-->>ContractA: Authorization failed
-        ContractA-->>Actor: Transaction failed
-        note right of Actor: End flow
+        SmartAccount-->>Runtime: Error: NoProofsInAuthEntry
+        Runtime-->>ContractA: Authorization failed
+        ContractA-->>User: Transaction failed
+        note right of User: End flow
     end
     
     Note over SmartAccount, Storage: Step 2: Pre-validate Signer Existence
@@ -40,10 +40,10 @@ sequenceDiagram
         SmartAccount->>Storage: has(signer_key)
         Storage-->>SmartAccount: Boolean result
         alt Signer not found
-            SmartAccount-->>SorobanRuntime: Error: SignerNotFound
-            SorobanRuntime-->>ContractA: Authorization failed
-            ContractA-->>Actor: Transaction failed
-            note right of Actor: End flow
+            SmartAccount-->>Runtime: Error: SignerNotFound
+            Runtime-->>ContractA: Authorization failed
+            ContractA-->>User: Transaction failed
+            note right of User: End flow
         end
     end
     
@@ -63,10 +63,10 @@ sequenceDiagram
             
             alt Signature invalid
                 Signer-->>SmartAccount: Error: SignatureVerificationFailed
-                SmartAccount-->>SorobanRuntime: Error: SignatureVerificationFailed
-                SorobanRuntime-->>ContractA: Authorization failed
-                ContractA-->>Actor: Transaction failed
-                note right of Actor: End flow
+                SmartAccount-->>Runtime: Error: SignatureVerificationFailed
+                Runtime-->>ContractA: Authorization failed
+                ContractA-->>User: Transaction failed
+                note right of User: End flow
             else Signature valid
                 Signer-->>SmartAccount: Signature verified
                 SmartAccount->>SmartAccount: Cache verified signer
@@ -129,18 +129,18 @@ sequenceDiagram
         end
         
         alt context_authorized == false
-            SmartAccount-->>SorobanRuntime: Error: InsufficientPermissions
-            SorobanRuntime-->>ContractA: Authorization failed
-            ContractA-->>Actor: Transaction failed
-            note right of Actor: End flow
+            SmartAccount-->>Runtime: Error: InsufficientPermissions
+            Runtime-->>ContractA: Authorization failed
+            ContractA-->>User: Transaction failed
+            note right of User: End flow
         end
     end
     
-    Note over SmartAccount, Actor: Success Flow
-    SmartAccount-->>SorobanRuntime: Authorization successful
-    SorobanRuntime-->>ContractA: Authorization granted
+    Note over SmartAccount, User: Success Flow
+    SmartAccount-->>Runtime: Authorization successful
+    Runtime-->>ContractA: Authorization granted
     ContractA->>ContractA: Continue business logic execution
-    ContractA-->>Actor: Transaction successful
+    ContractA-->>User: Transaction successful
 ```
 
 ### Key Security Components
