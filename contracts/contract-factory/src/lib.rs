@@ -1,7 +1,7 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, vec, Address, Bytes, BytesN, Env,
-    Symbol, Val, Vec,
+    contract, contractimpl, contracttype, symbol_short, vec, Address, Bytes, BytesN, Env, Symbol,
+    Val, Vec,
 };
 use stellar_access_control::{grant_role_no_auth, set_admin, AccessControl};
 use stellar_access_control_macros::only_role;
