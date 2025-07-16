@@ -34,6 +34,8 @@ The key innovation is moving from Stellar's traditional "signature + threshold" 
 
 This dual signature support allows the smart account to bridge traditional crypto workflows with modern web authentication standards, making it more accessible to mainstream users while maintaining the security guarantees expected in the Stellar ecosystem.
 
+**Extensible Architecture**: The signer implementation follows a strategy pattern, making it easily extensible to support additional cryptographic algorithms. New signature schemes such as Secp256k1 or future cryptographic standards can be integrated without modifying the core authorization logic, ensuring the smart account remains adaptable to evolving security requirements.
+
 
 ### Smart Account Authentication Flow
 
@@ -55,9 +57,9 @@ The Smart Account implements a strict security model with the following core pri
 2. **Authorization Check Phase**
    - For each execution context in the transaction:
      - Iterate through all verified signers until one with sufficient permissions is found
-     - **Admin Signers**: Automatically authorized for all operations
-     - **Standard Signers**: Authorized for non-admin operations only
-     - **Restricted Signers**: Subject to policy evaluation (spending limits, time restrictions, etc.)
+       - **Admin Signers**: Automatically authorized for all operations
+       - **Standard Signers**: Authorized for non-admin operations only
+       - **Restricted Signers**: Subject to policy evaluation (spending limits, time restrictions, etc.)
    - **Critical Security Guarantee**: If NO signer with sufficient permissions is found for ANY context, the entire transaction fails
 
 3. **Early Exit Optimization**
@@ -227,37 +229,66 @@ sequenceDiagram
 <tr>
 <td>Spoofing</td>
 <td>
-<!-- Add spoofing issues here -->
+<strong>Spoof.1</strong> - (Authorization Flow) An attacker compromises a signer's private key (Ed25519 or Secp256r1) and impersonates them to authorize malicious transactions. <br>
+<strong>Spoof.2</strong> - (WebAuthn Flow) An attacker performs a man-in-the-middle attack during WebAuthn/Passkey authentication, intercepting and replaying authentication challenges to spoof legitimate users. <br>
+<strong>Spoof.3</strong> - (Contract Upgrade) An attacker creates a malicious smart contract that mimics the legitimate smart account interface and tricks users into interacting with it instead of the real contract. <br>
+<strong>Spoof.4</strong> - (Signature Replay) An attacker captures valid signatures from previous transactions and attempts to replay them in new contexts to bypass authorization checks. <br>
+<strong>Spoof.5</strong> - (Signer Impersonation) An attacker generates key pairs that could potentially collide with existing signer public keys, attempting to impersonate legitimate signers.
 </td>
 </tr>
 <tr>
 <td>Tampering</td>
 <td>
-<!-- Add tampering issues here -->
+<strong>Tamper.1</strong> - (Signature Payload) An attacker modifies the signature payload hash after signature generation but before verification, potentially allowing unauthorized operations to be executed. <br>
+<strong>Tamper.2</strong> - (Contract Storage) An attacker exploits a vulnerability in the contract storage mechanism to modify signer data, policies, or authorization rules stored in the contract. <br>
+<strong>Tamper.3</strong> - (Authorization Context) An attacker manipulates the authorization context parameters during the __check_auth call to bypass permission checks or escalate privileges. <br>
+<strong>Tamper.4</strong> - (Policy Modification) A restricted signer finds a way to modify their own policy restrictions (spending limits, time constraints) to gain unauthorized access. <br>
+<strong>Tamper.5</strong> - (Upgrade Tampering) An attacker intercepts and modifies upgrade transactions to deploy malicious contract code instead of legitimate upgrades. <br>
+<strong>Tamper.6</strong> - (Nonce Manipulation) An attacker manipulates the nonce system to enable signature replay attacks or bypass transaction ordering constraints.
 </td>
 </tr>
 <tr>
 <td>Repudiation</td>
 <td>
-<!-- Add repudiation issues here -->
+<strong>Repudiate.1</strong> - (Transaction Denial) A signer authorizes a high-value transaction but later denies having signed it, claiming their key was compromised, making it difficult to prove legitimate authorization. <br>
+<strong>Repudiate.2</strong> - (Admin Action Denial) An admin signer performs critical operations (signer addition/removal, contract upgrades) but denies responsibility when questioned about the changes. <br>
+<strong>Repudiate.3</strong> - (Policy Bypass) A restricted signer exploits policy loopholes to perform unauthorized actions but denies intentional policy violation, claiming the action was within their perceived permissions. <br>
+<strong>Repudiate.4</strong> - (Upgrade Authorization) Multiple admin signers participate in a controversial contract upgrade but each denies being the primary authorizer, creating accountability gaps. <br>
+<strong>Repudiate.5</strong> - (Signature Timestamp) Due to lack of precise timestamp logging, signers can deny the timing of their authorization, making it difficult to establish the sequence of events for audit purposes.
 </td>
 </tr>
 <tr>
 <td>Information Disclosure</td>
 <td>
-<!-- Add information disclosure issues here -->
+<strong>Info.1</strong> - (Signer Enumeration) An attacker analyzes on-chain transaction patterns to enumerate all signers associated with a smart account, revealing the account's security structure and potential high-value targets. <br>
+<strong>Info.2</strong> - (Policy Revelation) By observing which transactions are authorized or rejected, an attacker can reverse-engineer the policy restrictions of restricted signers, learning spending limits, time constraints, and authorization patterns. <br>
+<strong>Info.3</strong> - (Authorization Pattern Analysis) An attacker performs statistical analysis of authorization patterns to identify which signers are most active, their authorization frequency, and potential operational security patterns. <br>
+<strong>Info.4</strong> - (WebAuthn Metadata Leakage) WebAuthn authentication flows may leak device information, user agent details, or biometric capabilities that could be used for targeted attacks. <br>
+<strong>Info.5</strong> - (Storage Data Exposure) Contract storage queries reveal more information than necessary about internal signer configurations, policy parameters, or authorization state that could aid in attack planning. <br>
+<strong>Info.6</strong> - (Signature Algorithm Disclosure) By analyzing signature formats, an attacker can determine which signature algorithms each signer uses, potentially targeting weaker cryptographic implementations.
 </td>
 </tr>
 <tr>
 <td>Denial of Service</td>
 <td>
-<!-- Add denial of service issues here -->
+<strong>DoS.1</strong> - (Resource Exhaustion) An attacker submits transactions with maximum allowed signatures and complex authorization contexts to exhaust contract computational resources and prevent legitimate transactions. <br>
+<strong>DoS.2</strong> - (Invalid Signature Flood) An attacker floods the smart account with transactions containing invalid signatures, forcing the contract to waste resources on signature verification failures. <br>
+<strong>DoS.3</strong> - (Policy Evaluation Overload) An attacker targets restricted signers with transactions designed to trigger computationally expensive policy evaluations, overwhelming the contract's processing capacity. <br>
+<strong>DoS.4</strong> - (Nonce Exhaustion) An attacker attempts to exhaust the nonce space or create nonce conflicts that prevent legitimate transactions from being processed. <br>
+<strong>DoS.5</strong> - (Storage Bloat) An attacker exploits signer management functions to create excessive storage entries, potentially hitting storage limits and preventing new signers from being added. <br>
+<strong>DoS.6</strong> - (Upgrade Lock) An attacker initiates but never completes upgrade transactions, potentially locking the contract in an intermediate state that prevents both normal operations and legitimate upgrades.
 </td>
 </tr>
 <tr>
 <td>Elevation of Privilege</td>
 <td>
-<!-- Add elevation of privilege issues here -->
+<strong>Elevation.1</strong> - (Role Escalation) A restricted signer exploits a vulnerability in the authorization logic to gain standard or admin privileges without proper authorization from existing admin signers. <br>
+<strong>Elevation.2</strong> - (Policy Bypass) A restricted signer discovers a way to bypass policy restrictions (spending limits, time constraints, contract deny-lists) and perform unauthorized high-privilege operations. <br>
+<strong>Elevation.3</strong> - (Upgrade Hijacking) A standard signer finds a way to authorize contract upgrades despite not having admin privileges, potentially installing malicious code or backdoors. <br>
+<strong>Elevation.4</strong> - (Cross-Context Privilege) A signer with limited permissions in one context exploits the authorization system to gain broader permissions across multiple contexts within the same transaction. <br>
+<strong>Elevation.5</strong> - (Signer Self-Elevation) A signer exploits the signer management system to modify their own role or permissions without authorization from admin signers. <br>
+<strong>Elevation.6</strong> - (Emergency Access) An attacker exploits emergency or recovery mechanisms intended for legitimate account recovery to gain unauthorized admin access to the smart account. <br>
+<strong>Elevation.7</strong> - (Contract Interface Confusion) An attacker exploits differences between the SmartAccountInterface and CustomAccountInterface to gain elevated privileges through interface confusion attacks.
 </td>
 </tr>
 </table>
