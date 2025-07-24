@@ -1,4 +1,4 @@
-use soroban_sdk::{auth::Context, contracttype, Env};
+use soroban_sdk::{auth::Context, contracttype, symbol_short, Env};
 
 use crate::{
     auth::permissions::{AuthorizationCheck, PolicyValidator},
@@ -23,9 +23,27 @@ impl PolicyValidator for TimeBasedPolicy {
     fn check(&self, env: &Env) -> Result<(), Error> {
         let current_time = env.ledger().timestamp();
         if self.not_after < current_time {
+            env.events().publish(
+                (symbol_short!("policy"), symbol_short!("failed")),
+                crate::account::PolicyValidationFailedEvent {
+                    policy_type: soroban_sdk::String::from_str(env, "time_based"),
+                    error_code: 10,
+                    error_message: soroban_sdk::String::from_str(env, "InvalidNotAfterTime"),
+                    signer_key: None,
+                },
+            );
             return Err(Error::InvalidNotAfterTime);
         }
         if self.not_before > self.not_after {
+            env.events().publish(
+                (symbol_short!("policy"), symbol_short!("failed")),
+                crate::account::PolicyValidationFailedEvent {
+                    policy_type: soroban_sdk::String::from_str(env, "time_based"),
+                    error_code: 11,
+                    error_message: soroban_sdk::String::from_str(env, "InvalidTimeRange"),
+                    signer_key: None,
+                },
+            );
             return Err(Error::InvalidTimeRange);
         }
         Ok(())

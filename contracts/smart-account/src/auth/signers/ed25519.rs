@@ -2,7 +2,7 @@ use crate::auth::proof::SignerProof;
 use crate::auth::signer::SignerKey;
 use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
-use soroban_sdk::{contracttype, Bytes, BytesN, Env};
+use soroban_sdk::{contracttype, symbol_short, Bytes, BytesN, Env};
 
 /// Ed25519 signer implementation
 #[contracttype]
@@ -29,7 +29,18 @@ impl SignatureVerifier for Ed25519Signer {
                 );
                 Ok(())
             }
-            SignerProof::Secp256r1(_) => Err(Error::InvalidProofType),
+            SignerProof::Secp256r1(_) => {
+                env.events().publish(
+                    (symbol_short!("sig"), symbol_short!("failed")),
+                    crate::account::SignatureVerificationFailedEvent {
+                        error_code: 7,
+                        error_message: soroban_sdk::String::from_str(env, "InvalidProofType"),
+                        signer_key: soroban_sdk::String::from_str(env, "ed25519_key"),
+                        proof_type: soroban_sdk::String::from_str(env, "secp256r1_mismatch"),
+                    },
+                );
+                Err(Error::InvalidProofType)
+            }
         }
     }
 }
