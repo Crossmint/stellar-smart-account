@@ -6,6 +6,10 @@ pub mod error;
 pub mod interface;
 
 // Re-export key types for external use and bindings generation
+pub use account::{
+    AuthCheckFailedEvent, PolicyValidationFailedEvent, SignatureVerificationFailedEvent,
+    SignerOperationFailedEvent,
+};
 pub use auth::permissions::{SignerPolicy, SignerRole};
 pub use auth::proof::{SignatureProofs, SignerProof};
 pub use auth::signer::{Signer, SignerKey};

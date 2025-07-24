@@ -1,4 +1,4 @@
-use soroban_sdk::{auth::Context, contracttype, Address, Env, Vec};
+use soroban_sdk::{auth::Context, contracttype, symbol_short, Address, Env, Vec};
 
 use crate::{
     auth::permissions::{AuthorizationCheck, PolicyValidator},
@@ -28,6 +28,15 @@ impl PolicyValidator for ContractAllowListPolicy {
             .allowed_contracts
             .contains(env.current_contract_address())
         {
+            env.events().publish(
+                (symbol_short!("policy"), symbol_short!("failed")),
+                crate::account::PolicyValidationFailedEvent {
+                    policy_type: soroban_sdk::String::from_str(env, "contract_allow_list"),
+                    error_code: 9,
+                    error_message: soroban_sdk::String::from_str(env, "InvalidPolicy"),
+                    signer_key: None,
+                },
+            );
             return Err(Error::InvalidPolicy);
         }
         Ok(())
