@@ -124,12 +124,8 @@ impl SmartAccount {
 
     fn signer_key_to_string(env: &Env, signer_key: &SignerKey) -> soroban_sdk::String {
         match signer_key {
-            SignerKey::Ed25519(key) => {
-                soroban_sdk::String::from_str(env, "ed25519_key")
-            }
-            SignerKey::Secp256r1(key_id) => {
-                soroban_sdk::String::from_str(env, "secp256r1_key")
-            }
+            SignerKey::Ed25519(key) => soroban_sdk::String::from_str(env, "ed25519_key"),
+            SignerKey::Secp256r1(key_id) => soroban_sdk::String::from_str(env, "secp256r1_key"),
         }
     }
 }
@@ -156,7 +152,8 @@ impl SmartAccountInterface for SmartAccount {
 
         // Check that there is at least one admin signer to prevent the contract from being locked out.
         if !signers.iter().any(|s| s.role() == SignerRole::Admin) {
-            let (error_code, error_message) = Self::error_to_code_and_message(&env, &Error::InsufficientPermissionsOnCreation);
+            let (error_code, error_message) =
+                Self::error_to_code_and_message(&env, &Error::InsufficientPermissionsOnCreation);
             env.events().publish(
                 (symbol_short!("constr"), symbol_short!("failed")),
                 SignerOperationFailedEvent {
@@ -173,7 +170,8 @@ impl SmartAccountInterface for SmartAccount {
         for signer in signers.iter() {
             let signer_key: SignerKey = signer.clone().into();
             if seen_signer_keys.contains(&signer_key) {
-                let (error_code, error_message) = Self::error_to_code_and_message(&env, &Error::SignerAlreadyExists);
+                let (error_code, error_message) =
+                    Self::error_to_code_and_message(&env, &Error::SignerAlreadyExists);
                 env.events().publish(
                     (symbol_short!("constr"), symbol_short!("failed")),
                     SignerOperationFailedEvent {
@@ -289,7 +287,8 @@ impl SmartAccountInterface for SmartAccount {
         let signer_to_revoke = match storage.get::<SignerKey, Signer>(env, &signer_key) {
             Some(signer) => signer,
             None => {
-                let (error_code, error_message) = Self::error_to_code_and_message(env, &Error::SignerNotFound);
+                let (error_code, error_message) =
+                    Self::error_to_code_and_message(env, &Error::SignerNotFound);
                 env.events().publish(
                     (symbol_short!("signer"), symbol_short!("failed")),
                     SignerOperationFailedEvent {
@@ -304,7 +303,8 @@ impl SmartAccountInterface for SmartAccount {
         };
 
         if signer_to_revoke.role() == SignerRole::Admin {
-            let (error_code, error_message) = Self::error_to_code_and_message(env, &Error::CannotRevokeAdminSigner);
+            let (error_code, error_message) =
+                Self::error_to_code_and_message(env, &Error::CannotRevokeAdminSigner);
             env.events().publish(
                 (symbol_short!("signer"), symbol_short!("failed")),
                 SignerOperationFailedEvent {
@@ -389,7 +389,8 @@ impl CustomAccountInterface for SmartAccount {
 
         // Ensure we have at least one authorization proof
         if proof_map.is_empty() {
-            let (error_code, error_message) = Self::error_to_code_and_message(&env, &Error::NoProofsInAuthEntry);
+            let (error_code, error_message) =
+                Self::error_to_code_and_message(&env, &Error::NoProofsInAuthEntry);
             env.events().publish(
                 (symbol_short!("auth"), symbol_short!("failed")),
                 AuthCheckFailedEvent {
@@ -408,7 +409,8 @@ impl CustomAccountInterface for SmartAccount {
         for (signer_key, _) in proof_map.iter() {
             if !storage.has(&env, &signer_key) {
                 log!(&env, "Signer not found {:?}", signer_key);
-                let (error_code, error_message) = Self::error_to_code_and_message(&env, &Error::SignerNotFound);
+                let (error_code, error_message) =
+                    Self::error_to_code_and_message(&env, &Error::SignerNotFound);
                 env.events().publish(
                     (symbol_short!("auth"), symbol_short!("failed")),
                     AuthCheckFailedEvent {
@@ -440,7 +442,8 @@ impl CustomAccountInterface for SmartAccount {
                 }
             }
             if !context_authorized {
-                let (error_code, error_message) = Self::error_to_code_and_message(&env, &Error::InsufficientPermissions);
+                let (error_code, error_message) =
+                    Self::error_to_code_and_message(&env, &Error::InsufficientPermissions);
                 env.events().publish(
                     (symbol_short!("auth"), symbol_short!("failed")),
                     AuthCheckFailedEvent {
