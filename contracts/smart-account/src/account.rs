@@ -124,8 +124,8 @@ impl SmartAccount {
 
     fn signer_key_to_string(env: &Env, signer_key: &SignerKey) -> soroban_sdk::String {
         match signer_key {
-            SignerKey::Ed25519(key) => soroban_sdk::String::from_str(env, "ed25519_key"),
-            SignerKey::Secp256r1(key_id) => soroban_sdk::String::from_str(env, "secp256r1_key"),
+            SignerKey::Ed25519(_key) => soroban_sdk::String::from_str(env, "ed25519_key"),
+            SignerKey::Secp256r1(_key_id) => soroban_sdk::String::from_str(env, "secp256r1_key"),
         }
     }
 }
