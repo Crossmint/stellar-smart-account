@@ -180,6 +180,17 @@ impl SmartAccountInterface for SmartAccount {
 // CustomAccountInterface implementation
 // ============================================================================
 
+pub trait IsDeployed {
+    fn is_deployed(env: &Env) -> bool;
+}
+
+#[contractimpl]
+impl IsDeployed for SmartAccount {
+    fn is_deployed(_env: &Env) -> bool {
+        true
+    }
+}
+
 /// Implementation of Soroban's CustomAccountInterface for smart account authorization.
 ///
 /// This provides the custom authorization logic that the Soroban runtime uses

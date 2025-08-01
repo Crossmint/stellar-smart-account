@@ -267,6 +267,26 @@ export interface Client {
     simulate?: boolean;
   }) => Promise<AssembledTransaction<Result<void>>>
 
+  /**
+   * Construct and simulate a is_deployed transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   */
+  is_deployed: (options?: {
+    /**
+     * The fee to pay for the transaction. Default: BASE_FEE
+     */
+    fee?: number;
+
+    /**
+     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+     */
+    timeoutInSeconds?: number;
+
+    /**
+     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+     */
+    simulate?: boolean;
+  }) => Promise<AssembledTransaction<boolean>>
+
 }
 export class Client extends ContractClient {
   static async deploy<T = Client>(
@@ -295,6 +315,7 @@ export class Client extends ContractClient {
         "AAAAAAAAAAAAAAAKYWRkX3NpZ25lcgAAAAAAAQAAAAAAAAAGc2lnbmVyAAAAAAfQAAAABlNpZ25lcgAAAAAAAQAAA+kAAAPtAAAAAAAAAAM=",
         "AAAAAAAAAAAAAAANdXBkYXRlX3NpZ25lcgAAAAAAAAEAAAAAAAAABnNpZ25lcgAAAAAH0AAAAAZTaWduZXIAAAAAAAEAAAPpAAAD7QAAAAAAAAAD",
         "AAAAAAAAAAAAAAANcmV2b2tlX3NpZ25lcgAAAAAAAAEAAAAAAAAACnNpZ25lcl9rZXkAAAAAB9AAAAAJU2lnbmVyS2V5AAAAAAAAAQAAA+kAAAPtAAAAAAAAAAM=",
+        "AAAAAAAAAAAAAAALaXNfZGVwbG95ZWQAAAAAAAAAAAEAAAAB",
         "AAAAAAAAAsRDdXN0b20gYXV0aG9yaXphdGlvbiBmdW5jdGlvbiBpbnZva2VkIGJ5IHRoZSBTb3JvYmFuIHJ1bnRpbWUuCgpUaGlzIGZ1bmN0aW9uIGltcGxlbWVudHMgdGhlIGFjY291bnQncyBhdXRob3JpemF0aW9uIGxvZ2ljIHdpdGggb3B0aW1pemF0aW9ucyBmb3IgU3RlbGxhciBjb3N0czoKMS4gVmVyaWZpZXMgdGhhdCBhbGwgcHJvdmlkZWQgc2lnbmF0dXJlcyBhcmUgY3J5cHRvZ3JhcGhpY2FsbHkgdmFsaWQKMi4gQ2hlY2tzIHRoYXQgYXQgbGVhc3Qgb25lIGF1dGhvcml6ZWQgc2lnbmVyIGhhcyBhcHByb3ZlZCBlYWNoIG9wZXJhdGlvbgozLiBFbnN1cmVzIHNpZ25lcnMgaGF2ZSB0aGUgcmVxdWlyZWQgcGVybWlzc2lvbnMgZm9yIHRoZSByZXF1ZXN0ZWQgb3BlcmF0aW9ucwoKCiMgQXJndW1lbnRzCiogYGVudmAgLSBUaGUgY29udHJhY3QgZW52aXJvbm1lbnQKKiBgc2lnbmF0dXJlX3BheWxvYWRgIC0gSGFzaCBvZiB0aGUgZGF0YSB0aGF0IHdhcyBzaWduZWQKKiBgYXV0aF9wYXlsb2Fkc2AgLSBNYXAgb2Ygc2lnbmVyIGtleXMgdG8gdGhlaXIgc2lnbmF0dXJlIHByb29mcwoqIGBhdXRoX2NvbnRleHRzYCAtIExpc3Qgb2Ygb3BlcmF0aW9ucyBiZWluZyBhdXRob3JpemVkCgojIFJldHVybnMKKiBgT2soKCkpYCBpZiBhdXRob3JpemF0aW9uIHN1Y2NlZWRzCiogYEVycihFcnJvcilgIGlmIGF1dGhvcml6YXRpb24gZmFpbHMgZm9yIGFueSByZWFzb24AAAAMX19jaGVja19hdXRoAAAAAwAAAAAAAAARc2lnbmF0dXJlX3BheWxvYWQAAAAAAAPuAAAAIAAAAAAAAAANYXV0aF9wYXlsb2FkcwAAAAAAB9AAAAAPU2lnbmF0dXJlUHJvb2ZzAAAAAAAAAAANYXV0aF9jb250ZXh0cwAAAAAAA+oAAAfQAAAAB0NvbnRleHQAAAAAAQAAA+kAAAPtAAAAAAAAAAM=",
         "AAAAAgAAAAAAAAAAAAAADFNpZ25lclBvbGljeQAAAAMAAAABAAAAAAAAAAlUaW1lQmFzZWQAAAAAAAABAAAH0AAAAA9UaW1lQmFzZWRQb2xpY3kAAAAAAQAAAAAAAAAQQ29udHJhY3REZW55TGlzdAAAAAEAAAfQAAAAFkNvbnRyYWN0RGVueUxpc3RQb2xpY3kAAAAAAAEAAAAAAAAAEUNvbnRyYWN0QWxsb3dMaXN0AAAAAAAAAQAAB9AAAAAXQ29udHJhY3RBbGxvd0xpc3RQb2xpY3kA",
         "AAAAAgAAAAAAAAAAAAAAClNpZ25lclJvbGUAAAAAAAMAAAAAAAAAAAAAAAVBZG1pbgAAAAAAAAAAAAAAAAAACFN0YW5kYXJkAAAAAQAAAAAAAAAKUmVzdHJpY3RlZAAAAAAAAQAAA+oAAAfQAAAADFNpZ25lclBvbGljeQ==",
@@ -319,6 +340,7 @@ export class Client extends ContractClient {
     upgrade: this.txFromJSON<null>,
         add_signer: this.txFromJSON<Result<void>>,
         update_signer: this.txFromJSON<Result<void>>,
-        revoke_signer: this.txFromJSON<Result<void>>
+        revoke_signer: this.txFromJSON<Result<void>>,
+        is_deployed: this.txFromJSON<boolean>
   }
 }

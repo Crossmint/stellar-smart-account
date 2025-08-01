@@ -78,6 +78,51 @@ impl ContractFactory {
         contract_id
     }
 
+    /// Deploys the contract on behalf of the `ContractFactory` contract.
+    ///
+    /// This has to be authorized by an address with the `deployer` role.
+    #[only_role(caller, "deployer")]
+    pub fn deploy_idempotent(
+        env: &Env,
+        caller: Address,
+        deployment_args: ContractDeploymentArgs,
+    ) -> Address {
+        let ContractDeploymentArgs {
+            wasm_hash,
+            salt,
+            constructor_args,
+        } = deployment_args;
+
+        let tentative_contract_id = Self::get_deployed_address(env, salt.clone());
+        let is_deployed = env
+            .try_invoke_contract::<bool, soroban_sdk::Error>(
+                &tentative_contract_id,
+                &Symbol::new(env, "is_deployed"),
+                Vec::new(env),
+            )
+            .is_ok();
+
+        if is_deployed {
+            return tentative_contract_id;
+        }
+
+        let contract_id = env
+            .deployer()
+            .with_current_contract(salt)
+            .deploy_v2(wasm_hash, constructor_args);
+
+        env.events().publish(
+            vec![env, DEPLOYED_CONTRACT],
+            vec![
+                env,
+                ContractDeployedEvent {
+                    contract_id: contract_id.clone(),
+                },
+            ],
+        );
+        contract_id
+    }
+
     /// Deploys a smart account on behalf of the `ContractFactory` contract.
     /// and calls a function that could require auth for that deployed account.
     ///
@@ -127,7 +172,7 @@ impl ContractFactory {
             .deploy_v2(wasm_hash, constructor_args)
     }
 
-    pub fn get_deployed_address(env: Env, salt: BytesN<32>) -> Address {
+    pub fn get_deployed_address(env: &Env, salt: BytesN<32>) -> Address {
         env.deployer()
             .with_current_contract(salt)
             .deployed_address()
