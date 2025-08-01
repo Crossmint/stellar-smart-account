@@ -43,7 +43,7 @@ jobs:
 
     - name: Install Stellar CLI
       run: |
-        curl -L https://github.com/stellar/stellar-cli/releases/download/v22.8.1/stellar-cli-22.8.1-x86_64-unknown-linux-gnu.tar.gz | tar -xz
+        curl -L https://github.com/stellar/stellar-cli/releases/download/v23.0.0/stellar-cli-23.0.0-x86_64-unknown-linux-gnu.tar.gz | tar -xz
         sudo mv stellar /usr/local/bin/
         stellar --version
 
