@@ -32,8 +32,7 @@ impl PolicyValidator for ExternalAuthorizationPolicy {
             &self.contract_id,
             &Symbol::new(env, "init"),
             vec![env],
-        )
-        .and_then(|_| Ok(()))
+        ).map(|_| ())
         .map_err(|_| Error::InvalidPolicy)
     }
 }
