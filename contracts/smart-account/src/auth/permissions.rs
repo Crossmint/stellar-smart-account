@@ -4,7 +4,10 @@ use soroban_sdk::{
 };
 
 use crate::{
-    auth::policy::{ContractAllowListPolicy, ContractDenyListPolicy, TimeBasedPolicy},
+    auth::policy::{
+        ContractAllowListPolicy, ContractDenyListPolicy, ExternalAuthorizationPolicy,
+        TimeBasedPolicy,
+    },
     error::Error,
 };
 
@@ -23,6 +26,7 @@ pub enum SignerPolicy {
     TimeBased(TimeBasedPolicy),
     ContractDenyList(ContractDenyListPolicy),
     ContractAllowList(ContractAllowListPolicy),
+    ExternalAuthorization(ExternalAuthorizationPolicy),
 }
 
 // Delegate to the specific policy implementation
@@ -32,6 +36,7 @@ impl AuthorizationCheck for SignerPolicy {
             SignerPolicy::TimeBased(policy) => policy.is_authorized(env, context),
             SignerPolicy::ContractDenyList(policy) => policy.is_authorized(env, context),
             SignerPolicy::ContractAllowList(policy) => policy.is_authorized(env, context),
+            SignerPolicy::ExternalAuthorization(policy) => policy.is_authorized(env, context),
         }
     }
 }
@@ -42,6 +47,7 @@ impl PolicyValidator for SignerPolicy {
             SignerPolicy::TimeBased(policy) => policy.check(env),
             SignerPolicy::ContractDenyList(policy) => policy.check(env),
             SignerPolicy::ContractAllowList(policy) => policy.check(env),
+            SignerPolicy::ExternalAuthorization(policy) => policy.check(env),
         }
     }
 }
