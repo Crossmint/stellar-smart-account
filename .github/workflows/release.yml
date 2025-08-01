@@ -1,0 +1,164 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32v1-none
+        components: rustfmt, clippy
+
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Install Stellar CLI
+      run: |
+        curl -L https://github.com/stellar/stellar-cli/releases/download/v23.0.0/stellar-cli-23.0.0-x86_64-unknown-linux-gnu.tar.gz | tar -xz
+        sudo mv stellar /usr/local/bin/
+        stellar --version
+
+    - name: Build contracts with optimization
+      run: stellar contract build
+
+    - name: Create and fund testnet account
+      run: |
+        # Generate a new keypair for deployment
+        stellar keys generate deployer --network testnet --overwrite
+        
+        # Fund the account on testnet
+        stellar keys fund deployer --network testnet
+        
+        # Verify account was funded
+        stellar keys address deployer
+
+    - name: Upload WASM files to testnet
+      run: |
+        # Upload smart account contract
+        SMART_ACCOUNT_HASH=$(stellar contract install \
+          --wasm target/wasm32v1-none/release/smart_account.wasm \
+          --source deployer \
+          --network testnet)
+        echo "SMART_ACCOUNT_HASH=$SMART_ACCOUNT_HASH" >> $GITHUB_ENV
+        
+        # Upload contract factory
+        FACTORY_HASH=$(stellar contract install \
+          --wasm target/wasm32v1-none/release/contract_factory.wasm \
+          --source deployer \
+          --network testnet)
+        echo "FACTORY_HASH=$FACTORY_HASH" >> $GITHUB_ENV
+        
+        echo "Smart Account WASM Hash: $SMART_ACCOUNT_HASH"
+        echo "Factory WASM Hash: $FACTORY_HASH"
+
+    - name: Generate TypeScript bindings
+      run: |
+        # Generate bindings for smart account
+        cd packages/smart_account
+        stellar contract bindings typescript \
+          --wasm ../../target/wasm32v1-none/release/smart_account.wasm \
+          --output-dir temp \
+          --overwrite
+        cp temp/src/index.ts src/index.ts
+        rm -rf temp
+        
+        # Generate bindings for factory
+        cd ../factory
+        stellar contract bindings typescript \
+          --wasm ../../target/wasm32v1-none/release/contract_factory.wasm \
+          --output-dir temp \
+          --overwrite
+        cp temp/src/index.ts src/index.ts
+        rm -rf temp
+        cd ../..
+
+    - name: Build TypeScript packages
+      run: |
+        cd packages/smart_account
+        pnpm install
+        pnpm run build
+        
+        cd ../factory
+        pnpm install
+        pnpm run build
+        cd ../..
+
+    - name: Calculate WASM hashes and create release tarfile
+      run: |
+        # Create release directory
+        mkdir -p release-artifacts
+        
+        # Copy WASM files
+        cp target/wasm32v1-none/release/*.wasm release-artifacts/
+        
+        # Generate hash file
+        cd release-artifacts
+        sha256sum *.wasm > wasm-hashes.txt
+        cd ..
+        
+        # Copy TypeScript packages
+        cp -r packages/smart_account/dist release-artifacts/smart_account_types
+        cp -r packages/factory/dist release-artifacts/factory_types
+        
+        # Copy package.json files for reference
+        cp packages/smart_account/package.json release-artifacts/smart_account_types/
+        cp packages/factory/package.json release-artifacts/factory_types/
+        
+        # Create tarfile
+        tar -czf stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz -C release-artifacts .
+        
+        # List contents for verification
+        echo "Release tarfile contents:"
+        tar -tzf stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz
+
+    - name: Upload release artifact
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz
+        asset_name: stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Create deployment summary
+      run: |
+        echo "## Release Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Smart Account WASM Hash**: \`$SMART_ACCOUNT_HASH\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Factory WASM Hash**: \`$FACTORY_HASH\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Network**: Stellar Testnet" >> $GITHUB_STEP_SUMMARY
+        echo "- **Release Artifact**: stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Tarfile Contents:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        tar -tzf stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
