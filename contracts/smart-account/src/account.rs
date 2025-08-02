@@ -15,7 +15,7 @@ use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    log, map, panic_with_error, symbol_short, Address, Env, Map, Symbol, Vec,
+    map, panic_with_error, symbol_short, Address, Env, Map, Symbol, Vec,
 };
 use storage::Storage;
 use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
@@ -249,11 +249,11 @@ impl CustomAccountInterface for SmartAccount {
     ) -> Result<(), Error> {
         Self::check_auth_internal(&env, signature_payload, &auth_payloads, &auth_contexts)?;
 
-        let plugins = Storage::default()
+        for (plugin, _) in Storage::default()
             .get::<Symbol, Map<Address, ()>>(&env, &PLUGINS_KEY)
-            .unwrap();
-
-        for (plugin, _) in plugins.iter() {
+            .unwrap()
+            .iter()
+        {
             SmartAccountPluginClient::new(&env, &plugin)
                 .on_auth(&env.current_contract_address(), &auth_contexts);
         }
