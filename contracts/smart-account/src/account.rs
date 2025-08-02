@@ -108,7 +108,7 @@ impl SmartAccountInterface for SmartAccount {
             if let SignerRole::Restricted(policies) = signer.role() {
                 for policy in policies {
                     policy
-                        .init(&env)
+                        .on_add(&env)
                         .unwrap_or_else(|e| panic_with_error!(env, e));
                 }
             }

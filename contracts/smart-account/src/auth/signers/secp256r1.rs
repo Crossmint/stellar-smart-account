@@ -30,12 +30,13 @@ impl SignatureVerifier for Secp256r1Signer {
                 authenticator_data
                     .extend_from_array(&env.crypto().sha256(&client_data_json).to_array());
 
+                // This will panic if the signature is invalid
                 env.crypto().secp256r1_verify(
                     &self.public_key,
                     &env.crypto().sha256(&authenticator_data),
                     &signature,
                 );
-
+                // Reaching this point means the signature is valid
                 Ok(())
             }
             _ => Err(Error::InvalidProofType),

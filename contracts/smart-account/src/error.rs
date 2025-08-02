@@ -52,6 +52,8 @@ pub enum Error {
     InvalidTimeRange = 81,
     /// Invalid not-after time specified
     InvalidNotAfterTime = 82,
+    /// Policy client error
+    PolicyClientInitializationError = 83,
 
     // === Generic Errors (100+) ===
     /// Requested resource was not found

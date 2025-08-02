@@ -20,7 +20,7 @@ impl AuthorizationCheck for TimeBasedPolicy {
 }
 
 impl PolicyInitiator for TimeBasedPolicy {
-    fn init(&self, env: &Env) -> Result<(), Error> {
+    fn on_add(&self, env: &Env) -> Result<(), Error> {
         let current_time = env.ledger().timestamp();
         if self.not_after < current_time {
             return Err(Error::InvalidNotAfterTime);
@@ -28,6 +28,9 @@ impl PolicyInitiator for TimeBasedPolicy {
         if self.not_before > self.not_after {
             return Err(Error::InvalidTimeRange);
         }
+        Ok(())
+    }
+    fn on_revoke(&self, _env: &Env) -> Result<(), Error> {
         Ok(())
     }
 }

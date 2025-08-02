@@ -23,7 +23,15 @@ impl AuthorizationCheck for ExternalPolicy {
 }
 
 impl PolicyInitiator for ExternalPolicy {
-    fn init(&self, _env: &Env) -> Result<(), Error> {
+    fn on_add(&self, env: &Env) -> Result<(), Error> {
+        let policy_client = SmartAccountPolicyClient::new(&env, &self.policy_address);
+        let _ = policy_client.try_on_add(&env.current_contract_address());
+        Ok(())
+    }
+
+    fn on_revoke(&self, env: &Env) -> Result<(), Error> {
+        let policy_client = SmartAccountPolicyClient::new(&env, &self.policy_address);
+        let _ = policy_client.try_on_revoke(&env.current_contract_address());
         Ok(())
     }
 }

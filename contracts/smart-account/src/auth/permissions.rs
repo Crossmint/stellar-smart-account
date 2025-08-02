@@ -13,7 +13,8 @@ pub trait AuthorizationCheck {
 }
 
 pub trait PolicyInitiator {
-    fn init(&self, env: &Env) -> Result<(), Error>;
+    fn on_add(&self, env: &Env) -> Result<(), Error>;
+    fn on_revoke(&self, env: &Env) -> Result<(), Error>;
 }
 
 // Main policy enum that wraps the individual policies
@@ -35,10 +36,16 @@ impl AuthorizationCheck for SignerPolicy {
 }
 
 impl PolicyInitiator for SignerPolicy {
-    fn init(&self, env: &Env) -> Result<(), Error> {
+    fn on_add(&self, env: &Env) -> Result<(), Error> {
         match self {
-            SignerPolicy::TimeBased(policy) => policy.init(env),
-            SignerPolicy::External(policy) => policy.init(env),
+            SignerPolicy::TimeBased(policy) => policy.on_add(env),
+            SignerPolicy::External(policy) => policy.on_add(env),
+        }
+    }
+    fn on_revoke(&self, env: &Env) -> Result<(), Error> {
+        match self {
+            SignerPolicy::TimeBased(policy) => policy.on_revoke(env),
+            SignerPolicy::External(policy) => policy.on_revoke(env),
         }
     }
 }

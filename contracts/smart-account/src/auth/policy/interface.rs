@@ -1,7 +1,8 @@
-use soroban_sdk::{auth::Context, contractclient, Address, Env, Vec};
+use soroban_sdk::{auth::Context, contractclient, Address, Env, Error, Vec};
 
 #[contractclient(name = "SmartAccountPolicyClient")]
-pub trait PolicyInterface {
-    fn init(env: &Env, source: Address);
+pub trait SmartAccountPolicy {
+    fn on_add(env: &Env, source: Address);
+    fn on_revoke(env: &Env, source: Address);
     fn is_authorized(env: &Env, source: Address, contexts: &Vec<Context>) -> bool;
 }
