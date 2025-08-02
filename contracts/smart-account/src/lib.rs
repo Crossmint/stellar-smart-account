@@ -4,6 +4,7 @@ pub mod account;
 pub mod auth;
 pub mod error;
 pub mod interface;
+pub mod module;
 
 // Re-export key types for external use and bindings generation
 pub use auth::permissions::{SignerPolicy, SignerRole};

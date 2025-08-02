@@ -1,9 +1,12 @@
+use core::ops::Add;
+
 use crate::auth::permissions::SignerRole;
 use crate::auth::permissions::{AuthorizationCheck, PolicyInitiator};
 use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
 use crate::error::Error;
 use crate::interface::SmartAccountInterface;
+use crate::module::account_module::SmartAccountModuleClient;
 use initializable::{only_not_initialized, Initializable};
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
@@ -11,6 +14,7 @@ use soroban_sdk::{
     crypto::Hash,
     log, panic_with_error, symbol_short, Env, Vec,
 };
+use soroban_sdk::{map, vec, Address, Map, Symbol};
 use storage::Storage;
 use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
 
@@ -36,6 +40,20 @@ pub struct SignerRevokedEvent {
     pub signer_key: SignerKey,
     pub revoked_signer: Signer,
 }
+
+#[contracttype]
+#[derive(Clone)]
+pub struct ModuleInstalledEvent {
+    pub module: Address,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct ModuleUninstalledEvent {
+    pub module: Address,
+}
+
+const MODULES_KEY: Symbol = symbol_short!("modules");
 
 /// SmartAccount is a multi-signature account contract that provides enhanced security
 /// through role-based access control and policy-based authorization.
@@ -86,7 +104,7 @@ impl SmartAccount {
 /// If the account is already initialized, the contract will panic with an error.
 #[contractimpl]
 impl SmartAccountInterface for SmartAccount {
-    fn __constructor(env: Env, signers: Vec<Signer>) {
+    fn __constructor(env: Env, signers: Vec<Signer>, modules: Vec<Address>) {
         only_not_initialized!(&env);
 
         // Check that there is at least one admin signer to prevent the contract from being locked out.
@@ -114,6 +132,9 @@ impl SmartAccountInterface for SmartAccount {
             }
             SmartAccount::add_signer(&env, signer).unwrap_or_else(|e| panic_with_error!(env, e));
         });
+
+        // Install account modules
+        for module in modules {}
 
         SmartAccount::initialize(&env).unwrap_or_else(|e| panic_with_error!(env, e));
     }
@@ -169,8 +190,85 @@ impl SmartAccountInterface for SmartAccount {
             signer_key: signer_key.clone(),
             revoked_signer: signer_to_revoke.clone(),
         };
+        let event = SignerRevokedEvent {
+            signer_key: signer_key.clone(),
+            revoked_signer: signer_to_revoke.clone(),
+        };
         env.events()
             .publish((symbol_short!("signer"), symbol_short!("revoked")), event);
+
+        Ok(())
+    }
+
+    fn install_module(env: &Env, module: Address) -> Result<(), Error> {
+        Self::require_auth_if_initialized(env);
+        let storage = Storage::default();
+        match storage.get::<Symbol, Map<Address, ()>>(env, &MODULES_KEY) {
+            Some(mut existing_modules) => {
+                if existing_modules.contains_key(module.clone()) {
+                    return Err(Error::ModuleAlreadyInstalled);
+                }
+                existing_modules.set(module.clone(), ());
+                storage.update::<Symbol, Map<Address, ()>>(env, &MODULES_KEY, &existing_modules)?;
+            }
+            None => {
+                storage.store(env, &MODULES_KEY, &map![env, (module.clone(), ())])?;
+            }
+        }
+
+        let module_client = SmartAccountModuleClient::new(&env, &module);
+        match module_client.try_on_install(&env.current_contract_address()) {
+            Ok(inner_result) => {
+                if inner_result.is_err() {
+                    panic_with_error!(env, Error::ModuleInitializationFailed);
+                }
+            }
+            Err(_e) => {
+                panic_with_error!(env, Error::ModuleInitializationFailed);
+            }
+        };
+        let event = ModuleInstalledEvent {
+            module: module.clone(),
+        };
+        env.events()
+            .publish((symbol_short!("module"), symbol_short!("installed")), event);
+
+        Ok(())
+    }
+
+    fn uninstall_module(env: &Env, module: Address) -> Result<(), Error> {
+        Self::require_auth_if_initialized(env);
+        let storage = Storage::default();
+        match storage.get::<Symbol, Map<Address, ()>>(env, &MODULES_KEY) {
+            Some(mut existing_modules) => {
+                if !existing_modules.contains_key(module.clone()) {
+                    return Err(Error::ModuleNotFound);
+                }
+                existing_modules.remove(module.clone());
+            }
+            None => {
+                return Err(Error::ModuleNotFound);
+            }
+        }
+
+        let module_client = SmartAccountModuleClient::new(&env, &module);
+        match module_client.try_on_uninstall(&env.current_contract_address()) {
+            Ok(inner_result) => {
+                if inner_result.is_err() {
+                    panic_with_error!(env, Error::ModuleInitializationFailed);
+                }
+            }
+            Err(_e) => {
+                panic_with_error!(env, Error::ModuleInitializationFailed);
+            }
+        };
+        let event = ModuleUninstalledEvent {
+            module: module.clone(),
+        };
+        env.events().publish(
+            (symbol_short!("module"), Symbol::new(env, "uninstalled")),
+            event,
+        );
 
         Ok(())
     }

@@ -55,9 +55,17 @@ pub enum Error {
     /// Policy client error
     PolicyClientInitializationError = 83,
 
-    // === Generic Errors (100+) ===
+    // === Module Errors (100-119) ===
+    /// Module not found
+    ModuleNotFound = 100,
+    /// Module already exists
+    ModuleAlreadyInstalled = 101,
+    /// Module initialization failed
+    ModuleInitializationFailed = 102,
+
+    // === Generic Errors (1000+) ===
     /// Requested resource was not found
-    NotFound = 100,
+    NotFound = 1000,
 }
 
 impl From<InitializableError> for Error {
