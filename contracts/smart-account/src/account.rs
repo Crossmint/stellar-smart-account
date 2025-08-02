@@ -102,7 +102,7 @@ impl SmartAccount {
 /// If the account is already initialized, the contract will panic with an error.
 #[contractimpl]
 impl SmartAccountInterface for SmartAccount {
-    fn __constructor(env: Env, signers: Vec<Signer>, modules: Vec<Address>) {
+    fn __constructor(env: Env, signers: Vec<Signer>) {
         only_not_initialized!(&env);
 
         // Check that there is at least one admin signer to prevent the contract from being locked out.
@@ -131,8 +131,10 @@ impl SmartAccountInterface for SmartAccount {
             SmartAccount::add_signer(&env, signer).unwrap_or_else(|e| panic_with_error!(env, e));
         });
 
-        // Install account modules
-        for module in modules {}
+        let storage = Storage::default();
+        storage
+            .store::<Symbol, Map<Address, ()>>(&env, &MODULES_KEY, &map![&env])
+            .unwrap_or_else(|_| panic_with_error!(env, Error::AccountInitializationFailed));
 
         SmartAccount::initialize(&env).unwrap_or_else(|e| panic_with_error!(env, e));
     }

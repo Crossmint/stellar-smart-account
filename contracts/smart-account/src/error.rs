@@ -11,6 +11,8 @@ pub enum Error {
     AlreadyInitialized = 0,
     /// Contract has not been initialized yet
     NotInitialized = 1,
+    /// Contract initialization failed
+    AccountInitializationFailed = 2,
 
     // === Storage Errors (10-19) ===
     /// Storage entry was not found

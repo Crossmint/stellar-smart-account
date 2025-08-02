@@ -1,5 +1,8 @@
+use core::ops::Add;
+
 use soroban_sdk::auth::{Context, ContractContext};
 use soroban_sdk::testutils::Address as _;
+use soroban_sdk::Vec;
 use soroban_sdk::{map, testutils::BytesN as _, vec, Address, BytesN, IntoVal};
 
 use crate::{
@@ -107,7 +110,13 @@ fn test_auth_ed25519_no_signatures() {
 fn test_deploy_without_sufficient_permissions() {
     let env = setup();
     let test_signer = Ed25519TestSigner::generate(SignerRole::Standard);
-    env.register(SmartAccount, (vec![&env, test_signer.into_signer(&env)],));
+    env.register(
+        SmartAccount,
+        (
+            vec![&env, test_signer.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
 }
 
 // ============================================================================

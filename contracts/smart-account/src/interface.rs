@@ -4,7 +4,7 @@ use crate::auth::signer::{Signer, SignerKey};
 use crate::error::Error;
 
 pub trait SmartAccountInterface {
-    fn __constructor(env: Env, signers: Vec<Signer>, modules: Vec<Address>);
+    fn __constructor(env: Env, signers: Vec<Signer>);
 
     // Admin operations
     fn add_signer(env: &Env, signer: Signer) -> Result<(), Error>;
