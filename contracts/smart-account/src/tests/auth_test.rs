@@ -532,7 +532,7 @@ fn test_auth_idempotency() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #21)")]
+#[should_panic(expected = "Error(Contract, #11)")]
 fn test_constructor_duplicate_signers() {
     let env = setup();
     let test_signer = Ed25519TestSigner::generate(SignerRole::Admin);
