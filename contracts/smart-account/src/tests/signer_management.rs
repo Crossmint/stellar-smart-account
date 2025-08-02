@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use soroban_sdk::{map, testutils::BytesN as _, vec, BytesN};
+use soroban_sdk::{map, testutils::BytesN as _, vec, Address, BytesN, Vec};
 
 use crate::{
     account::SmartAccount,
@@ -20,11 +20,14 @@ fn test_revoke_admin_signer_prevented() {
 
     let contract_id = env.register(
         SmartAccount,
-        (vec![
-            &env,
-            admin_signer.into_signer(&env),
-            standard_signer.into_signer(&env),
-        ],),
+        (
+            vec![
+                &env,
+                admin_signer.into_signer(&env),
+                standard_signer.into_signer(&env),
+            ],
+            Vec::<Address>::new(&env),
+        ),
     );
 
     let payload = BytesN::random(&env);
@@ -49,11 +52,14 @@ fn test_revoke_standard_signer_allowed() {
 
     let contract_id = env.register(
         SmartAccount,
-        (vec![
-            &env,
-            admin_signer.into_signer(&env),
-            standard_signer.into_signer(&env),
-        ],),
+        (
+            vec![
+                &env,
+                admin_signer.into_signer(&env),
+                standard_signer.into_signer(&env),
+            ],
+            Vec::<Address>::new(&env),
+        ),
     );
 
     let payload = BytesN::random(&env);
