@@ -1,8 +1,8 @@
-mod allow_list;
-mod deny_list;
+mod external;
+mod interface;
 mod time_based;
 
 // Re-export types for easier importing
-pub use allow_list::ContractAllowListPolicy;
-pub use deny_list::ContractDenyListPolicy;
+pub use external::ExternalPolicy;
+pub use interface::SmartAccountPolicyClient;
 pub use time_based::TimeBasedPolicy;

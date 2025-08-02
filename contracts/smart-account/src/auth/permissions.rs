@@ -4,16 +4,16 @@ use soroban_sdk::{
 };
 
 use crate::{
-    auth::policy::{ContractAllowListPolicy, ContractDenyListPolicy, TimeBasedPolicy},
+    auth::policy::{ExternalPolicy, TimeBasedPolicy},
     error::Error,
 };
 
 pub trait AuthorizationCheck {
-    fn is_authorized(&self, env: &Env, context: &Context) -> bool;
+    fn is_authorized(&self, env: &Env, context: &Vec<Context>) -> bool;
 }
 
-pub trait PolicyValidator {
-    fn check(&self, env: &Env) -> Result<(), Error>;
+pub trait PolicyInitiator {
+    fn init(&self, env: &Env) -> Result<(), Error>;
 }
 
 // Main policy enum that wraps the individual policies
@@ -21,27 +21,24 @@ pub trait PolicyValidator {
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerPolicy {
     TimeBased(TimeBasedPolicy),
-    ContractDenyList(ContractDenyListPolicy),
-    ContractAllowList(ContractAllowListPolicy),
+    External(ExternalPolicy),
 }
 
 // Delegate to the specific policy implementation
 impl AuthorizationCheck for SignerPolicy {
-    fn is_authorized(&self, env: &Env, context: &Context) -> bool {
+    fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
         match self {
-            SignerPolicy::TimeBased(policy) => policy.is_authorized(env, context),
-            SignerPolicy::ContractDenyList(policy) => policy.is_authorized(env, context),
-            SignerPolicy::ContractAllowList(policy) => policy.is_authorized(env, context),
+            SignerPolicy::TimeBased(policy) => policy.is_authorized(env, contexts),
+            SignerPolicy::External(policy) => policy.is_authorized(env, contexts),
         }
     }
 }
 
-impl PolicyValidator for SignerPolicy {
-    fn check(&self, env: &Env) -> Result<(), Error> {
+impl PolicyInitiator for SignerPolicy {
+    fn init(&self, env: &Env) -> Result<(), Error> {
         match self {
-            SignerPolicy::TimeBased(policy) => policy.check(env),
-            SignerPolicy::ContractDenyList(policy) => policy.check(env),
-            SignerPolicy::ContractAllowList(policy) => policy.check(env),
+            SignerPolicy::TimeBased(policy) => policy.init(env),
+            SignerPolicy::External(policy) => policy.init(env),
         }
     }
 }
@@ -65,27 +62,27 @@ pub enum SignerRole {
 // If it's a standard signer, it's authorized if the operation is not a administration operation.
 // If it's a restricted signer, it's authorized if all the policies are authorized.
 impl AuthorizationCheck for SignerRole {
-    fn is_authorized(&self, env: &Env, context: &Context) -> bool {
-        let is_admin_operation = match context {
+    fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
+        let needs_admin_approval = contexts.iter().any(|context| match context {
             Context::Contract(context) => {
                 let ContractContext { contract, .. } = context;
                 contract.eq(&env.current_contract_address())
             }
             _ => false,
-        };
+        });
 
         match self {
             SignerRole::Admin => true,
-            SignerRole::Standard => !is_admin_operation,
+            SignerRole::Standard => !needs_admin_approval,
             SignerRole::Restricted(policies) => {
                 // Restricted signers cannot perform admin operations
-                if is_admin_operation {
+                if needs_admin_approval {
                     false
                 } else {
                     // If not an admin operation, check all policies
                     policies
                         .iter()
-                        .all(|policy| policy.is_authorized(env, context))
+                        .all(|policy| policy.is_authorized(env, contexts))
                 }
             }
         }

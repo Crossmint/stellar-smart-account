@@ -1,5 +1,5 @@
 use crate::auth::permissions::SignerRole;
-use crate::auth::permissions::{AuthorizationCheck, PolicyValidator};
+use crate::auth::permissions::{AuthorizationCheck, PolicyInitiator};
 use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
 use crate::error::Error;
@@ -108,7 +108,7 @@ impl SmartAccountInterface for SmartAccount {
             if let SignerRole::Restricted(policies) = signer.role() {
                 for policy in policies {
                     policy
-                        .check(&env)
+                        .init(&env)
                         .unwrap_or_else(|e| panic_with_error!(env, e));
                 }
             }
@@ -251,18 +251,12 @@ impl CustomAccountInterface for SmartAccount {
         }
 
         // Step 2: Check authorization for each operation context using cached signers
-        for context in auth_contexts.iter() {
-            let mut context_authorized = false;
-            for (signer_key, _) in proof_map.iter() {
-                let signer = verified_signers.get(signer_key.clone()).unwrap(); // Safe to unwrap - we verified signer exists above
-                if signer.role().is_authorized(&env, &context) {
-                    context_authorized = true;
-                    break; // Early exit when authorization found
-                }
-            }
-            if !context_authorized {
-                return Err(Error::InsufficientPermissions);
-            }
+        let is_authorized = verified_signers
+            .iter()
+            .any(|(_, signer)| signer.role().is_authorized(&env, &auth_contexts));
+
+        if !is_authorized {
+            return Err(Error::InsufficientPermissions);
         }
 
         Ok(())
