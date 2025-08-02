@@ -1,12 +1,10 @@
-use core::ops::Add;
-
 use crate::auth::permissions::SignerRole;
 use crate::auth::permissions::{AuthorizationCheck, PolicyInitiator};
 use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
 use crate::error::Error;
 use crate::interface::SmartAccountInterface;
-use crate::module::account_module::SmartAccountModuleClient;
+use crate::plugins::plugin::SmartAccountPluginClient;
 use initializable::{only_not_initialized, Initializable};
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
@@ -14,7 +12,7 @@ use soroban_sdk::{
     crypto::Hash,
     log, panic_with_error, symbol_short, Env, Vec,
 };
-use soroban_sdk::{map, vec, Address, Map, Symbol};
+use soroban_sdk::{map, Address, Map, Symbol};
 use storage::Storage;
 use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
 
@@ -216,7 +214,7 @@ impl SmartAccountInterface for SmartAccount {
             }
         }
 
-        let module_client = SmartAccountModuleClient::new(&env, &module);
+        let module_client = SmartAccountPluginClient::new(&env, &module);
         match module_client.try_on_install(&env.current_contract_address()) {
             Ok(inner_result) => {
                 if inner_result.is_err() {
@@ -251,7 +249,7 @@ impl SmartAccountInterface for SmartAccount {
             }
         }
 
-        let module_client = SmartAccountModuleClient::new(&env, &module);
+        let module_client = SmartAccountPluginClient::new(&env, &module);
         match module_client.try_on_uninstall(&env.current_contract_address()) {
             Ok(inner_result) => {
                 if inner_result.is_err() {
@@ -323,6 +321,31 @@ impl CustomAccountInterface for SmartAccount {
         auth_payloads: SignatureProofs,
         auth_contexts: Vec<Context>,
     ) -> Result<(), Error> {
+        match Self::check_auth_internal(&env, signature_payload, &auth_payloads, &auth_contexts) {
+            Ok(()) => {
+                let storage = Storage::default();
+                let modules = storage
+                    .get::<Symbol, Map<Address, ()>>(&env, &MODULES_KEY)
+                    .unwrap();
+                for (module, _) in modules.iter() {
+                    let module_client = SmartAccountPluginClient::new(&env, &module);
+                    let _ =
+                        module_client.try_on_auth(&env.current_contract_address(), &auth_contexts);
+                }
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl SmartAccount {
+    fn check_auth_internal(
+        env: &Env,
+        signature_payload: Hash<32>,
+        auth_payloads: &SignatureProofs,
+        auth_contexts: &Vec<Context>,
+    ) -> Result<(), Error> {
         let storage = Storage::default();
         let SignatureProofs(proof_map) = auth_payloads;
 
@@ -356,7 +379,6 @@ impl CustomAccountInterface for SmartAccount {
         if !is_authorized {
             return Err(Error::InsufficientPermissions);
         }
-
-        Ok(())
+        return Ok(());
     }
 }
