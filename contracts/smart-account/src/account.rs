@@ -1,4 +1,4 @@
-use crate::auth::permissions::{AuthorizationCheck, PolicyInitiator, SignerRole};
+use crate::auth::permissions::{AuthorizationCheck, PolicyCallback, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
@@ -155,6 +155,7 @@ impl SmartAccountInterface for SmartAccount {
         // Call the plugin's on_install callback for initialization
         SmartAccountPluginClient::new(&env, &plugin)
             .try_on_install(&env.current_contract_address())
+            .map_err(|_| Error::PluginInitializationFailed)?
             .map_err(|_| Error::PluginInitializationFailed)?;
 
         env.events().publish(

@@ -2,7 +2,7 @@ use soroban_sdk::{auth::Context, contracttype, Address, Env, Vec};
 
 use crate::{
     auth::{
-        permissions::{AuthorizationCheck, PolicyInitiator},
+        permissions::{AuthorizationCheck, PolicyCallback},
         policy::interface::SmartAccountPolicyClient,
     },
     error::Error,
@@ -22,7 +22,7 @@ impl AuthorizationCheck for ExternalPolicy {
     }
 }
 
-impl PolicyInitiator for ExternalPolicy {
+impl PolicyCallback for ExternalPolicy {
     fn on_add(&self, env: &Env) -> Result<(), Error> {
         let policy_client = SmartAccountPolicyClient::new(&env, &self.policy_address);
         let _ = policy_client.try_on_add(&env.current_contract_address());

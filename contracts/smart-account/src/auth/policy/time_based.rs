@@ -1,7 +1,7 @@
 use soroban_sdk::{auth::Context, contracttype, Env, Vec};
 
 use crate::{
-    auth::permissions::{AuthorizationCheck, PolicyInitiator},
+    auth::permissions::{AuthorizationCheck, PolicyCallback},
     error::Error,
 };
 
@@ -19,7 +19,7 @@ impl AuthorizationCheck for TimeBasedPolicy {
     }
 }
 
-impl PolicyInitiator for TimeBasedPolicy {
+impl PolicyCallback for TimeBasedPolicy {
     fn on_add(&self, env: &Env) -> Result<(), Error> {
         let current_time = env.ledger().timestamp();
         if self.not_after < current_time {

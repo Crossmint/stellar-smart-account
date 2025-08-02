@@ -12,7 +12,7 @@ pub trait AuthorizationCheck {
     fn is_authorized(&self, env: &Env, context: &Vec<Context>) -> bool;
 }
 
-pub trait PolicyInitiator {
+pub trait PolicyCallback {
     fn on_add(&self, env: &Env) -> Result<(), Error>;
     fn on_revoke(&self, env: &Env) -> Result<(), Error>;
 }
@@ -35,7 +35,7 @@ impl AuthorizationCheck for SignerPolicy {
     }
 }
 
-impl PolicyInitiator for SignerPolicy {
+impl PolicyCallback for SignerPolicy {
     fn on_add(&self, env: &Env) -> Result<(), Error> {
         match self {
             SignerPolicy::TimeBased(policy) => policy.on_add(env),

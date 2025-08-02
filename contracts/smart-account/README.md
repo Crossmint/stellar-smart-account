@@ -176,7 +176,7 @@ classDiagram
         +is_authorized(env, context) bool
     }
     
-    class PolicyInitiator {
+    class PolicyCallback {
         <<trait>>
         +check(env) Result~(), Error~
     }
@@ -202,13 +202,13 @@ classDiagram
     }
     
     AuthorizationCheck <|.. SignerPolicy
-    PolicyInitiator <|.. SignerPolicy
+    PolicyCallback <|.. SignerPolicy
     AuthorizationCheck <|.. TimeBasedPolicy
     AuthorizationCheck <|.. ContractAllowListPolicy
     AuthorizationCheck <|.. ContractDenyListPolicy
-    PolicyInitiator <|.. TimeBasedPolicy
-    PolicyInitiator <|.. ContractAllowListPolicy
-    PolicyInitiator <|.. ContractDenyListPolicy
+    PolicyCallback <|.. TimeBasedPolicy
+    PolicyCallback <|.. ContractAllowListPolicy
+    PolicyCallback <|.. ContractDenyListPolicy
     
     SignerPolicy --> TimeBasedPolicy
     SignerPolicy --> ContractAllowListPolicy
@@ -236,7 +236,7 @@ impl AuthorizationCheck for NewPolicy {
     }
 }
 
-impl PolicyInitiator for NewPolicy {
+impl PolicyCallback for NewPolicy {
     fn check(&self, env: &Env) -> Result<(), Error> {
         // Validation logic
     }
