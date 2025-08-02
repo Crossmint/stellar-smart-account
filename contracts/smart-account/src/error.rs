@@ -57,13 +57,13 @@ pub enum Error {
     /// Policy client error
     PolicyClientInitializationError = 83,
 
-    // === Module Errors (100-119) ===
-    /// Module not found
-    ModuleNotFound = 100,
-    /// Module already exists
-    ModuleAlreadyInstalled = 101,
-    /// Module initialization failed
-    ModuleInitializationFailed = 102,
+    // === Plugin Errors (100-119) ===
+    /// Plugin not found
+    PluginNotFound = 100,
+    /// Plugin already exists
+    PluginAlreadyInstalled = 101,
+    /// Plugin initialization failed
+    PluginInitializationFailed = 102,
 
     // === Generic Errors (1000+) ===
     /// Requested resource was not found

@@ -11,7 +11,7 @@ pub trait SmartAccountInterface {
     fn update_signer(env: &Env, signer: Signer) -> Result<(), Error>;
     fn revoke_signer(env: &Env, signer: SignerKey) -> Result<(), Error>;
 
-    // Module operations
-    fn install_module(env: &Env, module: Address) -> Result<(), Error>;
-    fn uninstall_module(env: &Env, module: Address) -> Result<(), Error>;
+    // Plugin operations
+    fn install_plugin(env: &Env, plugin: Address) -> Result<(), Error>;
+    fn uninstall_plugin(env: &Env, plugin: Address) -> Result<(), Error>;
 }
