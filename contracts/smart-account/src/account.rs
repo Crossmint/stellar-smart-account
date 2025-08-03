@@ -94,7 +94,7 @@ impl SmartAccountInterface for SmartAccount {
 
         if let SignerRole::Restricted(policies) = signer.role() {
             for policy in policies {
-                policy.on_add(&env)?;
+                policy.on_add(env)?;
             }
         }
         env.events().publish(
@@ -153,7 +153,7 @@ impl SmartAccountInterface for SmartAccount {
         storage.update::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY, &existing_plugins)?;
 
         // Call the plugin's on_install callback for initialization
-        SmartAccountPluginClient::new(&env, &plugin)
+        SmartAccountPluginClient::new(env, &plugin)
             .try_on_install(&env.current_contract_address())
             .map_err(|_| Error::PluginInitializationFailed)?
             .map_err(|_| Error::PluginInitializationFailed)?;
@@ -180,7 +180,7 @@ impl SmartAccountInterface for SmartAccount {
 
         // Counterwise to install, we don't want to fail if the plugin's on_uninstall fails,
         // as it would prevent an admin from uninstalling a potentially-malicious plugin.
-        let _ = SmartAccountPluginClient::new(&env, &plugin)
+        let _ = SmartAccountPluginClient::new(env, &plugin)
             .try_on_uninstall(&env.current_contract_address());
 
         env.events().publish(
@@ -279,25 +279,25 @@ impl SmartAccount {
         }
 
         // Step 1: Verify all provided signatures are cryptographically valid and cache signers
-        let mut verified_signers = Map::new(&env);
+        let mut verified_signers = Map::new(env);
 
         // Now verify signatures and cache signers
         for (signer_key, proof) in proof_map.iter() {
             let signer = storage
-                .get::<SignerKey, Signer>(&env, &signer_key)
+                .get::<SignerKey, Signer>(env, &signer_key)
                 .ok_or(Error::SignerNotFound)?;
-            signer.verify(&env, &signature_payload.to_bytes(), &proof)?;
+            signer.verify(env, &signature_payload.to_bytes(), &proof)?;
             verified_signers.set(signer_key.clone(), signer);
         }
 
         // Step 2: Check authorization for each operation context using cached signers
         let is_authorized = verified_signers
             .iter()
-            .any(|(_, signer)| signer.role().is_authorized(&env, &auth_contexts));
+            .any(|(_, signer)| signer.role().is_authorized(env, auth_contexts));
 
         if !is_authorized {
             return Err(Error::InsufficientPermissions);
         }
-        return Ok(());
+        Ok(())
     }
 }
