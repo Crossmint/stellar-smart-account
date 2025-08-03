@@ -1,5 +1,5 @@
 [package]
-name = "sac-token-policy"
+name = "deny-list-policy"
 version = "0.0.0"
 edition = "2021"
 publish = false
@@ -10,7 +10,6 @@ doctest = false
 
 [dependencies]
 soroban-sdk = { workspace = true }
-smart-account = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }

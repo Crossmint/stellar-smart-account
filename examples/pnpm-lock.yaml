@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@stellar/stellar-sdk':
-        specifier: 13.3.0
-        version: 13.3.0
+        specifier: 14.0.0-rc.3
+        version: 14.0.0-rc.3
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -189,16 +189,24 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@noble/curves@1.9.6':
+    resolution: {integrity: sha512-GIKz/j99FRthB8icyJQA51E8Uk5hXmdyThjgQXRKiv9h0zeRlzSCLIzFw6K1LotZ3XuB7yzlf76qk7uBmTdFqA==}
+    engines: {node: ^14.21.3 || >=16}
+
+  '@noble/hashes@1.8.0':
+    resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
+    engines: {node: ^14.21.3 || >=16}
+
   '@stellar/js-xdr@3.1.2':
     resolution: {integrity: sha512-VVolPL5goVEIsvuGqDc5uiKxV03lzfWdvYg1KikvwheDmTBO68CKDji3bAZ/kppZrx5iTA8z3Ld5yuytcvhvOQ==}
 
-  '@stellar/stellar-base@13.1.0':
-    resolution: {integrity: sha512-90EArG+eCCEzDGj3OJNoCtwpWDwxjv+rs/RNPhvg4bulpjN/CSRj+Ys/SalRcfM4/WRC5/qAfjzmJBAuquWhkA==}
-    engines: {node: '>=18.0.0'}
+  '@stellar/stellar-base@14.0.0-rc.2':
+    resolution: {integrity: sha512-jzDJANrh8hcW3yWikS0At6MWOmf2dCD2cwWS1o0nZLRDj3tFMCrIcOGmw9uB7Widomdu4DzKHetpgn+XB1prpg==}
+    engines: {node: '>=20.0.0'}
 
-  '@stellar/stellar-sdk@13.3.0':
-    resolution: {integrity: sha512-8+GHcZLp+mdin8gSjcgfb/Lb6sSMYRX6Nf/0LcSJxvjLQR0XHpjGzOiRbYb2jSXo51EnA6kAV5j+4Pzh5OUKUg==}
-    engines: {node: '>=18.0.0'}
+  '@stellar/stellar-sdk@14.0.0-rc.3':
+    resolution: {integrity: sha512-RI+8uPYAHvauuwmGNbofv9e6Q2LnUjdqUwRCBSN7ZCEWH48DA/bAL6u+X7+WcF13PHsZPeNlp5bHZ5xHbzXdYA==}
+    engines: {node: '>=20.0.0'}
 
   '@types/node@20.19.7':
     resolution: {integrity: sha512-1GM9z6BJOv86qkPvzh2i6VW5+VVrXxCLknfmTkWEqz+6DqosiY28XUWCTmBcJ0ACzKqx/iwdIREfo1fwExIlkA==}
@@ -212,35 +220,6 @@ packages:
 
   axios@1.10.0:
     resolution: {integrity: sha512-/1xYAC4MP/HEG+3duIhFr4ZQXR4sQXOIe+o6sdqzeykGLx6Upp/1p8MHqhINOvGeP7xyNHe7tsiJByc4SSVUxw==}
-
-  bare-addon-resolve@1.9.4:
-    resolution: {integrity: sha512-unn6Vy/Yke6F99vg/7tcrvM2KUvIhTNniaSqDbam4AWkd4NhvDVSrQiRYVlNzUV2P7SPobkCK7JFVxrJk9btCg==}
-    peerDependencies:
-      bare-url: '*'
-    peerDependenciesMeta:
-      bare-url:
-        optional: true
-
-  bare-module-resolve@1.11.1:
-    resolution: {integrity: sha512-DCxeT9i8sTs3vUMA3w321OX/oXtNEu5EjObQOnTmCdNp5RXHBAvAaBDHvAi9ta0q/948QPz+co6SsGi6aQMYRg==}
-    peerDependencies:
-      bare-url: '*'
-    peerDependenciesMeta:
-      bare-url:
-        optional: true
-
-  bare-os@3.6.1:
-    resolution: {integrity: sha512-uaIjxokhFidJP+bmmvKSgiMzj2sV5GPHaZVAIktcxcpCyBFFWO+YlikVAdhmUo2vYFvFhOXIAlldqV29L8126g==}
-    engines: {bare: '>=1.14.0'}
-
-  bare-path@3.0.0:
-    resolution: {integrity: sha512-tyfW2cQcB5NN8Saijrhqn0Zh7AnFNsnczRcuWODH0eYAXBsJ5gVxAUuNr7tsHSC6IZ77cA0SitzT+s47kot8Mw==}
-
-  bare-semver@1.0.1:
-    resolution: {integrity: sha512-UtggzHLiTrmFOC/ogQ+Hy7VfoKoIwrP1UFcYtTxoCUdLtsIErT8+SWtOC2DH/snT9h+xDrcBEPcwKei1mzemgg==}
-
-  bare-url@2.1.6:
-    resolution: {integrity: sha512-FgjDeR+/yDH34By4I0qB5NxAoWv7dOTYcOXwn73kr+c93HyC2lU6tnjifqUe33LKMJcDyCYPQjEAqgOQiXkE2Q==}
 
   base32.js@0.1.0:
     resolution: {integrity: sha512-n3TkB02ixgBOhTvANakDb4xaMXnYUVkNoRFJjQflcqMQhyEKxEHdj3E6N8t8sUQ0mjH/3/JxzlXuz3ul/J90pQ==}
@@ -412,10 +391,6 @@ packages:
   randombytes@2.1.0:
     resolution: {integrity: sha512-vYl3iOX+4CKUWuxGi9Ukhie6fsqXqS9FE2Zaic4tNFD2N2QQaXOMFbuKK4QmDHC0JO6B1Zp41J0LpT0oR68amQ==}
 
-  require-addon@1.1.0:
-    resolution: {integrity: sha512-KbXAD5q2+v1GJnkzd8zzbOxchTkStSyJZ9QwoCq3QwEXAaIlG3wDYRZGzVD357jmwaGY7hr5VaoEAL0BkF0Kvg==}
-    engines: {bare: '>=1.10.0'}
-
   resolve-pkg-maps@1.0.0:
     resolution: {integrity: sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw==}
 
@@ -434,9 +409,6 @@ packages:
   smart_account@file:../packages/smart_account:
     resolution: {directory: ../packages/smart_account, type: directory}
 
-  sodium-native@4.3.3:
-    resolution: {integrity: sha512-OnxSlN3uyY8D0EsLHpmm2HOFmKddQVvEMmsakCrXUzSd8kjjbzL413t4ZNF3n0UxSwNgwTyUvkmZHTfuCeiYSw==}
-
   to-buffer@1.2.1:
     resolution: {integrity: sha512-tB82LpAIWjhLYbqjx3X4zEeHN6M8CiuOEy2JY8SEQVdYRe3CCHOFaqrBW1doLDrfpWhplcW7BL+bO3/6S3pcDQ==}
     engines: {node: '>= 0.4'}
@@ -448,9 +420,6 @@ packages:
     resolution: {integrity: sha512-qjbnuR9Tr+FJOMBqJCW5ehvIo/buZq7vH7qD7JziU98h6l3qGy0a/yPFjwO+y0/T7GFpNgNAvEcPPVfyT8rrPQ==}
     engines: {node: '>=18.0.0'}
     hasBin: true
-
-  tweetnacl@1.0.3:
-    resolution: {integrity: sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw==}
 
   typed-array-buffer@1.0.3:
     resolution: {integrity: sha512-nAYYwfY3qnzX30IkA6AQZjVbtK6duGontcQm1WSG1MD94YLqK0515GNApXkoxKOWMusVssAHWLh9SeaoefYFGw==}
@@ -551,22 +520,26 @@ snapshots:
   '@esbuild/win32-x64@0.25.6':
     optional: true
 
+  '@noble/curves@1.9.6':
+    dependencies:
+      '@noble/hashes': 1.8.0
+
+  '@noble/hashes@1.8.0': {}
+
   '@stellar/js-xdr@3.1.2': {}
 
-  '@stellar/stellar-base@13.1.0':
+  '@stellar/stellar-base@14.0.0-rc.2':
     dependencies:
+      '@noble/curves': 1.9.6
       '@stellar/js-xdr': 3.1.2
       base32.js: 0.1.0
       bignumber.js: 9.3.1
       buffer: 6.0.3
       sha.js: 2.4.12
-      tweetnacl: 1.0.3
-    optionalDependencies:
-      sodium-native: 4.3.3
 
-  '@stellar/stellar-sdk@13.3.0':
+  '@stellar/stellar-sdk@14.0.0-rc.3':
     dependencies:
-      '@stellar/stellar-base': 13.1.0
+      '@stellar/stellar-base': 14.0.0-rc.2
       axios: 1.10.0
       bignumber.js: 9.3.1
       eventsource: 2.0.2
@@ -594,37 +567,6 @@ snapshots:
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
       - debug
-
-  bare-addon-resolve@1.9.4(bare-url@2.1.6):
-    dependencies:
-      bare-module-resolve: 1.11.1(bare-url@2.1.6)
-      bare-semver: 1.0.1
-    optionalDependencies:
-      bare-url: 2.1.6
-    optional: true
-
-  bare-module-resolve@1.11.1(bare-url@2.1.6):
-    dependencies:
-      bare-semver: 1.0.1
-    optionalDependencies:
-      bare-url: 2.1.6
-    optional: true
-
-  bare-os@3.6.1:
-    optional: true
-
-  bare-path@3.0.0:
-    dependencies:
-      bare-os: 3.6.1
-    optional: true
-
-  bare-semver@1.0.1:
-    optional: true
-
-  bare-url@2.1.6:
-    dependencies:
-      bare-path: 3.0.0
-    optional: true
 
   base32.js@0.1.0: {}
 
@@ -720,7 +662,7 @@ snapshots:
 
   factory@file:../packages/factory:
     dependencies:
-      '@stellar/stellar-sdk': 13.3.0
+      '@stellar/stellar-sdk': 14.0.0-rc.3
       buffer: 6.0.3
     transitivePeerDependencies:
       - debug
@@ -816,12 +758,6 @@ snapshots:
     dependencies:
       safe-buffer: 5.2.1
 
-  require-addon@1.1.0:
-    dependencies:
-      bare-addon-resolve: 1.9.4(bare-url@2.1.6)
-      bare-url: 2.1.6
-    optional: true
-
   resolve-pkg-maps@1.0.0: {}
 
   safe-buffer@5.2.1: {}
@@ -843,15 +779,10 @@ snapshots:
 
   smart_account@file:../packages/smart_account:
     dependencies:
-      '@stellar/stellar-sdk': 13.3.0
+      '@stellar/stellar-sdk': 14.0.0-rc.3
       buffer: 6.0.3
     transitivePeerDependencies:
       - debug
-
-  sodium-native@4.3.3:
-    dependencies:
-      require-addon: 1.1.0
-    optional: true
 
   to-buffer@1.2.1:
     dependencies:
@@ -867,8 +798,6 @@ snapshots:
       get-tsconfig: 4.10.1
     optionalDependencies:
       fsevents: 2.3.3
-
-  tweetnacl@1.0.3: {}
 
   typed-array-buffer@1.0.3:
     dependencies:
