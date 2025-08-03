@@ -23,7 +23,7 @@ pub trait SmartAccountPolicy {
 
 #[contractimpl]
 impl SmartAccountPolicy for DenyListPolicy {
-    fn is_authorized(env: &Env, source: Address, contexts: Vec<Context>) -> bool {
+    fn is_authorized(env: &Env, _source: Address, contexts: Vec<Context>) -> bool {
         let denied_contracts: Vec<Address> =
             env.storage().instance().get(&CONTRACTS_SYMBOL).unwrap();
         contexts.iter().all(|context| match context {
@@ -42,5 +42,5 @@ impl SmartAccountPolicy for DenyListPolicy {
         env.storage().instance().set(&source, &0);
     }
 
-    fn on_revoke(env: &Env, source: Address) {}
+    fn on_revoke(_env: &Env, _source: Address) {}
 }
