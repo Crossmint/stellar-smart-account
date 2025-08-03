@@ -198,7 +198,6 @@ impl SmartAccountInterface for SmartAccount {
 
 /// Simple trait to allow an external contract to check if the smart account
 /// is live
-
 pub trait IsDeployed {
     fn is_deployed(env: &Env) -> bool;
 }
