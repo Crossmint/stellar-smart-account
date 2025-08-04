@@ -123,34 +123,6 @@ impl ContractFactory {
         contract_id
     }
 
-    /// Deploys a smart account on behalf of the `ContractFactory` contract.
-    /// and calls a function that could require auth for that deployed account.
-    ///
-    /// This has to be authorized by an address with the `deployer` role and by
-    /// the account own authorization
-    pub fn deploy_account_and_invoke(
-        env: &Env,
-        caller: Address,
-        deployment_args: ContractDeploymentArgs,
-        calls: Vec<ContractCall>,
-    ) -> Val {
-        // Requires auth for the deployer
-        let contract_id = Self::deploy(env, caller, deployment_args);
-
-        contract_id.require_auth();
-
-        let mut results = Vec::<Val>::new(env);
-        for call in calls {
-            let ContractCall {
-                contract_id,
-                func,
-                args,
-            } = call;
-            results.push_back(env.invoke_contract(&contract_id, &func, args));
-        }
-        results.into()
-    }
-
     /// Uploads the contract WASM and deploys it on behalf of the `ContractFactory` contract.
     ///
     /// using that hash. This has to be authorized by an address with the `deployer` role.
