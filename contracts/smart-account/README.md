@@ -6,7 +6,7 @@ The Smart Account is a multi-signature account contract built on Soroban that pr
 
 The Smart Account contract implements a flexible authentication system that combines:
 - **Multiple signature schemes** (Ed25519 and Secp256r1/WebAuthn, extensible to others)
-- **Role-based access control** (Admin, Standard, Restricted)
+- **Role-based access control** (Admin, Standard with optional policies)
 - **Policy-based restrictions** (time-based, contract allow/deny lists)
 - **Multi-signature support** with customizable authorization logic
 
@@ -147,12 +147,11 @@ NewSignerType(BytesN<64>), // or appropriate proof format
 ```mermaid
 graph TD
     SR[SignerRole] --> Admin[Admin]
-    SR --> Standard[Standard]
-    SR --> Restricted[Restricted]
+    SR --> Standard[Standard with Policies]
     
     Admin --> |"Can authorize any operation"| AnyOp[Any Operation]
     Standard --> |"Cannot modify signers or upgrade"| LimitedOp[Limited Operations]
-    Restricted --> |"Subject to policies"| PolicyCheck[Policy Validation]
+    Standard --> |"Subject to policies (if any)"| PolicyCheck[Policy Validation]
     
     PolicyCheck --> TB[TimeBasedPolicy]
     PolicyCheck --> AL[ContractAllowListPolicy]
@@ -307,7 +306,7 @@ sequenceDiagram
                 alt Authorized
                     SmartAccount->>SmartAccount: context_authorized = true, break loop
                 end
-            else Signer role is Restricted
+            else Signer role is Standard with policies
                 loop For each policy in role
                     Signer->>Policy: is_authorized(env, context)
                     Policy-->>Signer: Policy result
@@ -351,7 +350,7 @@ Where:
 | **Secp256r1 Signatures** | O(1) | ~3x cost vs Ed25519 (includes SHA256 operations) |
 | **Admin Role** | O(1) | Constant time authorization |
 | **Standard Role** | O(m) | Address comparison per context |
-| **Restricted Role** | O(p × m) | Policy evaluation per context |
+| **Standard Role with Policies** | O(p × m) | Policy evaluation per context |
 | **TimeBased Policy** | O(1) | Timestamp comparison |
 | **Allow/Deny List Policy** | O(k) | Linear search through contract list |
 
@@ -400,7 +399,7 @@ Contract upgrades are controlled by the Smart Account's role-based permission sy
 |-------------|-------------------|-------------|
 | **Admin** | ✅ **Authorized** | Can authorize any operation including contract upgrades |
 | **Standard** | ❌ **Denied** | Cannot modify signers or upgrade contracts |
-| **Restricted** | ❌ **Denied** | Subject to policy restrictions, typically cannot upgrade |
+| **Standard with Policies** | ❌ **Denied** | Subject to policy restrictions, typically cannot upgrade |
 
 The upgrade authorization follows the same `__check_auth` flow as other operations:
 
@@ -498,7 +497,7 @@ let time_policy = TimeBasedPolicy {
 
 let restricted_signer = Signer::Ed25519(
     Ed25519Signer::new(temp_pubkey),
-    SignerRole::Restricted(vec![SignerPolicy::TimeBased(time_policy)])
+    SignerRole::Standard(vec![SignerPolicy::TimeBased(time_policy)])
 );
 
 SmartAccount::add_signer(&env, restricted_signer)?;
@@ -514,7 +513,7 @@ let allow_policy = ContractAllowListPolicy {
 
 let trading_signer = Signer::Ed25519(
     Ed25519Signer::new(trading_pubkey),
-    SignerRole::Restricted(vec![SignerPolicy::ContractAllowList(allow_policy)])
+    SignerRole::Standard(vec![SignerPolicy::ContractAllowList(allow_policy)])
 );
 ```
 

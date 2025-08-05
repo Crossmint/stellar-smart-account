@@ -18,7 +18,7 @@ fn test_deploy_with_time_based_policy() {
     });
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
     let test_signer =
-        Ed25519TestSigner::generate(SignerRole::Restricted(vec![&env, policy])).into_signer(&env);
+        Ed25519TestSigner::generate(SignerRole::Standard(vec![&env, policy])).into_signer(&env);
     env.register(
         SmartAccount,
         (
@@ -38,7 +38,7 @@ fn test_deploy_with_time_based_policy_wrong_time_range() {
     });
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
     let test_signer =
-        Ed25519TestSigner::generate(SignerRole::Restricted(vec![&env, policy])).into_signer(&env);
+        Ed25519TestSigner::generate(SignerRole::Standard(vec![&env, policy])).into_signer(&env);
     env.register(
         SmartAccount,
         (
@@ -58,7 +58,7 @@ fn test_deploy_with_time_based_policy_wrong_not_after() {
     });
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
     let test_signer =
-        Ed25519TestSigner::generate(SignerRole::Restricted(vec![&env, policy])).into_signer(&env);
+        Ed25519TestSigner::generate(SignerRole::Standard(vec![&env, policy])).into_signer(&env);
     env.register(
         SmartAccount,
         (

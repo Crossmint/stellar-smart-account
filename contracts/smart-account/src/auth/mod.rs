@@ -8,8 +8,7 @@
 /// ### SignerRole
 /// Defines the authorization level and restrictions for a signer:
 /// - `Admin` - Can authorize any operation, including changing signers and upgrading contracts
-/// - `Standard` - Can authorize any operation except changing signers and upgrading contracts
-/// - `Restricted(Vec<SignerPolicy>)` - Subject to policy restrictions; all policies must pass
+/// - `Standard(Vec<SignerPolicy>)` - Can authorize any operation except changing signers and upgrading contracts; subject to policy restrictions if policies are provided (all policies must pass)
 ///
 /// ### SignatureProofs
 /// A wrapper struct containing a Map<SignerKey, SignerProof> that pairs signer keys with their
@@ -46,7 +45,7 @@
 /// The auth system is designed with a layered approach:
 /// 1. **Signers** combine cryptographic verification with role-based permissions
 /// 2. **Roles** define what operations a signer can perform
-/// 3. **Policies** add additional restrictions for Restricted role signers
+/// 3. **Policies** add additional restrictions for Standard role signers when specified
 /// 4. **Proofs** provide cryptographic evidence for authorization
 ///
 /// This allows for flexible authorization schemes from simple admin access to complex
