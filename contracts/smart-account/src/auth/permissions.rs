@@ -56,11 +56,9 @@ impl PolicyCallback for SignerPolicy {
 pub enum SignerRole {
     // Can authorize any operation, including changing signers and upgrading the contract
     Admin,
-    // Can authorize any operation, except changing signers and upgrading the contract
-    Standard,
     // Can authorize any operation, except changing signers and upgrading the contract, subject
-    // to the restrictions specified in the policies.
-    Restricted(Vec<SignerPolicy>),
+    // to the restrictions specified in the policies (if any).
+    Standard(Vec<SignerPolicy>),
 }
 
 // Checks if, for a given execution context, the signer is authorized to perform the operation.
@@ -80,13 +78,12 @@ impl AuthorizationCheck for SignerRole {
 
         match self {
             SignerRole::Admin => true,
-            SignerRole::Standard => !needs_admin_approval,
-            SignerRole::Restricted(policies) => {
-                // Restricted signers cannot perform admin operations
+            SignerRole::Standard(policies) => {
+                // Standard signers cannot perform admin operations
                 if needs_admin_approval {
                     false
                 } else {
-                    // If not an admin operation, check all policies
+                    // If not an admin operation, check all policies (if any)
                     policies
                         .iter()
                         .all(|policy| policy.is_authorized(env, contexts))

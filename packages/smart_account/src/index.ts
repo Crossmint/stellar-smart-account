@@ -35,7 +35,7 @@ if (typeof window !== 'undefined') {
 
 export type SignerPolicy = {tag: "TimeBased", values: readonly [TimeBasedPolicy]} | {tag: "External", values: readonly [ExternalPolicy]};
 
-export type SignerRole = {tag: "Admin", values: void} | {tag: "Standard", values: void} | {tag: "Restricted", values: readonly [Array<SignerPolicy>]};
+export type SignerRole = {tag: "Admin", values: void} | {tag: "Standard", values: readonly [Array<SignerPolicy>]};
 
 
 export interface ExternalPolicy {

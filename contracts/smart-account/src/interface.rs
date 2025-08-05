@@ -5,10 +5,6 @@ use crate::error::Error;
 
 /// Smart Account Interface
 pub trait SmartAccountInterface {
-    ///
-    /// # Arguments
-    /// * `env` - The contract environment
-    ///
     fn __constructor(env: Env, signers: Vec<Signer>, plugins: Vec<Address>);
 
     // Admin operations

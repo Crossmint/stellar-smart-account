@@ -24,10 +24,10 @@ use storage::Storage;
 use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
 
 /// SmartAccount is a multi-signature account contract that provides enhanced security
-/// through role-based access control and policy-based authorization.
+/// through role-based access control, policy-based authorization, and an extensible plugin system.
 ///
 /// The account supports different signers with different signer roles (Admin, Standard, Restricted) with customizable
-/// policies for fine-grained permission management.
+/// policies for fine-grained permission management. It also supports external policy delegation and plugin architecture
 #[contract]
 pub struct SmartAccount;
 
@@ -99,7 +99,7 @@ impl SmartAccountInterface for SmartAccount {
         let key = signer.clone().into();
         Storage::default().store::<SignerKey, Signer>(env, &key, &signer)?;
 
-        if let SignerRole::Restricted(policies) = signer.role() {
+        if let SignerRole::Standard(policies) = signer.role() {
             for policy in policies {
                 policy.on_add(env)?;
             }
@@ -232,7 +232,7 @@ impl SmartAccountInterface for SmartAccount {
             let key = signer.clone().into();
             Storage::default().store::<SignerKey, Signer>(env, &key, &signer)?;
 
-            if let SignerRole::Restricted(policies) = signer.role() {
+            if let SignerRole::Standard(policies) = signer.role() {
                 for policy in policies {
                     policy.on_add(env)?;
                 }
