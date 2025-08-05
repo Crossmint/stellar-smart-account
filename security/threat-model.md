@@ -22,8 +22,7 @@ The key innovation is moving from Stellar's traditional "signature + threshold" 
 | Signer Type | Permissions & Capabilities |
 |---|---|
 | **Admin Signers** | • Can authorize any transaction for the wallet<br>• Full control over signer configuration (add, update, revoke signers)<br>• Can authorize contract upgrades<br>• Cannot be revoked (prevents account lockout) |
-| **Standard Signers** | • Can authorize most transactions<br>• Cannot modify signer configuration or upgrade the contract<br>• Ideal for day-to-day operations while maintaining security boundaries |
-| **Restricted Signers** | • Subject to a modular, policy-based permission system<br>• Ideal for security-sensitive scenarios requiring controlled access<br>• Perfect for delegating permissions to AI agents, automated systems, or third-party services<br>• Support for granular permissions such as:<br>&nbsp;&nbsp;- Token spending limits<br>&nbsp;&nbsp;- Contract interaction deny-listing<br>&nbsp;&nbsp;- Time-based restrictions<br>&nbsp;&nbsp;- Custom authorization policies<br>• Extensible framework for adding new permission types |
+| **Standard Signers** | • Can authorize most transactions<br>• Cannot modify signer configuration or upgrade the contract<br>• Ideal for day-to-day operations while maintaining security boundaries<br>• Optional policy-based restrictions for controlled access<br>• Perfect for delegating permissions to AI agents, automated systems, or third-party services<br>• Support for granular permissions such as:<br>&nbsp;&nbsp;- Token spending limits<br>&nbsp;&nbsp;- Contract interaction deny-listing<br>&nbsp;&nbsp;- Time-based restrictions<br>&nbsp;&nbsp;- Custom authorization policies<br>• Extensible framework for adding new permission types |
 
 #### 🔐 **Multi-Signature Algorithm Support**
 
@@ -59,7 +58,7 @@ The Smart Account implements a strict security model with the following core pri
      - Iterate through all verified signers until one with sufficient permissions is found
        - **Admin Signers**: Automatically authorized for all operations
        - **Standard Signers**: Authorized for non-admin operations only
-       - **Restricted Signers**: Subject to policy evaluation (spending limits, time restrictions, etc.)
+       - **Standard Signers with Policies**: Subject to policy evaluation (spending limits, time restrictions, etc.)
    - **Critical Security Guarantee**: If NO signer with sufficient permissions is found for ANY context, the entire transaction fails
 
 3. **Early Exit Optimization**
@@ -169,10 +168,10 @@ sequenceDiagram
                     SmartAccount->>SmartAccount: Break inner loop (early exit)
                 end
                 
-            else Restricted Role
+            else Standard Role with Policies
                 Signer->>Signer: Check if admin operation
                 alt Admin operation
-                    Signer-->>SmartAccount: Not authorized (restricted signers cannot do admin ops)
+                    Signer-->>SmartAccount: Not authorized (standard signers cannot do admin ops)
                 else Non-admin operation
                     loop For each policy in signer.role.policies
                         Signer->>Policy: policy.is_authorized(env, context)
@@ -239,7 +238,7 @@ sequenceDiagram
     <td>
       <strong>Tamper.1</strong> - (Signature Payload) An attacker modifies the signature payload hash after signature generation but before verification, potentially allowing unauthorized operations to be executed. <br>
       <strong>Tamper.2</strong> - (Contract Storage) An attacker exploits a vulnerability in the contract storage mechanism to modify signer data, policies, or authorization rules stored in the contract. <br>
-      <strong>Tamper.3</strong> - (Policy Modification) A restricted signer finds a way to modify their own policy restrictions (spending limits, time constraints) to gain unauthorized access. <br>
+      <strong>Tamper.3</strong> - (Policy Modification) A standard signer with policies finds a way to modify their own policy restrictions (spending limits, time constraints) to gain unauthorized access. <br>
       <strong>Tamper.4</strong> - (Upgrade Tampering) An attacker intercepts and modifies upgrade transactions to deploy malicious contract code instead of legitimate upgrades. <br>
       <strong>Tamper.5</strong> - (Nonce Manipulation) An attacker manipulates the nonce system to enable signature replay attacks or bypass transaction ordering constraints.
     </td>
@@ -249,7 +248,7 @@ sequenceDiagram
     <td>
       <strong>Repudiate.1</strong> - (Transaction Denial) A signer authorizes a high-value transaction but later denies having signed it, claiming their key was compromised, making it difficult to prove legitimate authorization. <br>
       <strong>Repudiate.2</strong> - (Admin Action Denial) An admin signer performs critical operations (signer addition/removal, contract upgrades) but denies responsibility when questioned about the changes. <br>
-      <strong>Repudiate.3</strong> - (Policy Bypass) A restricted signer exploits policy loopholes to perform unauthorized actions but denies intentional policy violation, claiming the action was within their perceived permissions. <br>
+      <strong>Repudiate.3</strong> - (Policy Bypass) A standard signer with policies exploits policy loopholes to perform unauthorized actions but denies intentional policy violation, claiming the action was within their perceived permissions. <br>
       <strong>Repudiate.4</strong> - (Upgrade Authorization) Multiple admin signers participate in a controversial contract upgrade but each denies being the primary authorizer, creating accountability gaps.
     </td>
   </tr>

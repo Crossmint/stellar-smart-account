@@ -16,7 +16,7 @@ extern crate std;
 fn test_revoke_admin_signer_prevented() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard);
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
 
     let contract_id = env.register(
         SmartAccount,
@@ -48,7 +48,7 @@ fn test_revoke_admin_signer_prevented() {
 fn test_revoke_standard_signer_allowed() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard);
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
 
     let contract_id = env.register(
         SmartAccount,

@@ -92,7 +92,7 @@ impl SmartAccountInterface for SmartAccount {
         let key = signer.clone().into();
         Storage::default().store::<SignerKey, Signer>(env, &key, &signer)?;
 
-        if let SignerRole::Restricted(policies) = signer.role() {
+        if let SignerRole::Standard(policies) = signer.role() {
             for policy in policies {
                 policy.on_add(env)?;
             }
@@ -280,7 +280,6 @@ impl SmartAccount {
         // Step 1: Verify signatures and group by role priority for efficient authorization
         let mut admin_signers = Vec::new(env);
         let mut standard_signers = Vec::new(env);
-        let mut restricted_signers = Vec::new(env);
 
         // Verify signatures while preprocessing by role
         for (signer_key, proof) in proof_map.iter() {
@@ -292,8 +291,7 @@ impl SmartAccount {
             // Group by role during validation
             match signer.role() {
                 SignerRole::Admin => admin_signers.push_back(signer),
-                SignerRole::Standard => standard_signers.push_back(signer),
-                SignerRole::Restricted(_) => restricted_signers.push_back(signer),
+                SignerRole::Standard(_) => standard_signers.push_back(signer),
             }
         }
 
@@ -305,17 +303,10 @@ impl SmartAccount {
             }
         }
 
-        // Standard signers second
+        // Standard signers second (includes policy-restricted signers)
         for signer in standard_signers.iter() {
             if signer.is_authorized(env, auth_contexts) {
                 return Ok(()); // Early return on first authorized standard
-            }
-        }
-
-        // Restricted signers last (lowest priority)
-        for signer in restricted_signers.iter() {
-            if signer.is_authorized(env, auth_contexts) {
-                return Ok(()); // Early return on first authorized restricted
             }
         }
 

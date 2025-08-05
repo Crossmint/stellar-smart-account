@@ -451,7 +451,7 @@ async function addSigner(
               public_key: Buffer.from(DELEGATED_SIGNER_KEYPAIR.rawPublicKey()),
             },
             {
-              tag: "Restricted",
+              tag: "Standard",
               values: [
                 [
                   {
