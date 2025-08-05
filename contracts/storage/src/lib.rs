@@ -11,8 +11,8 @@ pub enum Error {
 #[contracttype]
 #[derive(Clone)]
 pub enum StorageType {
-    Persistent,
-    Instance,
+    LongTerm, // Previously Persistent - survives contract upgrades, higher cost
+    Session,  // Previously Instance - cleared after inactivity, lower cost
 }
 
 #[contracttype]
@@ -37,7 +37,7 @@ pub struct Storage {
 impl Default for Storage {
     fn default() -> Self {
         Self {
-            storage_type: StorageType::Instance,
+            storage_type: StorageType::Session,
         }
     }
 }
@@ -50,10 +50,10 @@ impl Storage {
         value: &V,
     ) {
         match self.storage_type {
-            StorageType::Persistent => {
+            StorageType::LongTerm => {
                 env.storage().persistent().set::<K, V>(key, value);
             }
-            StorageType::Instance => {
+            StorageType::Session => {
                 env.storage().instance().set::<K, V>(key, value);
             }
         }
@@ -61,10 +61,10 @@ impl Storage {
 
     fn execute_storage_remove<K: IntoVal<Env, Val>>(&self, env: &Env, key: &K) {
         match self.storage_type {
-            StorageType::Persistent => {
+            StorageType::LongTerm => {
                 env.storage().persistent().remove::<K>(key);
             }
-            StorageType::Instance => {
+            StorageType::Session => {
                 env.storage().instance().remove::<K>(key);
             }
         }
@@ -76,8 +76,8 @@ impl Storage {
         key: &K,
     ) -> Option<V> {
         match self.storage_type {
-            StorageType::Persistent => env.storage().persistent().get::<K, V>(key),
-            StorageType::Instance => env.storage().instance().get::<K, V>(key),
+            StorageType::LongTerm => env.storage().persistent().get::<K, V>(key),
+            StorageType::Session => env.storage().instance().get::<K, V>(key),
         }
     }
 
@@ -144,8 +144,8 @@ impl Storage {
 
     pub fn has<K: IntoVal<Env, Val>>(&self, env: &Env, key: &K) -> bool {
         match self.storage_type {
-            StorageType::Persistent => env.storage().persistent().has::<K>(key),
-            StorageType::Instance => env.storage().instance().has::<K>(key),
+            StorageType::LongTerm => env.storage().persistent().has::<K>(key),
+            StorageType::Session => env.storage().instance().has::<K>(key),
         }
     }
 }

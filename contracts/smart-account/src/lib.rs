@@ -2,6 +2,7 @@
 
 pub mod account;
 pub mod auth;
+pub mod config;
 pub mod constants;
 pub mod error;
 pub mod events;

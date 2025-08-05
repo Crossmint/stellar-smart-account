@@ -68,3 +68,9 @@ pub struct PluginInstalledEvent {
 pub struct PluginUninstalledEvent {
     pub plugin: Address,
 }
+
+#[contracttype]
+#[derive(Clone)]
+pub struct PluginCallbackFailedEvent {
+    pub plugin: Address,
+}

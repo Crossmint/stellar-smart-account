@@ -12,7 +12,7 @@ use crate::tests::test_utils::{setup, Ed25519TestSigner};
 #[test]
 fn test_deploy_with_time_based_policy() {
     let env = setup();
-    let policy = SignerPolicy::TimeBased(TimeBasedPolicy {
+    let policy = SignerPolicy::TimeWindowPolicy(TimeBasedPolicy {
         not_before: env.ledger().timestamp(),
         not_after: env.ledger().timestamp() + 1000,
     });
@@ -32,7 +32,7 @@ fn test_deploy_with_time_based_policy() {
 #[should_panic]
 fn test_deploy_with_time_based_policy_wrong_time_range() {
     let env = setup();
-    let policy = SignerPolicy::TimeBased(TimeBasedPolicy {
+    let policy = SignerPolicy::TimeWindowPolicy(TimeBasedPolicy {
         not_before: env.ledger().timestamp() + 1000,
         not_after: env.ledger().timestamp() + 999,
     });
@@ -52,7 +52,7 @@ fn test_deploy_with_time_based_policy_wrong_time_range() {
 #[should_panic]
 fn test_deploy_with_time_based_policy_wrong_not_after() {
     let env = setup();
-    let policy = SignerPolicy::TimeBased(TimeBasedPolicy {
+    let policy = SignerPolicy::TimeWindowPolicy(TimeBasedPolicy {
         not_before: env.ledger().timestamp() + 1000,
         not_after: env.ledger().timestamp() + 999,
     });
