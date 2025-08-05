@@ -46,7 +46,6 @@ impl AuthorizationService {
         // Step 1: Verify signatures and group by role priority for efficient authorization
         let mut admin_signers = Vec::new(env);
         let mut standard_signers = Vec::new(env);
-        let mut restricted_signers = Vec::new(env);
 
         // Verify signatures while preprocessing by role
         for (signer_key, proof) in proof_map.iter() {
@@ -58,8 +57,7 @@ impl AuthorizationService {
             // Group by role during validation
             match signer.role() {
                 SignerRole::Admin => admin_signers.push_back(signer),
-                SignerRole::Standard => standard_signers.push_back(signer),
-                SignerRole::Restricted(_) => restricted_signers.push_back(signer),
+                SignerRole::Standard(_) => standard_signers.push_back(signer),
             }
         }
 
@@ -75,13 +73,6 @@ impl AuthorizationService {
         for signer in standard_signers.iter() {
             if signer.is_authorized(env, auth_contexts) {
                 return Ok(()); // Early return on first authorized standard
-            }
-        }
-
-        // Restricted signers last (lowest priority)
-        for signer in restricted_signers.iter() {
-            if signer.is_authorized(env, auth_contexts) {
-                return Ok(()); // Early return on first authorized restricted
             }
         }
 
