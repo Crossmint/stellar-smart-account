@@ -11,7 +11,7 @@ A comprehensive smart contract system for Stellar/Soroban that provides enterpri
 
 - **🔐 Multi-Signature Account**: Advanced smart account with customizable authentication
 - **🏭 Contract Factory**: Secure deployment system with role-based access control  
-- **🎯 Role-Based Permissions**: Admin, Standard, and Restricted signer roles
+- **🎯 Role-Based Permissions**: Admin and Standard signer roles with optional policies
 - **📋 Policy System**: Time-based, contract allow/deny lists, external delegation, and extensible policies
 - **🔌 Plugin System**: Extensible architecture with install/uninstall lifecycle and authorization hooks
 - **🌐 External Delegation**: Delegate authorization decisions to external policy contracts
@@ -97,8 +97,7 @@ cd ../factory && npm install
 | Role | Capabilities | Use Cases |
 |------|-------------|-----------|
 | **Admin** | Full access, can upgrade contracts | System administrators, emergency access |
-| **Standard** | Normal operations, cannot modify signers | Regular users, application accounts |
-| **Restricted** | Policy-controlled access | Temporary access, AI agents, limited permissions |
+| **Standard** | Normal operations, cannot modify signers, optional policy restrictions | Regular users, application accounts, AI agents with policies |
 
 ### Policy Types
 
@@ -119,7 +118,7 @@ let time_policy = TimeBasedPolicy {
 
 let ai_signer = Signer::Ed25519(
     Ed25519Signer::new(ai_agent_pubkey),
-    SignerRole::Restricted(vec![SignerPolicy::TimeBased(time_policy)])
+    SignerRole::Standard(vec![SignerPolicy::TimeBased(time_policy)])
 );
 ```
 
@@ -133,7 +132,7 @@ let external_policy = ExternalPolicy {
 
 let restricted_signer = Signer::Ed25519(
     Ed25519Signer::new(signer_pubkey),
-    SignerRole::Restricted(vec![SignerPolicy::External(external_policy)])
+    SignerRole::Standard(vec![SignerPolicy::External(external_policy)])
 );
 ```
 
