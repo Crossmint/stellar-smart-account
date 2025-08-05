@@ -21,10 +21,10 @@ use storage::Storage;
 use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
 
 /// SmartAccount is a multi-signature account contract that provides enhanced security
-/// through role-based access control and policy-based authorization.
+/// through role-based access control, policy-based authorization, and an extensible plugin system.
 ///
 /// The account supports different signers with different signer roles (Admin, Standard, Restricted) with customizable
-/// policies for fine-grained permission management.
+/// policies for fine-grained permission management. It also supports external policy delegation and plugin architecture
 #[contract]
 pub struct SmartAccount;
 

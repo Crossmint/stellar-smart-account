@@ -1,16 +1,17 @@
 # Smart Account Contract Architecture
 
-The Smart Account is a multi-signature account contract built on Soroban that provides enhanced security through role-based access control and policy-based authorization. It supports multiple cryptographic signature schemes and allows for fine-grained permission management suitable for both human users and AI agents.
+The Smart Account is a multi-signature account contract built on Soroban that provides enhanced security through role-based access control, policy-based authorization, and an extensible plugin system. It supports multiple cryptographic signature schemes, external policy delegation, and allows for fine-grained permission management suitable for both human users and AI agents.
 
 ## Overview
 
 The Smart Account contract implements a flexible authentication system that combines:
 - **Multiple signature schemes** (Ed25519 and Secp256r1/WebAuthn, extensible to others)
 - **Role-based access control** (Admin, Standard with optional policies)
-- **Policy-based restrictions** (time-based, contract allow/deny lists)
+- **Policy-based restrictions** (time-based, contract allow/deny lists, external delegation)
+- **Plugin architecture** with lifecycle hooks and authorization callbacks
 - **Multi-signature support** with customizable authorization logic
 
-This architecture enables sophisticated permission systems for enterprise blockchain applications, supporting use cases from simple multi-sig accounts to complex automated systems with AI agent integration.
+This architecture enables sophisticated permission systems for enterprise blockchain applications, supporting use cases from simple multi-sig accounts to complex automated systems with AI agent integration, extensible plugins, and external policy delegation.
 
 ## Core Architecture
 
@@ -19,12 +20,14 @@ This architecture enables sophisticated permission systems for enterprise blockc
 ```
 SmartAccount
 ├── SmartAccountInterface    # Administrative operations
-│   ├── __constructor()      # Initialize with signers
+│   ├── __constructor()      # Initialize with signers and plugins
 │   ├── add_signer()        # Add new signer
 │   ├── update_signer()     # Modify existing signer
-│   └── revoke_signer()     # Remove signer
+│   ├── revoke_signer()     # Remove signer
+│   ├── install_plugin()    # Install new plugin
+│   └── uninstall_plugin()  # Remove plugin
 └── CustomAccountInterface   # Soroban authentication
-    └── __check_auth()      # Validate authorization
+    └── __check_auth()      # Validate authorization and notify plugins
 ```
 
 ### Authentication System Architecture
@@ -81,6 +84,119 @@ graph TB
         SPol --> AL
         SPol --> DL
     end
+```
+
+## Plugin System
+
+The Smart Account supports an extensible plugin architecture that allows external contracts to hook into the account's lifecycle and authorization flow.
+
+### Plugin Interface
+
+Plugins must implement the `SmartAccountPlugin` trait:
+
+```rust
+pub trait SmartAccountPlugin {
+    fn on_install(env: &Env, source: Address);
+    fn on_uninstall(env: &Env, source: Address);
+    fn on_auth(env: &Env, source: Address, contexts: Vec<Context>);
+}
+```
+
+### Plugin Lifecycle
+
+1. **Installation**: Plugins are installed via `install_plugin()` or during contract initialization
+2. **Authorization Hooks**: The `on_auth()` callback is invoked during every `__check_auth()` call
+3. **Uninstallation**: Plugins can be removed via `uninstall_plugin()`
+
+### Plugin Management
+
+```rust
+// Install a plugin (requires admin authorization)
+SmartAccount::install_plugin(&env, plugin_address)?;
+
+// Uninstall a plugin (requires admin authorization)
+SmartAccount::uninstall_plugin(&env, plugin_address)?;
+
+// Initialize account with plugins
+SmartAccount::__constructor(
+    env,
+    vec![admin_signer],
+    vec![analytics_plugin, logging_plugin]
+);
+```
+
+### Plugin Use Cases
+
+- **Analytics and Monitoring**: Track account usage patterns
+- **Compliance**: Implement regulatory requirements
+- **Notifications**: Send alerts on specific operations
+- **Rate Limiting**: Implement custom spending or operation limits
+- **Audit Logging**: Maintain detailed operation logs
+
+## External Policy Delegation
+
+The Smart Account supports delegating authorization decisions to external policy contracts through the `ExternalPolicy` type.
+
+### External Policy Interface
+
+External policy contracts must implement the `SmartAccountPolicy` trait:
+
+```rust
+pub trait SmartAccountPolicy {
+    fn on_add(env: &Env, source: Address);
+    fn on_revoke(env: &Env, source: Address);
+    fn is_authorized(env: &Env, source: Address, contexts: Vec<Context>) -> bool;
+}
+```
+
+### External Policy Usage
+
+```rust
+// Create an external policy that delegates to a deny-list contract
+let external_policy = ExternalPolicy {
+    policy_address: deny_list_contract_address,
+};
+
+let restricted_signer = Signer::Ed25519(
+    Ed25519Signer::new(signer_pubkey),
+    SignerRole::Standard(vec![SignerPolicy::External(external_policy)])
+);
+```
+
+### Benefits of External Delegation
+
+- **Reusability**: Share policy logic across multiple smart accounts
+- **Upgradability**: Update policy logic without upgrading the smart account
+- **Modularity**: Separate complex authorization logic into dedicated contracts
+- **Composability**: Combine multiple external policies for complex rules
+
+### Example: Deny-List Policy Contract
+
+The repository includes an example deny-list policy contract that demonstrates external delegation:
+
+```rust
+#[contract]
+pub struct DenyListPolicy;
+
+#[contractimpl]
+impl SmartAccountPolicy for DenyListPolicy {
+    fn is_authorized(env: &Env, _source: Address, contexts: Vec<Context>) -> bool {
+        let denied_contracts: Vec<Address> = 
+            env.storage().instance().get(&CONTRACTS_SYMBOL).unwrap();
+        
+        contexts.iter().all(|context| match context {
+            Context::Contract(contract) => !denied_contracts.contains(&contract.contract),
+            _ => true,
+        })
+    }
+    
+    fn on_add(env: &Env, source: Address) {
+        source.require_auth();
+        env.storage().instance().set(&source, &0);
+    }
+    
+    fn on_revoke(_env: &Env, _source: Address) {}
+}
 ```
 
 ## Signer Types and Extensibility
@@ -165,6 +281,7 @@ graph TD
 1. **TimeBasedPolicy**: Restricts signer validity to a time window
 2. **ContractAllowListPolicy**: Only allows interactions with specified contracts
 3. **ContractDenyListPolicy**: Blocks interactions with specified contracts
+4. **ExternalPolicy**: Delegates authorization decisions to external policy contracts
 
 ### Policy Architecture
 
@@ -185,6 +302,7 @@ classDiagram
         TimeBased(TimeBasedPolicy)
         ContractDenyList(ContractDenyListPolicy)
         ContractAllowList(ContractAllowListPolicy)
+        External(ExternalPolicy)
     }
     
     class TimeBasedPolicy {
@@ -200,18 +318,25 @@ classDiagram
         +denied_contracts: Vec~Address~
     }
     
+    class ExternalPolicy {
+        +policy_address: Address
+    }
+    
     AuthorizationCheck <|.. SignerPolicy
     PolicyCallback <|.. SignerPolicy
     AuthorizationCheck <|.. TimeBasedPolicy
     AuthorizationCheck <|.. ContractAllowListPolicy
     AuthorizationCheck <|.. ContractDenyListPolicy
+    AuthorizationCheck <|.. ExternalPolicy
     PolicyCallback <|.. TimeBasedPolicy
     PolicyCallback <|.. ContractAllowListPolicy
     PolicyCallback <|.. ContractDenyListPolicy
+    PolicyCallback <|.. ExternalPolicy
     
     SignerPolicy --> TimeBasedPolicy
     SignerPolicy --> ContractAllowListPolicy
     SignerPolicy --> ContractDenyListPolicy
+    SignerPolicy --> ExternalPolicy
 ```
 
 ### Adding New Policy Types
@@ -246,6 +371,7 @@ impl PolicyCallback for NewPolicy {
 ```rust
 pub enum SignerPolicy {
     // ... existing variants
+    External(ExternalPolicy),
     NewPolicyType(NewPolicy),
 }
 ```
@@ -264,6 +390,7 @@ sequenceDiagram
     participant Storage
     participant Signer
     participant Policy
+    participant Plugin
     
     Client->>SorobanRuntime: Submit transaction with authorization
     SorobanRuntime->>SmartAccount: __check_auth(signature_payload, signature_proofs, auth_contexts)
@@ -321,6 +448,12 @@ sequenceDiagram
             SmartAccount-->>SorobanRuntime: Error: InsufficientPermissions
             SorobanRuntime-->>Client: Transaction failure
         end
+    end
+    
+    Note over SmartAccount: Step 5: Notify plugins
+    loop For each installed plugin
+        SmartAccount->>Plugin: on_auth(source, contexts)
+        Plugin-->>SmartAccount: Plugin callback completed
     end
     
     SmartAccount-->>SorobanRuntime: Authorization successful
@@ -483,7 +616,7 @@ let user_signer = Signer::Ed25519(
     SignerRole::Standard
 );
 
-SmartAccount::__constructor(env, vec![admin_signer, user_signer]);
+SmartAccount::__constructor(env, vec![admin_signer, user_signer], vec![]);
 ```
 
 ### Time-Restricted Signer

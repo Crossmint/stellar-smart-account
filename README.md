@@ -12,7 +12,9 @@ A comprehensive smart contract system for Stellar/Soroban that provides enterpri
 - **🔐 Multi-Signature Account**: Advanced smart account with customizable authentication
 - **🏭 Contract Factory**: Secure deployment system with role-based access control  
 - **🎯 Role-Based Permissions**: Admin and Standard signer roles with optional policies
-- **📋 Policy System**: Time-based, contract allow/deny lists, and extensible policies
+- **📋 Policy System**: Time-based, contract allow/deny lists, external delegation, and extensible policies
+- **🔌 Plugin System**: Extensible architecture with install/uninstall lifecycle and authorization hooks
+- **🌐 External Delegation**: Delegate authorization decisions to external policy contracts
 - **🤖 AI Agent Ready**: Built for both human users and automated systems
 - **⚡ Soroban Native**: Leverages Stellar's smart contract platform capabilities
 - **🔄 Upgradeable**: Built-in contract upgrade support with permission controls
@@ -25,8 +27,9 @@ The system consists of two main smart contracts and supporting JavaScript librar
 ```
 stellar-smart-account/
 ├── contracts/
-│   ├── smart-account/         # Multi-signature account contract
+│   ├── smart-account/         # Multi-signature account contract with plugin support
 │   ├── contract-factory/      # Secure contract deployment factory
+│   ├── deny-list-policy/      # Example external policy contract
 │   ├── initializable/         # Contract initialization utilities
 │   ├── storage/              # Storage management utilities
 │   └── upgradeable/          # Contract upgrade utilities
@@ -43,6 +46,8 @@ The core smart account provides:
 - **Multiple Signature Schemes**: Ed25519 and Secp256r1 (WebAuthn/passkeys), extensible to others
 - **Flexible Authorization**: Role-based access with policy enforcement
 - **Multi-Signature Support**: Customizable authorization logic
+- **Plugin Architecture**: Extensible functionality through installable plugins
+- **External Delegation**: Delegate authorization to external policy contracts
 - **Soroban Integration**: Native account interface implementation
 
 ### Contract Factory
@@ -99,6 +104,7 @@ cd ../factory && npm install
 - **Time-Based**: Restrict signer validity to specific time windows
 - **Contract Allow List**: Only permit interactions with specified contracts  
 - **Contract Deny List**: Block interactions with specified contracts
+- **External Delegation**: Delegate authorization decisions to external policy contracts
 - **Extensible**: Add custom policies for spending limits, rate limiting, etc.
 
 ### Example: Time-Restricted AI Agent
@@ -114,6 +120,34 @@ let ai_signer = Signer::Ed25519(
     Ed25519Signer::new(ai_agent_pubkey),
     SignerRole::Standard(vec![SignerPolicy::TimeBased(time_policy)])
 );
+```
+
+### Example: External Policy Delegation
+
+```rust
+// Delegate authorization to an external policy contract
+let external_policy = ExternalPolicy {
+    policy_address: deny_list_contract_address,
+};
+
+let restricted_signer = Signer::Ed25519(
+    Ed25519Signer::new(signer_pubkey),
+    SignerRole::Standard(vec![SignerPolicy::External(external_policy)])
+);
+```
+
+### Example: Plugin Installation
+
+```rust
+// Initialize smart account with plugins
+SmartAccount::__constructor(
+    env,
+    vec![admin_signer],
+    vec![analytics_plugin_address, logging_plugin_address]
+);
+
+// Install additional plugins after deployment
+SmartAccount::install_plugin(&env, new_plugin_address)?;
 ```
 
 ## 🧪 Testing

@@ -3,12 +3,12 @@
 /// ## Core Objects and Classes
 ///
 /// ### SignerPolicy
-/// An enum that wraps individual policy implementations for restricted signers.
+/// An enum that wraps individual policy implementations for restricted signers, including external delegation.
 ///
 /// ### SignerRole
 /// Defines the authorization level and restrictions for a signer:
 /// - `Admin` - Can authorize any operation, including changing signers and upgrading contracts
-/// - `Standard(Vec<SignerPolicy>)` - Can authorize any operation except changing signers and upgrading contracts; subject to policy restrictions if policies are provided (all policies must pass)
+/// - `Standard(Vec<SignerPolicy>)` - Can authorize any operation except changing signers and upgrading contracts; subject to policy restrictions if policies are provided (all policies must pass), including external policies
 ///
 /// ### SignatureProofs
 /// A wrapper struct containing a Map<SignerKey, SignerProof> that pairs signer keys with their
