@@ -51,8 +51,11 @@
 ///
 /// This allows for flexible authorization schemes from simple admin access to complex
 /// multi-signature accounts with time-based and contract-specific restrictions.
+pub mod core;
 pub mod permissions;
+pub mod policies;
 pub mod policy;
 pub mod proof;
+pub mod providers;
 pub mod signer;
 pub mod signers;
