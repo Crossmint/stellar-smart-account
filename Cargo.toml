@@ -14,6 +14,7 @@ contract-factory = { path = "contracts/contract-factory" }
 initializable = { path = "contracts/initializable" }
 storage = { path = "contracts/storage" }
 upgradeable = { path = "contracts/upgradeable" }
+sac-token-policy = { path = "contracts/upgradeable" }
 
 
 [profile.release]

@@ -36,7 +36,7 @@
 /// - `verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error>`
 ///   Verifies a signature proof against a payload hash. Used by Signer and specific signer types.
 ///
-/// ### PolicyValidator
+/// ### PolicyCallback
 /// Trait for validating initialization parameters in signing policies. Implementations must provide:
 /// - `check(&self, env: &Env) -> Result<(), Error>` - Validates that policy parameters are
 ///   correct and feasible at initialization time. Used by SignerPolicy and policy implementations.

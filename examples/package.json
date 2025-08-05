@@ -13,7 +13,7 @@
     "build-packages": "cd ../packages/smart_account && pnpm install && pnpm run build && cd ../factory && pnpm install && pnpm run build"
   },
   "dependencies": {
-    "@stellar/stellar-sdk": "13.3.0",
+    "@stellar/stellar-sdk": "14.0.0-rc.3",
     "buffer": "^6.0.3",
     "factory": "file:../packages/factory",
     "smart_account": "file:../packages/smart_account"

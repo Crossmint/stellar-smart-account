@@ -1,7 +1,7 @@
-use soroban_sdk::{auth::Context, contracttype, Env};
+use soroban_sdk::{auth::Context, contracttype, Env, Vec};
 
 use crate::{
-    auth::permissions::{AuthorizationCheck, PolicyValidator},
+    auth::permissions::{AuthorizationCheck, PolicyCallback},
     error::Error,
 };
 
@@ -13,14 +13,14 @@ pub struct TimeBasedPolicy {
 }
 
 impl AuthorizationCheck for TimeBasedPolicy {
-    fn is_authorized(&self, env: &Env, _context: &Context) -> bool {
+    fn is_authorized(&self, env: &Env, _context: &Vec<Context>) -> bool {
         let current_time = env.ledger().timestamp();
         current_time >= self.not_before && current_time <= self.not_after
     }
 }
 
-impl PolicyValidator for TimeBasedPolicy {
-    fn check(&self, env: &Env) -> Result<(), Error> {
+impl PolicyCallback for TimeBasedPolicy {
+    fn on_add(&self, env: &Env) -> Result<(), Error> {
         let current_time = env.ledger().timestamp();
         if self.not_after < current_time {
             return Err(Error::InvalidNotAfterTime);
@@ -28,6 +28,9 @@ impl PolicyValidator for TimeBasedPolicy {
         if self.not_before > self.not_after {
             return Err(Error::InvalidTimeRange);
         }
+        Ok(())
+    }
+    fn on_revoke(&self, _env: &Env) -> Result<(), Error> {
         Ok(())
     }
 }

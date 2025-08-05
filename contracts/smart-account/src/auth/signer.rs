@@ -3,6 +3,7 @@ use crate::auth::proof::SignerProof;
 use crate::auth::signers::SignatureVerifier;
 use crate::auth::signers::{Ed25519Signer, Secp256r1Signer};
 use crate::error::Error;
+use soroban_sdk::Vec;
 use soroban_sdk::{auth::Context, contracttype, Bytes, BytesN, Env};
 
 #[contracttype]
@@ -29,8 +30,8 @@ impl SignatureVerifier for Signer {
 }
 
 impl AuthorizationCheck for Signer {
-    fn is_authorized(&self, env: &Env, context: &Context) -> bool {
-        self.role().is_authorized(env, context)
+    fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
+        self.role().is_authorized(env, contexts)
     }
 }
 

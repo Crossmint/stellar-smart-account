@@ -1,41 +1,24 @@
-use crate::auth::permissions::SignerRole;
-use crate::auth::permissions::{AuthorizationCheck, PolicyValidator};
+use crate::auth::permissions::{AuthorizationCheck, PolicyCallback, SignerRole};
+use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
+use crate::constants::PLUGINS_KEY;
 use crate::error::Error;
+use crate::events::{
+    PluginInstalledEvent, PluginUninstalledEvent, SignerAddedEvent, SignerRevokedEvent,
+    SignerUpdatedEvent,
+};
 use crate::interface::SmartAccountInterface;
+use crate::plugin::SmartAccountPluginClient;
 use initializable::{only_not_initialized, Initializable};
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
-    contract, contractimpl, contracttype,
+    contract, contractimpl,
     crypto::Hash,
-    log, panic_with_error, symbol_short, Env, Vec,
+    map, panic_with_error, symbol_short, Address, Env, Map, Symbol, Vec,
 };
 use storage::Storage;
 use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
-
-use crate::auth::proof::SignatureProofs;
-
-#[contracttype]
-#[derive(Clone)]
-pub struct SignerAddedEvent {
-    pub signer_key: SignerKey,
-    pub signer: Signer,
-}
-
-#[contracttype]
-#[derive(Clone)]
-pub struct SignerUpdatedEvent {
-    pub signer_key: SignerKey,
-    pub new_signer: Signer,
-}
-
-#[contracttype]
-#[derive(Clone)]
-pub struct SignerRevokedEvent {
-    pub signer_key: SignerKey,
-    pub revoked_signer: Signer,
-}
 
 /// SmartAccount is a multi-signature account contract that provides enhanced security
 /// through role-based access control and policy-based authorization.
@@ -62,7 +45,7 @@ impl Initializable for SmartAccount {}
 
 impl SmartAccount {
     /// Only requires authorization if the contract is already initialized.
-    fn require_auth_if_initialized(env: &Env) {
+    pub fn require_auth_if_initialized(env: &Env) {
         if Self::is_initialized(env) {
             env.current_contract_address().require_auth();
         }
@@ -75,18 +58,9 @@ impl SmartAccount {
 
 /// Implementation of the SmartAccountInterface trait that defines the public interface
 /// for all administrative operations on the smart account.
-///
-/// # Arguments
-/// * `env` - The contract environment
-/// * `signers` - A vector of initial signers with their roles and policies
-///
-/// # Panics
-///
-/// If a initialization precondition is not met, the contract will panic with an error.
-/// If the account is already initialized, the contract will panic with an error.
 #[contractimpl]
 impl SmartAccountInterface for SmartAccount {
-    fn __constructor(env: Env, signers: Vec<Signer>) {
+    fn __constructor(env: Env, signers: Vec<Signer>, plugins: Vec<Address>) {
         only_not_initialized!(&env);
 
         // Check that there is at least one admin signer to prevent the contract from being locked out.
@@ -94,27 +68,22 @@ impl SmartAccountInterface for SmartAccount {
             panic_with_error!(env, Error::InsufficientPermissionsOnCreation);
         }
 
-        let mut seen_signer_keys = Vec::new(&env);
+        // Register signers. Duplication will fail
         for signer in signers.iter() {
-            let signer_key: SignerKey = signer.clone().into();
-            if seen_signer_keys.contains(&signer_key) {
-                panic_with_error!(env, Error::SignerAlreadyExists);
-            }
-            seen_signer_keys.push_back(signer_key);
+            SmartAccount::add_signer(&env, signer).unwrap_or_else(|e| panic_with_error!(env, e));
         }
 
-        signers.iter().for_each(|signer| {
-            // If it's a restricted signer, we check that the policies are valid.
-            if let SignerRole::Restricted(policies) = signer.role() {
-                for policy in policies {
-                    policy
-                        .check(&env)
-                        .unwrap_or_else(|e| panic_with_error!(env, e));
-                }
-            }
-            SmartAccount::add_signer(&env, signer).unwrap_or_else(|e| panic_with_error!(env, e));
-        });
+        // Initialize plugins storage
+        Storage::default()
+            .store::<Symbol, Map<Address, ()>>(&env, &PLUGINS_KEY, &map![&env])
+            .unwrap();
+        // Install plugins
+        for plugin in plugins {
+            SmartAccount::install_plugin(&env, plugin)
+                .unwrap_or_else(|e| panic_with_error!(env, e));
+        }
 
+        // Initialize the contract
         SmartAccount::initialize(&env).unwrap_or_else(|e| panic_with_error!(env, e));
     }
 
@@ -123,12 +92,15 @@ impl SmartAccountInterface for SmartAccount {
         let key = signer.clone().into();
         Storage::default().store::<SignerKey, Signer>(env, &key, &signer)?;
 
-        let event = SignerAddedEvent {
-            signer_key: key.clone(),
-            signer: signer.clone(),
-        };
-        env.events()
-            .publish((symbol_short!("signer"), symbol_short!("added")), event);
+        if let SignerRole::Restricted(policies) = signer.role() {
+            for policy in policies {
+                policy.on_add(env)?;
+            }
+        }
+        env.events().publish(
+            (symbol_short!("signer"), symbol_short!("added")),
+            SignerAddedEvent::from(signer),
+        );
 
         Ok(())
     }
@@ -136,16 +108,12 @@ impl SmartAccountInterface for SmartAccount {
     fn update_signer(env: &Env, signer: Signer) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
         let key = signer.clone().into();
+        Storage::default().update::<SignerKey, Signer>(env, &key, &signer)?;
 
-        let storage = Storage::default();
-        storage.update::<SignerKey, Signer>(env, &key, &signer)?;
-
-        let event = SignerUpdatedEvent {
-            signer_key: key.clone(),
-            new_signer: signer.clone(),
-        };
-        env.events()
-            .publish((symbol_short!("signer"), symbol_short!("updated")), event);
+        env.events().publish(
+            (symbol_short!("signer"), symbol_short!("updated")),
+            SignerUpdatedEvent::from(signer),
+        );
 
         Ok(())
     }
@@ -162,24 +130,74 @@ impl SmartAccountInterface for SmartAccount {
         if signer_to_revoke.role() == SignerRole::Admin {
             return Err(Error::CannotRevokeAdminSigner);
         }
-
         storage.delete::<SignerKey>(env, &signer_key)?;
+        env.events().publish(
+            (symbol_short!("signer"), symbol_short!("revoked")),
+            SignerRevokedEvent::from(signer_to_revoke),
+        );
+        Ok(())
+    }
 
-        let event = SignerRevokedEvent {
-            signer_key: signer_key.clone(),
-            revoked_signer: signer_to_revoke.clone(),
-        };
-        env.events()
-            .publish((symbol_short!("signer"), symbol_short!("revoked")), event);
+    fn install_plugin(env: &Env, plugin: Address) -> Result<(), Error> {
+        Self::require_auth_if_initialized(env);
+
+        // Store the plugin in the storage
+        let storage = Storage::default();
+        let mut existing_plugins = storage
+            .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
+            .unwrap();
+        if existing_plugins.contains_key(plugin.clone()) {
+            return Err(Error::PluginAlreadyInstalled);
+        }
+        existing_plugins.set(plugin.clone(), ());
+        storage.update::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY, &existing_plugins)?;
+
+        // Call the plugin's on_install callback for initialization
+        SmartAccountPluginClient::new(env, &plugin)
+            .try_on_install(&env.current_contract_address())
+            .map_err(|_| Error::PluginInitializationFailed)?
+            .map_err(|_| Error::PluginInitializationFailed)?;
+
+        env.events().publish(
+            (symbol_short!("plugin"), symbol_short!("installed")),
+            PluginInstalledEvent { plugin },
+        );
+
+        Ok(())
+    }
+
+    fn uninstall_plugin(env: &Env, plugin: Address) -> Result<(), Error> {
+        Self::require_auth_if_initialized(env);
+
+        let mut existing_plugins = Storage::default()
+            .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
+            .unwrap();
+
+        if !existing_plugins.contains_key(plugin.clone()) {
+            return Err(Error::PluginNotFound);
+        }
+        existing_plugins.remove(plugin.clone());
+
+        // Counterwise to install, we don't want to fail if the plugin's on_uninstall fails,
+        // as it would prevent an admin from uninstalling a potentially-malicious plugin.
+        let _ = SmartAccountPluginClient::new(env, &plugin)
+            .try_on_uninstall(&env.current_contract_address());
+
+        env.events().publish(
+            (symbol_short!("plugin"), Symbol::new(env, "uninstalled")),
+            PluginUninstalledEvent { plugin },
+        );
 
         Ok(())
     }
 }
 
 // ============================================================================
-// CustomAccountInterface implementation
+// IsDeployed implementation
 // ============================================================================
 
+/// Simple trait to allow an external contract to check if the smart account
+/// is live
 pub trait IsDeployed {
     fn is_deployed(env: &Env) -> bool;
 }
@@ -190,6 +208,10 @@ impl IsDeployed for SmartAccount {
         true
     }
 }
+
+// ============================================================================
+// CustomAccountInterface implementation
+// ============================================================================
 
 /// Implementation of Soroban's CustomAccountInterface for smart account authorization.
 ///
@@ -225,6 +247,28 @@ impl CustomAccountInterface for SmartAccount {
         auth_payloads: SignatureProofs,
         auth_contexts: Vec<Context>,
     ) -> Result<(), Error> {
+        Self::check_auth_internal(&env, signature_payload, &auth_payloads, &auth_contexts)?;
+
+        for (plugin, _) in Storage::default()
+            .get::<Symbol, Map<Address, ()>>(&env, &PLUGINS_KEY)
+            .unwrap()
+            .iter()
+        {
+            SmartAccountPluginClient::new(&env, &plugin)
+                .on_auth(&env.current_contract_address(), &auth_contexts);
+        }
+
+        Ok(())
+    }
+}
+
+impl SmartAccount {
+    fn check_auth_internal(
+        env: &Env,
+        signature_payload: Hash<32>,
+        auth_payloads: &SignatureProofs,
+        auth_contexts: &Vec<Context>,
+    ) -> Result<(), Error> {
         let storage = Storage::default();
         let SignatureProofs(proof_map) = auth_payloads;
 
@@ -233,38 +277,49 @@ impl CustomAccountInterface for SmartAccount {
             return Err(Error::NoProofsInAuthEntry);
         }
 
-        // Step 1: Verify all provided signatures are cryptographically valid and cache signers
-        let mut verified_signers = soroban_sdk::Map::new(&env);
+        // Step 1: Verify signatures and group by role priority for efficient authorization
+        let mut admin_signers = Vec::new(env);
+        let mut standard_signers = Vec::new(env);
+        let mut restricted_signers = Vec::new(env);
 
-        for (signer_key, _) in proof_map.iter() {
-            if !storage.has(&env, &signer_key) {
-                log!(&env, "Signer not found {:?}", signer_key);
-                return Err(Error::SignerNotFound);
-            }
-        }
-
-        // Now verify signatures and cache signers
+        // Verify signatures while preprocessing by role
         for (signer_key, proof) in proof_map.iter() {
-            let signer = storage.get::<SignerKey, Signer>(&env, &signer_key).unwrap(); // Safe after has() check
-            signer.verify(&env, &signature_payload.to_bytes(), &proof)?;
-            verified_signers.set(signer_key.clone(), signer);
-        }
+            let signer = storage
+                .get::<SignerKey, Signer>(env, &signer_key)
+                .ok_or(Error::SignerNotFound)?;
+            signer.verify(env, &signature_payload.to_bytes(), &proof)?;
 
-        // Step 2: Check authorization for each operation context using cached signers
-        for context in auth_contexts.iter() {
-            let mut context_authorized = false;
-            for (signer_key, _) in proof_map.iter() {
-                let signer = verified_signers.get(signer_key.clone()).unwrap(); // Safe to unwrap - we verified signer exists above
-                if signer.role().is_authorized(&env, &context) {
-                    context_authorized = true;
-                    break; // Early exit when authorization found
-                }
-            }
-            if !context_authorized {
-                return Err(Error::InsufficientPermissions);
+            // Group by role during validation
+            match signer.role() {
+                SignerRole::Admin => admin_signers.push_back(signer),
+                SignerRole::Standard => standard_signers.push_back(signer),
+                SignerRole::Restricted(_) => restricted_signers.push_back(signer),
             }
         }
 
-        Ok(())
+        // Step 2: Check authorization in priority order with early returns
+        // Admin signers first (highest priority)
+        for signer in admin_signers.iter() {
+            if signer.is_authorized(env, auth_contexts) {
+                return Ok(()); // Early return on first authorized admin
+            }
+        }
+
+        // Standard signers second
+        for signer in standard_signers.iter() {
+            if signer.is_authorized(env, auth_contexts) {
+                return Ok(()); // Early return on first authorized standard
+            }
+        }
+
+        // Restricted signers last (lowest priority)
+        for signer in restricted_signers.iter() {
+            if signer.is_authorized(env, auth_contexts) {
+                return Ok(()); // Early return on first authorized restricted
+            }
+        }
+
+        // No authorized signer found
+        Err(Error::InsufficientPermissions)
     }
 }

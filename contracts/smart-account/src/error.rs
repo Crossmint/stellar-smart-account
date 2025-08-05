@@ -11,6 +11,8 @@ pub enum Error {
     AlreadyInitialized = 0,
     /// Contract has not been initialized yet
     NotInitialized = 1,
+    /// Contract initialization failed
+    AccountInitializationFailed = 2,
 
     // === Storage Errors (10-19) ===
     /// Storage entry was not found
@@ -52,10 +54,20 @@ pub enum Error {
     InvalidTimeRange = 81,
     /// Invalid not-after time specified
     InvalidNotAfterTime = 82,
+    /// Policy client error
+    PolicyClientInitializationError = 83,
 
-    // === Generic Errors (100+) ===
+    // === Plugin Errors (100-119) ===
+    /// Plugin not found
+    PluginNotFound = 100,
+    /// Plugin already exists
+    PluginAlreadyInstalled = 101,
+    /// Plugin initialization failed
+    PluginInitializationFailed = 102,
+
+    // === Generic Errors (1000+) ===
     /// Requested resource was not found
-    NotFound = 100,
+    NotFound = 1000,
 }
 
 impl From<InitializableError> for Error {

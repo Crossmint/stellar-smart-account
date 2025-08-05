@@ -81,6 +81,9 @@ impl Storage {
         }
     }
 
+    /// Store a value in the storage.
+    ///
+    /// If the key already exists, the operation will fail.
     pub fn store<K: IntoVal<Env, Val>, V: IntoVal<Env, Val>>(
         &self,
         env: &Env,

@@ -144,7 +144,7 @@ The project maintains 80%+ test coverage with comprehensive integration tests.
 ### Adding New Policies
 
 1. Create policy struct in `src/auth/policy/`
-2. Implement `AuthorizationCheck` and `PolicyValidator` traits
+2. Implement `AuthorizationCheck` and `PolicyCallback` traits
 3. Add to `SignerPolicy` enum
 4. Update policy validation logic
 
