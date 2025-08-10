@@ -11,8 +11,8 @@ pub enum Error {
 #[contracttype]
 #[derive(Clone)]
 pub enum StorageType {
-    LongTerm, // Previously Persistent - survives contract upgrades, higher cost
-    Session,  // Previously Instance - cleared after inactivity, lower cost
+    Persistent,
+    Instance,
 }
 
 #[contracttype]
@@ -37,7 +37,7 @@ pub struct Storage {
 impl Default for Storage {
     fn default() -> Self {
         Self {
-            storage_type: StorageType::Session,
+            storage_type: StorageType::Instance,
         }
     }
 }
