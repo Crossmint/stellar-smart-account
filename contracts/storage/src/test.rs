@@ -15,7 +15,7 @@ impl StorageTestContract {
 
     pub fn store_persistent_and_check(env: Env, key: Symbol, value: SorobanString) -> bool {
         let storage = Storage {
-            storage_type: StorageType::LongTerm,
+            storage_type: StorageType::Persistent,
         };
         storage.store(&env, &key, &value).is_ok()
     }
@@ -27,7 +27,7 @@ impl StorageTestContract {
 
     pub fn get_persistent_value(env: Env, key: Symbol) -> Option<SorobanString> {
         let storage = Storage {
-            storage_type: StorageType::LongTerm,
+            storage_type: StorageType::Persistent,
         };
         storage.get(&env, &key)
     }
@@ -49,7 +49,7 @@ impl StorageTestContract {
 
     pub fn has_persistent_key(env: Env, key: Symbol) -> bool {
         let storage = Storage {
-            storage_type: StorageType::LongTerm,
+            storage_type: StorageType::Persistent,
         };
         storage.has(&env, &key)
     }
@@ -83,7 +83,7 @@ fn create_test_env() -> (Env, Address, StorageTestContractClient<'static>) {
 #[test]
 fn test_default_storage_type() {
     let storage = Storage::default();
-    assert!(matches!(storage.storage_type, StorageType::Session));
+    assert!(matches!(storage.storage_type, StorageType::Instance));
 }
 
 #[test]
