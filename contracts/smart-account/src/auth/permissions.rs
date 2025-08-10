@@ -8,10 +8,16 @@ use crate::{
     error::Error,
 };
 
+/// Common trait for checking authorization for a given set of contexts.
+/// Standard-role signers must satisfy all attached policies.
 pub trait AuthorizationCheck {
     fn is_authorized(&self, env: &Env, context: &Vec<Context>) -> bool;
 }
 
+/// Policy lifecycle callbacks for attaching/removing policies to signers.
+/// Failure policy:
+/// - on_add: errors bubble to the caller and block signer addition/update. (important-comment)
+/// - on_revoke: defined for cleanup; not currently invoked by SmartAccount.
 pub trait PolicyCallback {
     fn on_add(&self, env: &Env) -> Result<(), Error>;
     fn on_revoke(&self, env: &Env) -> Result<(), Error>;
@@ -92,5 +98,3 @@ impl AuthorizationCheck for SignerRole {
         }
     }
 }
-
-//
