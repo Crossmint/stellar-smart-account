@@ -41,6 +41,18 @@ impl Default for Storage {
         }
     }
 }
+impl Storage {
+    pub fn instance() -> Self {
+        Self {
+            storage_type: StorageType::Instance,
+        }
+    }
+    pub fn persistent() -> Self {
+        Self {
+            storage_type: StorageType::Persistent,
+        }
+    }
+}
 
 impl Storage {
     fn execute_storage_set<K: IntoVal<Env, Val>, V: IntoVal<Env, Val>>(

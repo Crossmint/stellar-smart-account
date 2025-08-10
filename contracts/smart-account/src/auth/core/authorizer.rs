@@ -16,7 +16,7 @@ impl Authorizer {
         auth_payloads: &SignatureProofs,
         auth_contexts: &Vec<Context>,
     ) -> Result<(), Error> {
-        let storage = Storage::default();
+        let storage = Storage::persistent();
         let SignatureProofs(proof_map) = auth_payloads;
 
         if proof_map.is_empty() {
