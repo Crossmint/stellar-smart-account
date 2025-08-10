@@ -207,6 +207,10 @@ The project maintains 80%+ test coverage with comprehensive integration tests.
 3. Add to `SignerPolicy` enum
 4. Update policy validation logic
 
+### Callback Failure Policy
+
+See the Smart Account contract documentation for the authoritative policy covering plugin and policy callbacks:
+- contracts/smart-account/README.md#callback-failure-policy
 See the [Smart Account Architecture Documentation](contracts/smart-account/README.md) for detailed extension guides.
 
 ## 🌐 Network Support

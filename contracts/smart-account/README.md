@@ -153,6 +153,32 @@ SmartAccount::__constructor(
 - **Audit Logging**: Maintain detailed operation logs
 
 ## External Policy Delegation
+## Callback Failure Policy
+
+This section specifies when operations revert vs. continue, and which events are emitted.
+
+- Plugins
+  - install (on_install):
+    - Behavior: If the plugin’s on_install fails, installation reverts with Error::PluginInitializationFailed.
+    - Events: PluginInstalledEvent is emitted only on success.
+  - uninstall (on_uninstall):
+    - Behavior: Failures do not revert uninstall; the account emits PluginUninstallFailedEvent and proceeds to uninstall, then emits PluginUninstalledEvent.
+    - Events: PluginUninstallFailedEvent on callback failure; PluginUninstalledEvent after removal.
+  - authorization hook (on_auth):
+    - Behavior: Called directly after successful authorization. If a plugin panics, __check_auth will revert. Plugin authors should avoid panics and handle errors internally.
+
+- Policies
+  - on_add:
+    - Behavior: Errors bubble up and block signer addition/update.
+  - on_revoke:
+    - Behavior: Exposed in the interface for cleanup but is not currently invoked by revoke_signer in the Smart Account.
+  - is_authorized:
+    - Behavior: Return false to deny authorization. Implementors should avoid panics.
+
+Notes for builders (human users and AI agents):
+- Analytics/observability plugins should never panic in on_auth; prefer internal error handling.
+- External policy contracts should return false to deny rather than trapping.
+- Uninstall is safe from lock-in: even a misbehaving plugin cannot block its own removal.
 
 The Smart Account supports delegating authorization decisions to external policy contracts through the `ExternalPolicy` type.
 
