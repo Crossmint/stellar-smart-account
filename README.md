@@ -163,6 +163,32 @@ cargo install cargo-tarpaulin
 cargo tarpaulin --out Html
 ```
 
+## 💾 Soroban Storage Strategy and Costs
+
+For optimal performance and cost on Soroban, this project uses storage types deliberately:
+- Persistent storage: durable, TTL-based entries with rent; best for long-lived, potentially larger datasets
+- Instance storage: bundled with the contract entry, automatically loaded each call; best for small data needed on most calls
+- Temporary storage: short TTL and cheaper rent; not used here for critical state
+
+Applied to the Smart Account:
+- Signers (SignerKey -> Signer): Persistent
+- Admin count (ADMIN_COUNT_KEY): Persistent
+- Plugins registry (PLUGINS_KEY): Instance (invoked on every __check_auth)
+- Migration flag (MIGRATING): Instance
+
+Why this mapping:
+- Plugins are accessed on every call in __check_auth, so keeping the plugin registry in Instance storage avoids separate persistent reads on each invocation.
+- Signers and admin count are long-lived and can grow; storing them in Persistent avoids growing the contract instance entry and respects durability expectations.
+
+Notes:
+- Instance storage is limited by the ledger entry size limit (approximately 128 KB for the contract entry), so only small, frequently accessed data should be kept there.
+- Persistent entries accrue rent over time and can be restored after archival if TTL expires by paying a fee.
+
+Potential future optimizations (not implemented here):
+- Skip plugin callbacks when auth contexts are clearly unrelated
+- Maintain a fast “has_plugins” indicator to early-exit
+- Track a subset of “auth-hook” plugins to invoke only those on __check_auth
+
 The project maintains 80%+ test coverage with comprehensive integration tests.
 
 ## 🔧 Development

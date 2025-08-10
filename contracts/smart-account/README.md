@@ -1,3 +1,20 @@
+## Storage Strategy
+
+To minimize per-call fees while keeping important state durable:
+- Plugins registry (PLUGINS_KEY): Instance storage. It is read on every call inside __check_auth, so bundling it with the contract entry avoids extra reads.
+- Signers (SignerKey -> Signer): Persistent storage. Signers are long-lived and can be numerous; keeping them persistent avoids bloating the contract entry.
+- Admin count (ADMIN_COUNT_KEY): Persistent storage.
+- Migration flag (MIGRATING): Instance storage.
+
+Rationale:
+- Instance storage is automatically loaded with the contract entry and is ideal for small, frequently accessed values (subject to the ledger entry size limit).
+- Persistent storage is rented per byte over time and is suitable for larger or arbitrarily growing datasets.
+
+Potential future optimizations:
+- Early-exit plugin checks when no relevant auth contexts are present
+- Maintain a lightweight “has_plugins” indicator for fast skip
+- Track a dedicated set of “auth-hook” plugins if only some plugins need __check_auth callbacks
+
 # Smart Account Contract Architecture
 
 The Smart Account is a multi-signature account contract built on Soroban that provides enhanced security through role-based access control, policy-based authorization, and an extensible plugin system. It supports multiple cryptographic signature schemes, external policy delegation, and allows for fine-grained permission management suitable for both human users and AI agents.

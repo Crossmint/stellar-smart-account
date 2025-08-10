@@ -77,7 +77,8 @@ impl SmartAccountInterface for SmartAccount {
         }
 
         // Initialize plugins storage
-        Storage::default()
+        let storage = Storage::instance();
+        storage
             .store::<Symbol, Map<Address, ()>>(&env, &PLUGINS_KEY, &map![&env])
             .unwrap();
         // Install plugins
@@ -93,7 +94,8 @@ impl SmartAccountInterface for SmartAccount {
     fn add_signer(env: &Env, signer: Signer) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
         let key = signer.clone().into();
-        Storage::default().store::<SignerKey, Signer>(env, &key, &signer)?;
+        let storage = Storage::persistent();
+        storage.store::<SignerKey, Signer>(env, &key, &signer)?;
 
         if let SignerRole::Standard(policies) = signer.role() {
             for policy in policies {
@@ -101,7 +103,7 @@ impl SmartAccountInterface for SmartAccount {
             }
         }
         if signer.role() == SignerRole::Admin {
-            let storage = Storage::default();
+            let storage = Storage::persistent();
             let count = storage
                 .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
                 .unwrap_or(0);
@@ -116,7 +118,7 @@ impl SmartAccountInterface for SmartAccount {
     fn update_signer(env: &Env, signer: Signer) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
         let key = signer.clone().into();
-        let storage = Storage::default();
+        let storage = Storage::persistent();
         let old_signer = storage
             .get::<SignerKey, Signer>(env, &key)
             .ok_or(Error::SignerNotFound)?;
@@ -146,7 +148,7 @@ impl SmartAccountInterface for SmartAccount {
     fn revoke_signer(env: &Env, signer_key: SignerKey) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
 
-        let storage = Storage::default();
+        let storage = Storage::persistent();
 
         let signer_to_revoke = storage
             .get::<SignerKey, Signer>(env, &signer_key)
@@ -167,7 +169,7 @@ impl SmartAccountInterface for SmartAccount {
         Self::require_auth_if_initialized(env);
 
         // Store the plugin in the storage
-        let storage = Storage::default();
+        let storage = Storage::instance();
         let mut existing_plugins = storage
             .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
             .unwrap();
@@ -194,7 +196,8 @@ impl SmartAccountInterface for SmartAccount {
     fn uninstall_plugin(env: &Env, plugin: Address) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
 
-        let mut existing_plugins = Storage::default()
+        let storage = Storage::instance();
+        let mut existing_plugins = storage
             .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
             .unwrap();
 
@@ -294,7 +297,8 @@ impl CustomAccountInterface for SmartAccount {
     ) -> Result<(), Error> {
         Authorizer::check(&env, signature_payload, &auth_payloads, &auth_contexts)?;
 
-        for (plugin, _) in Storage::default()
+        let storage = Storage::instance();
+        for (plugin, _) in storage
             .get::<Symbol, Map<Address, ()>>(&env, &PLUGINS_KEY)
             .unwrap()
             .iter()
