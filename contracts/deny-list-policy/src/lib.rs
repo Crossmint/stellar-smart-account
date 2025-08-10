@@ -1,4 +1,5 @@
 #![no_std]
+use smart_account_interfaces::SmartAccountPolicy;
 use soroban_sdk::{auth::Context, contract, contractimpl, symbol_short, Address, Env, Symbol, Vec};
 
 const CONTRACTS_SYMBOL: Symbol = symbol_short!("CONTRACTS");
@@ -13,12 +14,6 @@ impl DenyListPolicy {
             .instance()
             .set(&CONTRACTS_SYMBOL, &denied_contracts);
     }
-}
-
-pub trait SmartAccountPolicy {
-    fn on_add(env: &Env, source: Address);
-    fn on_revoke(env: &Env, source: Address);
-    fn is_authorized(env: &Env, source: Address, contexts: Vec<Context>) -> bool;
 }
 
 #[contractimpl]
