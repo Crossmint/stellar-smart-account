@@ -1,4 +1,5 @@
-use soroban_sdk::{auth::Context, contractclient, Address, Env, Vec};
+use soroban_sdk::prelude::*;
+use soroban_sdk::{auth::Context, contractclient, Address, Env};
 
 #[contractclient(name = "SmartAccountPluginClient")]
 pub trait SmartAccountPlugin {
