@@ -325,7 +325,7 @@ fn test_auth_time_based_policy_within_window() {
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
 
     let current_time = env.ledger().timestamp();
-    let time_policy = SignerPolicy::TimeBased(TimeBasedPolicy {
+    let time_policy = SignerPolicy::TimeWindowPolicy(TimeBasedPolicy {
         not_before: current_time,
         not_after: current_time + 100,
     });
@@ -367,7 +367,7 @@ fn test_auth_time_based_policy_outside_window() {
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
 
     let current_time = env.ledger().timestamp();
-    let time_policy = SignerPolicy::TimeBased(TimeBasedPolicy {
+    let time_policy = SignerPolicy::TimeWindowPolicy(TimeBasedPolicy {
         not_before: current_time + 1000,
         not_after: current_time + 2000,
     });

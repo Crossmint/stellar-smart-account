@@ -111,14 +111,14 @@ cd ../factory && npm install
 
 ```rust
 // Create an AI agent with time-limited access
-let time_policy = TimeBasedPolicy {
+let time_policy = TimeWindowPolicy {
     not_before: start_timestamp,
     not_after: end_timestamp,
 };
 
 let ai_signer = Signer::Ed25519(
     Ed25519Signer::new(ai_agent_pubkey),
-    SignerRole::Standard(vec![SignerPolicy::TimeBased(time_policy)])
+    SignerRole::Standard(vec![SignerPolicy::TimeWindowPolicy(time_policy)])
 );
 ```
 
@@ -132,7 +132,7 @@ let external_policy = ExternalPolicy {
 
 let restricted_signer = Signer::Ed25519(
     Ed25519Signer::new(signer_pubkey),
-    SignerRole::Standard(vec![SignerPolicy::External(external_policy)])
+    SignerRole::Standard(vec![SignerPolicy::ExternalValidatorPolicy(external_policy)])
 );
 ```
 

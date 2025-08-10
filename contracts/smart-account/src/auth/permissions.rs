@@ -21,16 +21,16 @@ pub trait PolicyCallback {
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerPolicy {
-    TimeBased(TimeBasedPolicy),
-    External(ExternalPolicy),
+    TimeWindowPolicy(TimeBasedPolicy),
+    ExternalValidatorPolicy(ExternalPolicy),
 }
 
 // Delegate to the specific policy implementation
 impl AuthorizationCheck for SignerPolicy {
     fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
         match self {
-            SignerPolicy::TimeBased(policy) => policy.is_authorized(env, contexts),
-            SignerPolicy::External(policy) => policy.is_authorized(env, contexts),
+            SignerPolicy::TimeWindowPolicy(policy) => policy.is_authorized(env, contexts),
+            SignerPolicy::ExternalValidatorPolicy(policy) => policy.is_authorized(env, contexts),
         }
     }
 }
@@ -38,14 +38,14 @@ impl AuthorizationCheck for SignerPolicy {
 impl PolicyCallback for SignerPolicy {
     fn on_add(&self, env: &Env) -> Result<(), Error> {
         match self {
-            SignerPolicy::TimeBased(policy) => policy.on_add(env),
-            SignerPolicy::External(policy) => policy.on_add(env),
+            SignerPolicy::TimeWindowPolicy(policy) => policy.on_add(env),
+            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_add(env),
         }
     }
     fn on_revoke(&self, env: &Env) -> Result<(), Error> {
         match self {
-            SignerPolicy::TimeBased(policy) => policy.on_revoke(env),
-            SignerPolicy::External(policy) => policy.on_revoke(env),
+            SignerPolicy::TimeWindowPolicy(policy) => policy.on_revoke(env),
+            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_revoke(env),
         }
     }
 }

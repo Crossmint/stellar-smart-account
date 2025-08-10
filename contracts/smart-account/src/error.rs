@@ -30,6 +30,7 @@ pub enum Error {
     /// Signer has expired and is no longer valid
     SignerExpired = 23,
     CannotRevokeAdminSigner = 24,
+    CannotDowngradeLastAdmin = 25,
 
     // === Authentication & Signature Errors (40-59) ===
     /// No matching signature found for the given criteria
