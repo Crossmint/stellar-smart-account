@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
   "contracts/*",
+  "crates/*",
 ]
 
 [workspace.package]
@@ -15,7 +16,7 @@ initializable = { path = "contracts/initializable" }
 storage = { path = "contracts/storage" }
 upgradeable = { path = "contracts/upgradeable" }
 sac-token-policy = { path = "contracts/upgradeable" }
-
+smart-account-interfaces = { path = "crates/smart-account-interfaces" }
 
 [profile.release]
 opt-level = "z"

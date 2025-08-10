@@ -14,6 +14,7 @@ soroban-sdk = { workspace = true }
 initializable = { workspace = true }
 storage = { workspace = true }
 upgradeable = { workspace = true }
+smart-account-interfaces = { workspace = true }
 
 
 [dev-dependencies]

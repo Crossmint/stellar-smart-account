@@ -542,6 +542,7 @@ checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 name = "deny-list-policy"
 version = "0.0.0"
 dependencies = [
+ "smart-account-interfaces",
  "soroban-sdk",
 ]
 
@@ -1795,10 +1796,18 @@ dependencies = [
  "passkey",
  "rand 0.7.3",
  "serde_json",
+ "smart-account-interfaces",
  "soroban-sdk",
  "stellar-strkey 0.0.13",
  "storage",
  "upgradeable",
+]
+
+[[package]]
+name = "smart-account-interfaces"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
 ]
 
 [[package]]
