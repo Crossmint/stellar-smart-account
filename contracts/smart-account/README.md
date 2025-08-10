@@ -74,7 +74,7 @@ graph TB
     subgraph "Permission System"
         PC[AuthorizationCheck]
         SPol[SignerPolicy]
-        TB[TimeBasedPolicy]
+        TB[TimeWindowPolicy]
         AL[ContractAllowListPolicy]
         DL[ContractDenyListPolicy]
         
@@ -109,6 +109,7 @@ pub trait SmartAccountPlugin {
 3. **Uninstallation**: Plugins can be removed via `uninstall_plugin()`
 
 ### Plugin Management
+Note: If a plugin's on_uninstall hook fails during uninstallation, the account emits a PluginUninstallFailedEvent and proceeds with uninstall to avoid lock-in scenarios.
 
 ```rust
 // Install a plugin (requires admin authorization)
@@ -124,6 +125,7 @@ SmartAccount::__constructor(
     vec![analytics_plugin, logging_plugin]
 );
 ```
+- On uninstall, if a plugin's on_uninstall hook fails, the smart account emits a PluginUninstallFailedEvent and proceeds with uninstallation.
 
 ### Plugin Use Cases
 
@@ -159,7 +161,7 @@ let external_policy = ExternalPolicy {
 
 let restricted_signer = Signer::Ed25519(
     Ed25519Signer::new(signer_pubkey),
-    SignerRole::Standard(vec![SignerPolicy::External(external_policy)])
+    SignerRole::Standard(vec![SignerPolicy::ExternalValidatorPolicy(external_policy)])
 );
 ```
 
@@ -269,7 +271,7 @@ graph TD
     Standard --> |"Cannot modify signers or upgrade"| LimitedOp[Limited Operations]
     Standard --> |"Subject to policies (if any)"| PolicyCheck[Policy Validation]
     
-    PolicyCheck --> TB[TimeBasedPolicy]
+    PolicyCheck --> TB[TimeWindowPolicy]
     PolicyCheck --> AL[ContractAllowListPolicy]
     PolicyCheck --> DL[ContractDenyListPolicy]
 ```
@@ -278,10 +280,10 @@ graph TD
 
 ### Current Policy Types
 
-1. **TimeBasedPolicy**: Restricts signer validity to a time window
+1. **TimeWindowPolicy**: Restricts signer validity to a time window
 2. **ContractAllowListPolicy**: Only allows interactions with specified contracts
 3. **ContractDenyListPolicy**: Blocks interactions with specified contracts
-4. **ExternalPolicy**: Delegates authorization decisions to external policy contracts
+4. **ExternalValidatorPolicy**: Delegates authorization decisions to external policy contracts
 
 ### Policy Architecture
 
@@ -299,13 +301,13 @@ classDiagram
     
     class SignerPolicy {
         <<enum>>
-        TimeBased(TimeBasedPolicy)
+        TimeWindowPolicy(TimeWindowPolicy)
         ContractDenyList(ContractDenyListPolicy)
         ContractAllowList(ContractAllowListPolicy)
-        External(ExternalPolicy)
+        ExternalValidatorPolicy(ExternalPolicy)
     }
     
-    class TimeBasedPolicy {
+    class TimeWindowPolicy {
         +not_before: u64
         +not_after: u64
     }
@@ -324,16 +326,16 @@ classDiagram
     
     AuthorizationCheck <|.. SignerPolicy
     PolicyCallback <|.. SignerPolicy
-    AuthorizationCheck <|.. TimeBasedPolicy
+    AuthorizationCheck <|.. TimeWindowPolicy
     AuthorizationCheck <|.. ContractAllowListPolicy
     AuthorizationCheck <|.. ContractDenyListPolicy
     AuthorizationCheck <|.. ExternalPolicy
-    PolicyCallback <|.. TimeBasedPolicy
+    PolicyCallback <|.. TimeWindowPolicy
     PolicyCallback <|.. ContractAllowListPolicy
     PolicyCallback <|.. ContractDenyListPolicy
     PolicyCallback <|.. ExternalPolicy
     
-    SignerPolicy --> TimeBasedPolicy
+    SignerPolicy --> TimeWindowPolicy
     SignerPolicy --> ContractAllowListPolicy
     SignerPolicy --> ContractDenyListPolicy
     SignerPolicy --> ExternalPolicy
@@ -371,7 +373,7 @@ impl PolicyCallback for NewPolicy {
 ```rust
 pub enum SignerPolicy {
     // ... existing variants
-    External(ExternalPolicy),
+    ExternalValidatorPolicy(ExternalPolicy),
     NewPolicyType(NewPolicy),
 }
 ```
@@ -623,14 +625,14 @@ SmartAccount::__constructor(env, vec![admin_signer, user_signer], vec![]);
 
 ```rust
 // Create a signer valid only during business hours
-let time_policy = TimeBasedPolicy {
+let time_policy = TimeWindowPolicy {
     not_before: business_start_timestamp,
     not_after: business_end_timestamp,
 };
 
 let restricted_signer = Signer::Ed25519(
     Ed25519Signer::new(temp_pubkey),
-    SignerRole::Standard(vec![SignerPolicy::TimeBased(time_policy)])
+    SignerRole::Standard(vec![SignerPolicy::TimeWindowPolicy(time_policy)])
 );
 
 SmartAccount::add_signer(&env, restricted_signer)?;

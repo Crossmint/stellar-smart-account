@@ -1,12 +1,15 @@
-use crate::auth::permissions::{AuthorizationCheck, PolicyCallback, SignerRole};
+use crate::auth::core::authorizer::Authorizer;
+use crate::auth::permissions::{PolicyCallback, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
-use crate::auth::signers::SignatureVerifier as _;
-use crate::constants::PLUGINS_KEY;
+use crate::config::{
+    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED,
+    VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
+};
 use crate::error::Error;
 use crate::events::{
-    PluginInstalledEvent, PluginUninstalledEvent, SignerAddedEvent, SignerRevokedEvent,
-    SignerUpdatedEvent,
+    PluginInstalledEvent, PluginUninstallFailedEvent, PluginUninstalledEvent, SignerAddedEvent,
+    SignerRevokedEvent, SignerUpdatedEvent,
 };
 use crate::interface::SmartAccountInterface;
 use crate::plugin::SmartAccountPluginClient;
@@ -15,7 +18,7 @@ use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    map, panic_with_error, symbol_short, Address, Env, Map, Symbol, Vec,
+    map, panic_with_error, Address, Env, Map, Symbol, Vec,
 };
 use storage::Storage;
 use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
@@ -97,10 +100,15 @@ impl SmartAccountInterface for SmartAccount {
                 policy.on_add(env)?;
             }
         }
-        env.events().publish(
-            (symbol_short!("signer"), symbol_short!("added")),
-            SignerAddedEvent::from(signer),
-        );
+        if signer.role() == SignerRole::Admin {
+            let storage = Storage::default();
+            let count = storage
+                .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
+                .unwrap_or(0);
+            storage.store::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &(count + 1))?;
+        }
+        env.events()
+            .publish((TOPIC_SIGNER, VERB_ADDED), SignerAddedEvent::from(signer));
 
         Ok(())
     }
@@ -108,10 +116,27 @@ impl SmartAccountInterface for SmartAccount {
     fn update_signer(env: &Env, signer: Signer) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
         let key = signer.clone().into();
-        Storage::default().update::<SignerKey, Signer>(env, &key, &signer)?;
-
+        let storage = Storage::default();
+        let old_signer = storage
+            .get::<SignerKey, Signer>(env, &key)
+            .ok_or(Error::SignerNotFound)?;
+        if old_signer.role() == SignerRole::Admin && signer.role() != SignerRole::Admin {
+            let count = storage
+                .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
+                .unwrap_or(0);
+            if count <= 1 {
+                return Err(Error::CannotDowngradeLastAdmin);
+            }
+            storage.store::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &(count - 1))?;
+        } else if old_signer.role() != SignerRole::Admin && signer.role() == SignerRole::Admin {
+            let count = storage
+                .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
+                .unwrap_or(0);
+            storage.store::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &(count + 1))?;
+        }
+        storage.update::<SignerKey, Signer>(env, &key, &signer)?;
         env.events().publish(
-            (symbol_short!("signer"), symbol_short!("updated")),
+            (TOPIC_SIGNER, VERB_UPDATED),
             SignerUpdatedEvent::from(signer),
         );
 
@@ -132,7 +157,7 @@ impl SmartAccountInterface for SmartAccount {
         }
         storage.delete::<SignerKey>(env, &signer_key)?;
         env.events().publish(
-            (symbol_short!("signer"), symbol_short!("revoked")),
+            (TOPIC_SIGNER, VERB_REVOKED),
             SignerRevokedEvent::from(signer_to_revoke),
         );
         Ok(())
@@ -159,7 +184,7 @@ impl SmartAccountInterface for SmartAccount {
             .map_err(|_| Error::PluginInitializationFailed)?;
 
         env.events().publish(
-            (symbol_short!("plugin"), symbol_short!("installed")),
+            (TOPIC_PLUGIN, VERB_INSTALLED),
             PluginInstalledEvent { plugin },
         );
 
@@ -180,11 +205,31 @@ impl SmartAccountInterface for SmartAccount {
 
         // Counterwise to install, we don't want to fail if the plugin's on_uninstall fails,
         // as it would prevent an admin from uninstalling a potentially-malicious plugin.
-        let _ = SmartAccountPluginClient::new(env, &plugin)
+        let res = SmartAccountPluginClient::new(env, &plugin)
             .try_on_uninstall(&env.current_contract_address());
+        match res {
+            Ok(inner) => {
+                if inner.is_err() {
+                    env.events().publish(
+                        (TOPIC_PLUGIN, VERB_UNINSTALL_FAILED),
+                        PluginUninstallFailedEvent {
+                            plugin: plugin.clone(),
+                        },
+                    );
+                }
+            }
+            Err(_) => {
+                env.events().publish(
+                    (TOPIC_PLUGIN, VERB_UNINSTALL_FAILED),
+                    PluginUninstallFailedEvent {
+                        plugin: plugin.clone(),
+                    },
+                );
+            }
+        }
 
         env.events().publish(
-            (symbol_short!("plugin"), Symbol::new(env, "uninstalled")),
+            (TOPIC_PLUGIN, VERB_UNINSTALLED),
             PluginUninstalledEvent { plugin },
         );
 
@@ -247,7 +292,7 @@ impl CustomAccountInterface for SmartAccount {
         auth_payloads: SignatureProofs,
         auth_contexts: Vec<Context>,
     ) -> Result<(), Error> {
-        Self::check_auth_internal(&env, signature_payload, &auth_payloads, &auth_contexts)?;
+        Authorizer::check(&env, signature_payload, &auth_payloads, &auth_contexts)?;
 
         for (plugin, _) in Storage::default()
             .get::<Symbol, Map<Address, ()>>(&env, &PLUGINS_KEY)
@@ -259,58 +304,5 @@ impl CustomAccountInterface for SmartAccount {
         }
 
         Ok(())
-    }
-}
-
-impl SmartAccount {
-    fn check_auth_internal(
-        env: &Env,
-        signature_payload: Hash<32>,
-        auth_payloads: &SignatureProofs,
-        auth_contexts: &Vec<Context>,
-    ) -> Result<(), Error> {
-        let storage = Storage::default();
-        let SignatureProofs(proof_map) = auth_payloads;
-
-        // Ensure we have at least one authorization proof
-        if proof_map.is_empty() {
-            return Err(Error::NoProofsInAuthEntry);
-        }
-
-        // Step 1: Verify signatures and group by role priority for efficient authorization
-        let mut admin_signers = Vec::new(env);
-        let mut standard_signers = Vec::new(env);
-
-        // Verify signatures while preprocessing by role
-        for (signer_key, proof) in proof_map.iter() {
-            let signer = storage
-                .get::<SignerKey, Signer>(env, &signer_key)
-                .ok_or(Error::SignerNotFound)?;
-            signer.verify(env, &signature_payload.to_bytes(), &proof)?;
-
-            // Group by role during validation
-            match signer.role() {
-                SignerRole::Admin => admin_signers.push_back(signer),
-                SignerRole::Standard(_) => standard_signers.push_back(signer),
-            }
-        }
-
-        // Step 2: Check authorization in priority order with early returns
-        // Admin signers first (highest priority)
-        for signer in admin_signers.iter() {
-            if signer.is_authorized(env, auth_contexts) {
-                return Ok(()); // Early return on first authorized admin
-            }
-        }
-
-        // Standard signers second (includes policy-restricted signers)
-        for signer in standard_signers.iter() {
-            if signer.is_authorized(env, auth_contexts) {
-                return Ok(()); // Early return on first authorized standard
-            }
-        }
-
-        // No authorized signer found
-        Err(Error::InsufficientPermissions)
     }
 }

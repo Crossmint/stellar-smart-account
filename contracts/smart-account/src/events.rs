@@ -1,10 +1,6 @@
 use crate::auth::signer::{Signer, SignerKey};
 use soroban_sdk::{contracttype, Address};
 
-/*
- * Signer events
- */
-
 #[contracttype]
 #[derive(Clone)]
 pub struct SignerAddedEvent {
@@ -53,10 +49,6 @@ impl From<Signer> for SignerRevokedEvent {
     }
 }
 
-/*
- * Plugin events
- */
-
 #[contracttype]
 #[derive(Clone)]
 pub struct PluginInstalledEvent {
@@ -66,5 +58,11 @@ pub struct PluginInstalledEvent {
 #[contracttype]
 #[derive(Clone)]
 pub struct PluginUninstalledEvent {
+    pub plugin: Address,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct PluginUninstallFailedEvent {
     pub plugin: Address,
 }
