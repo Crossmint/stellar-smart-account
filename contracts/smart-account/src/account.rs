@@ -55,6 +55,7 @@ impl SmartAccount {
     }
 
     fn count_admin_signers(_env: &Env) -> u32 {
+        // 
         1
     }
 }
@@ -384,5 +385,3 @@ impl CustomAccountInterface for SmartAccount {
         Ok(())
     }
 }
-
-impl SmartAccount {}

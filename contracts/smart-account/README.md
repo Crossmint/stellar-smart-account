@@ -630,13 +630,7 @@ let time_policy = TimeBasedPolicy {
 
 let restricted_signer = Signer::Ed25519(
     Ed25519Signer::new(temp_pubkey),
-<<<<<<< HEAD
-    SignerRole::Restricted(vec![SignerPolicy::TimeWindowPolicy(time_policy)])
-||||||| 6a6b374
-    SignerRole::Restricted(vec![SignerPolicy::TimeBased(time_policy)])
-=======
-    SignerRole::Standard(vec![SignerPolicy::TimeBased(time_policy)])
->>>>>>> origin/main
+    SignerRole::Standard(vec![SignerPolicy::TimeWindowPolicy(time_policy)])
 );
 
 SmartAccount::add_signer(&env, restricted_signer)?;
