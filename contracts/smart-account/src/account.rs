@@ -129,25 +129,63 @@ impl SmartAccountInterface for SmartAccount {
         let old_signer = storage
             .get::<SignerKey, Signer>(env, &key)
             .ok_or(Error::SignerNotFound)?;
-        if old_signer.role() == SignerRole::Admin && signer.role() != SignerRole::Admin {
-            let count = storage
-                .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
-                .unwrap_or(0);
-            if count <= 1 {
-                return Err(Error::CannotDowngradeLastAdmin);
+
+        // Handle role transitions and policy lifecycle callbacks
+        match (&old_signer.role(), &signer.role()) {
+            // Admin → Standard: policies become active, call on_add
+            (SignerRole::Admin, SignerRole::Standard(new_policies)) => {
+                let count = storage
+                    .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
+                    .unwrap_or(0);
+                if count <= 1 {
+                    return Err(Error::CannotDowngradeLastAdmin);
+                }
+                // Use checked_sub to detect underflow and handle it as an error
+                let new_count = count
+                    .checked_sub(1)
+                    .ok_or(Error::CannotDowngradeLastAdmin)?;
+                storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
+
+                // Call on_add for newly activated policies
+                for policy in new_policies {
+                    policy.on_add(env)?;
+                }
             }
-            // Use checked_sub to detect underflow and handle it as an error
-            let new_count = count
-                .checked_sub(1)
-                .ok_or(Error::CannotDowngradeLastAdmin)?;
-            storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
-        } else if old_signer.role() != SignerRole::Admin && signer.role() == SignerRole::Admin {
-            let count = storage
-                .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
-                .unwrap_or(0);
-            let new_count = count.checked_add(1).ok_or(Error::MaxSignersReached)?;
-            storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
+            // Standard → Admin: policies are deactivated, call on_revoke
+            (SignerRole::Standard(old_policies), SignerRole::Admin) => {
+                let count = storage
+                    .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
+                    .unwrap_or(0);
+                let new_count = count.checked_add(1).ok_or(Error::MaxSignersReached)?;
+                storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
+
+                // Call on_revoke for deactivated policies
+                for policy in old_policies {
+                    policy.on_revoke(env)?;
+                }
+            }
+            // Standard → Standard: handle policy set changes
+            (SignerRole::Standard(old_policies), SignerRole::Standard(new_policies)) => {
+                // Call on_revoke for removed policies
+                for old_policy in old_policies {
+                    if !new_policies.iter().any(|p| p == old_policy) {
+                        old_policy.on_revoke(env)?;
+                    }
+                }
+
+                // Call on_add for newly added policies
+                for new_policy in new_policies {
+                    if !old_policies.iter().any(|p| p == new_policy) {
+                        new_policy.on_add(env)?;
+                    }
+                }
+            }
+            // Admin → Admin: no policy changes
+            (SignerRole::Admin, SignerRole::Admin) => {
+                // No role change, no action needed
+            }
         }
+
         storage.update::<SignerKey, Signer>(env, &key, &signer)?;
         env.events().publish(
             (TOPIC_SIGNER, VERB_UPDATED),
@@ -169,6 +207,14 @@ impl SmartAccountInterface for SmartAccount {
         if signer_to_revoke.role() == SignerRole::Admin {
             return Err(Error::CannotRevokeAdminSigner);
         }
+
+        // Call on_revoke for policies if this is a Standard signer
+        if let SignerRole::Standard(policies) = signer_to_revoke.role() {
+            for policy in policies {
+                policy.on_revoke(env)?;
+            }
+        }
+
         storage.delete::<SignerKey>(env, &signer_key)?;
         env.events().publish(
             (TOPIC_SIGNER, VERB_REVOKED),

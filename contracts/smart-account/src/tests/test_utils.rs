@@ -54,6 +54,11 @@ impl Ed25519TestSigner {
         let Ed25519TestSigner(keypair, _) = self;
         BytesN::from_array(env, &keypair.public.to_bytes())
     }
+
+    pub fn into_signer_with_role(&self, env: &Env, role: SignerRole) -> Signer {
+        let Ed25519TestSigner(_keypair, _) = self;
+        Signer::Ed25519(Ed25519Signer::new(self.public_key(env)), role)
+    }
 }
 
 impl TestSignerTrait for Ed25519TestSigner {
