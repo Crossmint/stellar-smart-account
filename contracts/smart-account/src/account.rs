@@ -15,7 +15,6 @@ use crate::handle_nested_result_failure;
 use crate::interface::SmartAccountInterface;
 use crate::plugin::SmartAccountPluginClient;
 use initializable::{only_not_initialized, Initializable};
-use smart_account_interfaces::SmartAccountPolicy;
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
