@@ -3,14 +3,15 @@ use crate::auth::permissions::{PolicyCallback, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::config::{
-    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED,
-    VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
+    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_AUTH_FAILED,
+    VERB_INSTALLED, VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
 };
 use crate::error::Error;
 use crate::events::{
-    PluginInstalledEvent, PluginUninstallFailedEvent, PluginUninstalledEvent, SignerAddedEvent,
-    SignerRevokedEvent, SignerUpdatedEvent,
+    PluginAuthFailedEvent, PluginInstalledEvent, PluginUninstallFailedEvent,
+    PluginUninstalledEvent, SignerAddedEvent, SignerRevokedEvent, SignerUpdatedEvent,
 };
+use crate::handle_nested_result_failure;
 use crate::interface::SmartAccountInterface;
 use crate::plugin::SmartAccountPluginClient;
 use initializable::{only_not_initialized, Initializable};
@@ -222,26 +223,14 @@ impl SmartAccountInterface for SmartAccount {
         // as it would prevent an admin from uninstalling a potentially-malicious plugin.
         let res = SmartAccountPluginClient::new(env, &plugin)
             .try_on_uninstall(&env.current_contract_address());
-        match res {
-            Ok(inner) => {
-                if inner.is_err() {
-                    env.events().publish(
-                        (TOPIC_PLUGIN, VERB_UNINSTALL_FAILED),
-                        PluginUninstallFailedEvent {
-                            plugin: plugin.clone(),
-                        },
-                    );
-                }
-            }
-            Err(_) => {
-                env.events().publish(
-                    (TOPIC_PLUGIN, VERB_UNINSTALL_FAILED),
-                    PluginUninstallFailedEvent {
-                        plugin: plugin.clone(),
-                    },
-                );
-            }
-        }
+        handle_nested_result_failure!(res, {
+            env.events().publish(
+                (TOPIC_PLUGIN, VERB_UNINSTALL_FAILED),
+                PluginUninstallFailedEvent {
+                    plugin: plugin.clone(),
+                },
+            );
+        });
 
         env.events().publish(
             (TOPIC_PLUGIN, VERB_UNINSTALLED),
@@ -315,8 +304,25 @@ impl CustomAccountInterface for SmartAccount {
             .unwrap()
             .iter()
         {
-            SmartAccountPluginClient::new(&env, &plugin)
-                .on_auth(&env.current_contract_address(), &auth_contexts);
+            // Use try_on_auth to prevent plugin failures from blocking authorization
+            match SmartAccountPluginClient::new(&env, &plugin)
+                .try_on_auth(&env.current_contract_address(), &auth_contexts)
+            {
+                Err(_error) => {
+                    // Plugin failed, emit event for telemetry but don't revert
+                    env.events().publish(
+                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
+                        PluginAuthFailedEvent {
+                            plugin: plugin.clone(),
+                            error: soroban_sdk::String::from_str(&env, "Plugin execution failed"),
+                        },
+                    );
+                }
+                _ => {
+
+                    // Plugin executed successfully, continue
+                }
+            }
         }
 
         Ok(())

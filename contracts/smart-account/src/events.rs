@@ -1,5 +1,5 @@
 use crate::auth::signer::{Signer, SignerKey};
-use soroban_sdk::{contracttype, Address};
+use soroban_sdk::{contracttype, Address, String};
 
 #[contracttype]
 #[derive(Clone)]
@@ -65,4 +65,17 @@ pub struct PluginUninstalledEvent {
 #[derive(Clone)]
 pub struct PluginUninstallFailedEvent {
     pub plugin: Address,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct PluginAuthFailedEvent {
+    pub plugin: Address,
+    pub error: String,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct PolicyCallbackFailedEvent {
+    pub policy_address: Address,
 }
