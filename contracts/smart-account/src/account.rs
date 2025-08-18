@@ -3,19 +3,19 @@ use crate::auth::permissions::{PolicyCallback, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::config::{
-    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_POLICY, TOPIC_SIGNER, VERB_ADDED,
-    VERB_AUTH_FAILED, VERB_CALLBACK_FAILED, VERB_INSTALLED, VERB_REVOKED, VERB_UNINSTALLED,
+    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED,
+    VERB_AUTH_FAILED, VERB_INSTALLED, VERB_REVOKED, VERB_UNINSTALLED,
     VERB_UNINSTALL_FAILED, VERB_UPDATED,
 };
 use crate::error::Error;
 use crate::events::{
     PluginAuthFailedEvent, PluginInstalledEvent, PluginUninstallFailedEvent,
-    PluginUninstalledEvent, PolicyCallbackFailedEvent, SignerAddedEvent, SignerRevokedEvent,
+    PluginUninstalledEvent, SignerAddedEvent, SignerRevokedEvent,
     SignerUpdatedEvent,
 };
 use crate::interface::SmartAccountInterface;
 use crate::plugin::SmartAccountPluginClient;
-use crate::{handle_nested_result_failure, SignerPolicy};
+use crate::handle_nested_result_failure;
 use initializable::{only_not_initialized, Initializable};
 use smart_account_interfaces::SmartAccountPolicy;
 use soroban_sdk::{
