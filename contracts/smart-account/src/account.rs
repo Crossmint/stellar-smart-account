@@ -3,19 +3,17 @@ use crate::auth::permissions::{PolicyCallback, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::config::{
-    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED,
-    VERB_AUTH_FAILED, VERB_INSTALLED, VERB_REVOKED, VERB_UNINSTALLED,
-    VERB_UNINSTALL_FAILED, VERB_UPDATED,
+    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_AUTH_FAILED,
+    VERB_INSTALLED, VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
 };
 use crate::error::Error;
 use crate::events::{
     PluginAuthFailedEvent, PluginInstalledEvent, PluginUninstallFailedEvent,
-    PluginUninstalledEvent, SignerAddedEvent, SignerRevokedEvent,
-    SignerUpdatedEvent,
+    PluginUninstalledEvent, SignerAddedEvent, SignerRevokedEvent, SignerUpdatedEvent,
 };
+use crate::handle_nested_result_failure;
 use crate::interface::SmartAccountInterface;
 use crate::plugin::SmartAccountPluginClient;
-use crate::handle_nested_result_failure;
 use initializable::{only_not_initialized, Initializable};
 use smart_account_interfaces::SmartAccountPolicy;
 use soroban_sdk::{
@@ -173,9 +171,9 @@ impl SmartAccountInterface for SmartAccount {
             return Err(Error::CannotRevokeAdminSigner);
         }
         if let SignerRole::Standard(policies) = signer_to_revoke.role() {
-            policies
-                .iter()
-                .for_each(|policy| policy.on_revoke(env).unwrap());
+            for policy in policies {
+                policy.on_revoke(env)?;
+            }
         }
         storage.delete::<SignerKey>(env, &signer_key)?;
         env.events().publish(
