@@ -71,6 +71,11 @@ impl SmartAccountInterface for SmartAccount {
             panic_with_error!(env, Error::InsufficientPermissionsOnCreation);
         }
 
+        // Initialize admin count to 0 before adding signers
+        Storage::persistent()
+            .store(&env, &ADMIN_COUNT_KEY, &0u32)
+            .unwrap_or_else(|e| panic_with_error!(env, Error::from(e)));
+
         // Register signers. Duplication will fail
         for signer in signers.iter() {
             SmartAccount::add_signer(&env, signer).unwrap_or_else(|e| panic_with_error!(env, e));
@@ -107,7 +112,8 @@ impl SmartAccountInterface for SmartAccount {
             let count = storage
                 .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
                 .unwrap_or(0);
-            storage.store::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &(count + 1))?;
+            let new_count = count.checked_add(1).ok_or(Error::MaxSignersReached)?;
+            storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
         }
         env.events()
             .publish((TOPIC_SIGNER, VERB_ADDED), SignerAddedEvent::from(signer));
@@ -129,12 +135,17 @@ impl SmartAccountInterface for SmartAccount {
             if count <= 1 {
                 return Err(Error::CannotDowngradeLastAdmin);
             }
-            storage.store::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &(count - 1))?;
+            // Use checked_sub to detect underflow and handle it as an error
+            let new_count = count
+                .checked_sub(1)
+                .ok_or(Error::CannotDowngradeLastAdmin)?;
+            storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
         } else if old_signer.role() != SignerRole::Admin && signer.role() == SignerRole::Admin {
             let count = storage
                 .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
                 .unwrap_or(0);
-            storage.store::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &(count + 1))?;
+            let new_count = count.checked_add(1).ok_or(Error::MaxSignersReached)?;
+            storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
         }
         storage.update::<SignerKey, Signer>(env, &key, &signer)?;
         env.events().publish(

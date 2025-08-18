@@ -31,6 +31,7 @@ pub enum Error {
     SignerExpired = 23,
     CannotRevokeAdminSigner = 24,
     CannotDowngradeLastAdmin = 25,
+    MaxSignersReached = 26,
 
     // === Authentication & Signature Errors (40-59) ===
     /// No matching signature found for the given criteria
