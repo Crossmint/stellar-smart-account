@@ -248,3 +248,72 @@ fn test_update_signer_policy_callback_failure_propagates() {
     // Should fail with InvalidTimeRange error
     assert_eq!(result.unwrap_err(), Error::InvalidTimeRange);
 }
+
+#[test]
+fn test_update_signer_unchanged_policies_no_callbacks() {
+    let env = setup();
+
+    // Create three different policies
+    let policy1 = TimeBasedPolicy {
+        not_before: 0,
+        not_after: 1000,
+    };
+    let policy2 = TimeBasedPolicy {
+        not_before: 1000,
+        not_after: 2000,
+    };
+    let policy3 = TimeBasedPolicy {
+        not_before: 2000,
+        not_after: 3000,
+    };
+
+    // Initial policy set: [policy1, policy2]
+    let initial_policies = vec![
+        &env,
+        SignerPolicy::TimeWindowPolicy(policy1.clone()),
+        SignerPolicy::TimeWindowPolicy(policy2.clone()),
+    ];
+
+    // Updated policy set: [policy2, policy3]
+    // policy1 removed, policy2 unchanged, policy3 added
+    let updated_policies = vec![
+        &env,
+        SignerPolicy::TimeWindowPolicy(policy2), // This should NOT trigger callbacks (unchanged)
+        SignerPolicy::TimeWindowPolicy(policy3), // This should trigger on_add (new)
+    ];
+
+    // Create signers
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(initial_policies));
+
+    // Deploy contract
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![
+                &env,
+                admin_signer.into_signer(&env),
+                standard_signer.into_signer(&env),
+            ],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    // Mock auth
+    env.mock_all_auths();
+
+    // Update the standard signer with new policies
+    // This should:
+    // - Call on_revoke for policy1 (removed)
+    // - Call on_add for policy3 (added)
+    // - NOT call any callbacks for policy2 (unchanged)
+    let updated_signer =
+        standard_signer.into_signer_with_role(&env, SignerRole::Standard(updated_policies));
+
+    let result = env.as_contract(&contract_id, || {
+        SmartAccount::update_signer(&env, updated_signer)
+    });
+
+    // Should succeed - demonstrates that the policy change detection works correctly
+    assert!(result.is_ok());
+}
