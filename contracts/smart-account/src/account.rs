@@ -205,6 +205,7 @@ impl SmartAccountInterface for SmartAccount {
             return Err(Error::PluginNotFound);
         }
         existing_plugins.remove(plugin.clone());
+        storage.update(env, &PLUGINS_KEY, &existing_plugins)?;
 
         // Counterwise to install, we don't want to fail if the plugin's on_uninstall fails,
         // as it would prevent an admin from uninstalling a potentially-malicious plugin.
