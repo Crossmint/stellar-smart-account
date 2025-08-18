@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
   "contracts/contract-factory",
-  "contracts/deny-list-policy",
   "contracts/examples/plugin-policy-example",
   "contracts/initializable",
   "contracts/smart-account",
