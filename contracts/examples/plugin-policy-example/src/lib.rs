@@ -95,22 +95,21 @@ impl SmartAccountPolicy for PluginPolicyContract {
                 let ContractContext { fn_name, args, .. } = contract_context;
 
                 // Check if this is a transfer function call
-                if fn_name == symbol_short!("transfer")
-                    && args.len() >= 3 {
-                        if let Ok(amount) = i128::try_from_val(env, &args.get(2).unwrap()) {
-                            if amount > TRANSFER_LIMIT {
-                                env.events().publish(
-                                    (symbol_short!("DENY"), &source),
-                                    TransferDeniedEvent {
-                                        source: source.clone(),
-                                        amount,
-                                        limit: TRANSFER_LIMIT,
-                                    },
-                                );
-                                return false;
-                            }
+                if fn_name == symbol_short!("transfer") && args.len() >= 3 {
+                    if let Ok(amount) = i128::try_from_val(env, &args.get(2).unwrap()) {
+                        if amount > TRANSFER_LIMIT {
+                            env.events().publish(
+                                (symbol_short!("DENY"), &source),
+                                TransferDeniedEvent {
+                                    source: source.clone(),
+                                    amount,
+                                    limit: TRANSFER_LIMIT,
+                                },
+                            );
+                            return false;
                         }
                     }
+                }
             }
         }
 
