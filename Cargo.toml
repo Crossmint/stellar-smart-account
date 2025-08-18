@@ -1,7 +1,15 @@
 [workspace]
 resolver = "2"
 members = [
-  "contracts/*",
+  "contracts/contract-factory",
+  "contracts/deny-list-policy",
+  "contracts/examples/plugin-policy-example",
+  "contracts/initializable",
+  "contracts/smart-account",
+  "contracts/smart-account-interfaces",
+  "contracts/storage",
+  "contracts/testing/hello-world",
+  "contracts/upgradeable",
 ]
 
 [workspace.package]
@@ -14,8 +22,10 @@ contract-factory = { path = "contracts/contract-factory" }
 initializable = { path = "contracts/initializable" }
 storage = { path = "contracts/storage" }
 upgradeable = { path = "contracts/upgradeable" }
-sac-token-policy = { path = "contracts/upgradeable" }
+deny-list-policy = { path = "contracts/deny-list-policy" }
 smart-account-interfaces = { path = "contracts/smart-account-interfaces" }
+plugin-policy-example = { path = "contracts/examples/plugin-policy-example" } 
+hello-world = { path = "contracts/testing/hello-world" } 
 
 [profile.release]
 opt-level = "z"
