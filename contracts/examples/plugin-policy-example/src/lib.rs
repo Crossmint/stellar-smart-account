@@ -51,7 +51,7 @@ impl SmartAccountPlugin for PluginPolicyContract {
             (symbol_short!("AUTH"), &source),
             AuthEvent {
                 source: source.clone(),
-                context_count: contexts.len() as u32,
+                context_count: contexts.len(),
                 counter: new_counter,
             },
         );
@@ -82,7 +82,7 @@ impl SmartAccountPolicy for PluginPolicyContract {
             (symbol_short!("POL_AUTH"), &source),
             AuthEvent {
                 source: source.clone(),
-                context_count: contexts.len() as u32,
+                context_count: contexts.len(),
                 counter: new_counter,
             },
         );
@@ -95,8 +95,8 @@ impl SmartAccountPolicy for PluginPolicyContract {
                 let ContractContext { fn_name, args, .. } = contract_context;
 
                 // Check if this is a transfer function call
-                if fn_name == symbol_short!("transfer") {
-                    if args.len() >= 3 {
+                if fn_name == symbol_short!("transfer")
+                    && args.len() >= 3 {
                         if let Ok(amount) = i128::try_from_val(env, &args.get(2).unwrap()) {
                             if amount > TRANSFER_LIMIT {
                                 env.events().publish(
@@ -111,7 +111,6 @@ impl SmartAccountPolicy for PluginPolicyContract {
                             }
                         }
                     }
-                }
             }
         }
 
@@ -184,7 +183,7 @@ mod test {
         contexts.push_back(transfer_context);
 
         // Should be authorized (amount <= 100)
-        assert_eq!(client.is_authorized(&source, &contexts), true);
+        assert!(client.is_authorized(&source, &contexts));
     }
 
     #[test]
@@ -208,7 +207,7 @@ mod test {
         contexts.push_back(transfer_context);
 
         // Should NOT be authorized (amount > 100)
-        assert_eq!(client.is_authorized(&source, &contexts), false);
+        assert!(!client.is_authorized(&source, &contexts));
     }
 
     #[test]
@@ -232,6 +231,6 @@ mod test {
         contexts.push_back(other_context);
 
         // Should be authorized (not a transfer)
-        assert_eq!(client.is_authorized(&source, &contexts), true);
+        assert!(client.is_authorized(&source, &contexts));
     }
 }
