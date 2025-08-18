@@ -156,7 +156,6 @@ impl SmartAccountInterface for SmartAccount {
         if let SignerRole::Standard(policies) = signer_to_revoke.role() {
             Self::deactivate_policies(env, &policies)?;
         }
-
         storage.delete::<SignerKey>(env, &signer_key)?;
         env.events().publish(
             (TOPIC_SIGNER, VERB_REVOKED),
