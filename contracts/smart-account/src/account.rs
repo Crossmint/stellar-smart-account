@@ -362,7 +362,7 @@ impl SmartAccount {
         for old_policy in old_policies {
             let policy_key = Self::policy_to_key(env, &old_policy);
 
-            if new_policy_set.contains_key(policy_key.clone()) {
+            if new_policy_set.contains_key(policy_key) {
                 // Policy exists in both sets, mark as used
                 new_policy_set.set(policy_key, false);
             } else {
@@ -399,7 +399,7 @@ impl SmartAccount {
                 // For external policies, we can use the address as a unique identifier
                 // Convert address to a simple hash - this is deterministic for the same address
                 let addr_str = external_policy.policy_address.to_string();
-                let len = addr_str.len() as u32;
+                let len = addr_str.len();
 
                 // Simple hash based on string length - good enough for small policy sets
                 // In practice, external policies with same address are identical
