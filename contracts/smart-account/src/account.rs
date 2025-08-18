@@ -169,6 +169,11 @@ impl SmartAccountInterface for SmartAccount {
         if signer_to_revoke.role() == SignerRole::Admin {
             return Err(Error::CannotRevokeAdminSigner);
         }
+        if let SignerRole::Standard(policies) = signer_to_revoke.role() {
+            for policy in policies {
+                policy.on_revoke(env)?;
+            }
+        }
         storage.delete::<SignerKey>(env, &signer_key)?;
         env.events().publish(
             (TOPIC_SIGNER, VERB_REVOKED),
