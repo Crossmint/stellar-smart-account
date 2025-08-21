@@ -57,9 +57,15 @@ impl SignatureVerifier for Secp256r1Signer {
                     serde_json_core::de::from_slice(client_data_json)
                         .map_err(|_| Error::InvalidWebauthnClientDataJson)?;
 
-                let expected_challenge = base64_url::encode(&signature_payload.to_array());
-                if client_data_json.challenge.as_bytes() != expected_challenge.as_bytes() {
-                    return Err(Error::ClientDataJsonIncorrectChallenge);
+                // Compare challenge directly without storing the result
+                {
+                    use base64ct::{Base64UrlUnpadded, Encoding};
+                    let mut buf = [0u8; 64]; // 32 bytes * 4/3 = ~43 bytes, rounded up
+                    let expected_challenge = Base64UrlUnpadded::encode(&signature_payload.to_array(), &mut buf)
+                        .map_err(|_| Error::InvalidWebauthnClientDataJson)?;
+                    if client_data_json.challenge.as_bytes() != expected_challenge.as_bytes() {
+                        return Err(Error::ClientDataJsonIncorrectChallenge);
+                    }
                 }
 
                 // // Reaching this point means the signature is valid
