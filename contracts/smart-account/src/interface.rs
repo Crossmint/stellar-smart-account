@@ -19,4 +19,6 @@ pub trait SmartAccountInterface {
     fn install_plugin(env: &Env, plugin: Address) -> Result<(), Error>;
     /// Uninstalls a plugin and invokes its uninstall hook. Emits uninstall_failed on hook error.
     fn uninstall_plugin(env: &Env, plugin: Address) -> Result<(), Error>;
+    /// Checks if a plugin is installed.
+    fn is_plugin_installed(env: &Env, plugin: Address) -> bool;
 }

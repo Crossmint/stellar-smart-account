@@ -244,6 +244,13 @@ impl SmartAccountInterface for SmartAccount {
 
         Ok(())
     }
+
+    fn is_plugin_installed(env: &Env, plugin: Address) -> bool {
+        Storage::instance()
+            .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
+            .unwrap()
+            .contains_key(plugin)
+    }
 }
 
 // ============================================================================
