@@ -1,3 +1,4 @@
+use crate::auth::signers::Ed25519Signer;
 use crate::interface::SmartAccountInterface;
 use crate::tests::test_utils::TestSignerTrait as _;
 use soroban_sdk::auth::Context;
@@ -20,21 +21,48 @@ pub struct DummyExternalPolicy;
 impl DummyExternalPolicy {
     pub fn on_add(env: &Env, source: Address) -> Result<(), Error> {
         source.require_auth();
-        env.events().publish((symbol_short!("ON_ADD"),), &source);
+        env.events()
+            .publish((symbol_short!("ON_ADD"),), &env.current_contract_address());
         Ok(())
     }
 
     pub fn on_revoke(env: &Env, source: Address) -> Result<(), Error> {
         source.require_auth();
-        env.events().publish((symbol_short!("ON_REVOKE"),), &source);
+        env.events().publish(
+            (symbol_short!("ON_REVOKE"),),
+            &env.current_contract_address(),
+        );
         Ok(())
     }
 
     pub fn is_authorized(env: &Env, source: Address, _contexts: Vec<Context>) -> bool {
-        env.events().publish((symbol_short!("IS_AUTHZD"),), &source);
+        env.events().publish(
+            (symbol_short!("IS_AUTHZD"),),
+            &env.current_contract_address(),
+        );
         source.require_auth();
         true
     }
+}
+
+fn ensure_policy_event_is_emmited(env: &Env, policy_id: Address, event_name: Symbol) {
+    assert!(env.events().all().iter().any(|(_address, topics, data)| {
+        topics.iter().any(|topic| {
+            Symbol::try_from_val(env, &topic)
+                .map(|s| s == event_name && Address::try_from_val(env, &data).unwrap() == policy_id)
+                .unwrap_or(false)
+        })
+    }))
+}
+
+fn ensure_policy_event_is_not_emmited(env: &Env, policy_id: Address, event_name: Symbol) {
+    assert!(!env.events().all().iter().any(|(_address, topics, data)| {
+        topics.iter().any(|topic| {
+            Symbol::try_from_val(env, &topic)
+                .map(|s| s == event_name && Address::try_from_val(env, &data).unwrap() == policy_id)
+                .unwrap_or(false)
+        })
+    }))
 }
 
 //
@@ -130,20 +158,14 @@ fn test_add_signer_with_external_polic_calls_on_add() {
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
     let test_signer =
         Ed25519TestSigner::generate(SignerRole::Standard(vec![&env, policy])).into_signer(&env);
-    env.register(
+    let account_id = env.register(
         SmartAccount,
         (
             vec![&env, admin_signer, test_signer],
             Vec::<Address>::new(&env),
         ),
     );
-    assert!(env.events().all().iter().any(|(address, topics, data)| {
-        topics.iter().any(|topic| {
-            Symbol::try_from_val(&env, &topic)
-                .map(|s| s == symbol_short!("ON_ADD"))
-                .unwrap_or(false)
-        })
-    }));
+    ensure_policy_event_is_emmited(&env, policy_id, symbol_short!("ON_ADD"));
 }
 
 #[test]
@@ -175,11 +197,78 @@ fn test_revoke_signer_with_external_polic_calls_on_revoke() {
     })
     .unwrap();
 
-    assert!(env.events().all().iter().any(|(address, topics, data)| {
-        topics.iter().any(|topic| {
-            Symbol::try_from_val(&env, &topic)
-                .map(|s| s == symbol_short!("ON_REVOKE"))
-                .unwrap_or(false)
+    ensure_policy_event_is_emmited(&env, policy_id, symbol_short!("ON_REVOKE"));
+}
+
+#[test]
+fn test_update_signer_with_external_polic_lifecycle() {
+    let env = setup();
+    let policy_id_1 = env.register(DummyExternalPolicy, ());
+    let policy_id_2 = env.register(DummyExternalPolicy, ());
+    let policy_1 = SignerPolicy::ExternalValidatorPolicy(ExternalPolicy {
+        policy_address: policy_id_1.clone(),
+    });
+    let policy_2 = SignerPolicy::ExternalValidatorPolicy(ExternalPolicy {
+        policy_address: policy_id_2.clone(),
+    });
+
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
+    let test_signer_1 =
+        Ed25519TestSigner::generate(SignerRole::Standard(vec![&env, policy_1])).into_signer(&env);
+    if let Signer::Ed25519(core_signer, _) = test_signer_1.clone() {
+        let test_signer_2 = Signer::Ed25519(
+            Ed25519Signer::new(core_signer.public_key),
+            SignerRole::Standard(vec![&env, policy_2]),
+        );
+
+        let account_id = env.register(
+            SmartAccount,
+            (
+                vec![&env, admin_signer, test_signer_1.clone()],
+                Vec::<Address>::new(&env),
+            ),
+        );
+        env.mock_all_auths();
+
+        ensure_policy_event_is_emmited(&env, policy_id_1.clone(), symbol_short!("ON_ADD"));
+
+        env.as_contract(&account_id, || {
+            SmartAccount::update_signer(&env, test_signer_2)
         })
-    }));
+        .unwrap();
+        ensure_policy_event_is_emmited(&env, policy_id_1, symbol_short!("ON_REVOKE"));
+        ensure_policy_event_is_emmited(&env, policy_id_2, symbol_short!("ON_ADD"));
+    } else {
+        unreachable!("Test signer is not an Ed25519 signer");
+    }
+}
+
+#[test]
+fn test_update_signer_with_external_polic_lifecycle_with_same_policy() {
+    let env = setup();
+    let policy_id_1 = env.register(DummyExternalPolicy, ());
+    let policy_1 = SignerPolicy::ExternalValidatorPolicy(ExternalPolicy {
+        policy_address: policy_id_1.clone(),
+    });
+
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
+    let test_signer_1 =
+        Ed25519TestSigner::generate(SignerRole::Standard(vec![&env, policy_1])).into_signer(&env);
+
+    let account_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin_signer, test_signer_1.clone()],
+            Vec::<Address>::new(&env),
+        ),
+    );
+    env.mock_all_auths();
+
+    ensure_policy_event_is_emmited(&env, policy_id_1.clone(), symbol_short!("ON_ADD"));
+
+    env.as_contract(&account_id, || {
+        SmartAccount::update_signer(&env, test_signer_1)
+    })
+    .unwrap();
+    ensure_policy_event_is_not_emmited(&env, policy_id_1.clone(), symbol_short!("ON_REVOKE"));
 }
