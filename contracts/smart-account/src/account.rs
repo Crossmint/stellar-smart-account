@@ -152,11 +152,11 @@ impl SmartAccountInterface for SmartAccount {
             return Err(Error::CannotRevokeAdminSigner);
         }
 
+        storage.delete::<SignerKey>(env, &signer_key)?;
         // Deactivate policies if this is a Standard signer
         if let SignerRole::Standard(policies) = signer_to_revoke.role() {
             Self::deactivate_policies(env, &policies)?;
         }
-        storage.delete::<SignerKey>(env, &signer_key)?;
         env.events().publish(
             (TOPIC_SIGNER, VERB_REVOKED),
             SignerRevokedEvent::from(signer_to_revoke),
@@ -225,6 +225,13 @@ impl SmartAccountInterface for SmartAccount {
         );
 
         Ok(())
+    }
+
+    fn is_plugin_installed(env: &Env, plugin: Address) -> bool {
+        Storage::instance()
+            .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
+            .unwrap()
+            .contains_key(plugin)
     }
 }
 

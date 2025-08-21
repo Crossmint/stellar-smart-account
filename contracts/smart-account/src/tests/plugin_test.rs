@@ -88,6 +88,11 @@ fn test_uninstall_plugin_persists_removal() {
     )
     .unwrap();
 
+    // Verify plugin is installed
+    assert!(env.as_contract(&smart_account_id, || {
+        SmartAccount::is_plugin_installed(&env, plugin_id.clone())
+    }));
+
     // Verify plugin received on_auth call
     let count_after_install = env.as_contract(&plugin_id, || DummyPlugin::get_count(&env));
     assert_eq!(
@@ -100,6 +105,11 @@ fn test_uninstall_plugin_persists_removal() {
         SmartAccount::uninstall_plugin(&env, plugin_id.clone())
     })
     .unwrap();
+
+    // Verify plugin is uninstalled
+    assert!(!env.as_contract(&smart_account_id, || {
+        SmartAccount::is_plugin_installed(&env, plugin_id.clone())
+    }));
 
     // Trigger __check_auth again to see if plugin.on_auth still runs
     let payload2 = BytesN::random(&env);
