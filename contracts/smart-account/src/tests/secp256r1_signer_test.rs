@@ -169,7 +169,7 @@ fn test_secp256r1_webauthn_wrong_challenge_rejected() {
         .verify(&env, &test_data.signature_payload, &wrong_proof);
     assert!(matches!(
         result,
-        Err(Error::ClientDataJsonChallengeIncorrect)
+        Err(Error::ClientDataJsonIncorrectChallenge)
     ));
 }
 

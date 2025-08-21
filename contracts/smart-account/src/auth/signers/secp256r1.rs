@@ -59,7 +59,7 @@ impl SignatureVerifier for Secp256r1Signer {
 
                 let expected_challenge = base64_url::encode(&signature_payload.to_array());
                 if client_data_json.challenge.as_bytes() != expected_challenge.as_bytes() {
-                    return Err(Error::ClientDataJsonChallengeIncorrect);
+                    return Err(Error::ClientDataJsonIncorrectChallenge);
                 }
 
                 // // Reaching this point means the signature is valid

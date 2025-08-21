@@ -43,7 +43,7 @@ pub enum Error {
     /// No proofs found in the authentication entry
     NoProofsInAuthEntry = 43,
     /// Client data JSON challenge incorrect
-    ClientDataJsonChallengeIncorrect = 44,
+    ClientDataJsonIncorrectChallenge = 44,
     /// JSON parse error
     InvalidWebauthnClientDataJson = 45,
 
