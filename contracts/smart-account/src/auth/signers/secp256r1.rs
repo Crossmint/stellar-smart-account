@@ -17,8 +17,18 @@ impl Secp256r1Signer {
     }
 }
 
+#[derive(serde::Deserialize)]
+struct ClientDataJson<'a> {
+    challenge: &'a str,
+}
+
 impl SignatureVerifier for Secp256r1Signer {
-    fn verify(&self, env: &Env, _payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
+    fn verify(
+        &self,
+        env: &Env,
+        signature_payload: &BytesN<32>,
+        proof: &SignerProof,
+    ) -> Result<(), Error> {
         match proof {
             SignerProof::Secp256r1(signature) => {
                 let Secp256r1Signature {
@@ -36,7 +46,23 @@ impl SignatureVerifier for Secp256r1Signer {
                     &env.crypto().sha256(&authenticator_data),
                     &signature,
                 );
-                // Reaching this point means the signature is valid
+
+                if client_data_json.len() > 1024 {
+                    return Err(Error::InvalidWebauthnClientDataJson);
+                }
+
+                let client_data_json = client_data_json.to_buffer::<1024>();
+                let client_data_json = client_data_json.as_slice();
+                let (client_data_json, _): (ClientDataJson, _) =
+                    serde_json_core::de::from_slice(client_data_json)
+                        .map_err(|_| Error::InvalidWebauthnClientDataJson)?;
+
+                let expected_challenge = base64_url::encode(&signature_payload.to_array());
+                if client_data_json.challenge.as_bytes() != expected_challenge.as_bytes() {
+                    return Err(Error::ClientDataJsonChallengeIncorrect);
+                }
+
+                // // Reaching this point means the signature is valid
                 Ok(())
             }
             _ => Err(Error::InvalidProofType),

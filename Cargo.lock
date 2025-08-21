@@ -251,6 +251,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "base64-url"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38e2b6c78c06f7288d5e3c3d683bde35a79531127c83b087e5d0d77c974b4b28"
+dependencies = [
+ "base64 0.22.1",
+]
+
+[[package]]
 name = "base64ct"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1664,6 +1673,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-json-core"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b81787e655bd59cecadc91f7b6b8651330b2be6c33246039a65e5cd6f4e0828"
+dependencies = [
+ "ryu",
+ "serde",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.219"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1796,13 +1815,19 @@ name = "smart-account"
 version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
+ "base64-url",
+ "base64ct",
  "ed25519-dalek 1.0.1",
  "env_logger",
  "initializable",
  "log",
+ "p256",
  "passkey",
  "rand 0.7.3",
+ "serde",
+ "serde-json-core",
  "serde_json",
+ "sha2 0.10.9",
  "smart-account-interfaces",
  "soroban-sdk",
  "stellar-strkey 0.0.13",

@@ -15,6 +15,9 @@ initializable = { workspace = true }
 storage = { workspace = true }
 upgradeable = { workspace = true }
 smart-account-interfaces = { workspace = true }
+base64-url = "3.0.0"
+serde = { version = "1", default-features = false }
+serde-json-core = { version = "0.6.0", default-features = false }
 
 
 [dev-dependencies]
@@ -25,5 +28,9 @@ base64 = "0.22"
 ed25519-dalek = { version = "1" }
 stellar-strkey = { version = "0.0.13" }
 rand = "0.7.3"
+p256 = { version = "0.13", features = ["ecdsa"] }
+sha2 = "0.10"
+base64ct = "1.6"
+serde = { version = "1.0", features = ["derive"] }
 env_logger = "0.11.8"
 log = "0.4.27"
