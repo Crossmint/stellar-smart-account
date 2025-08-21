@@ -2,6 +2,7 @@ use crate::auth::proof::{Secp256r1Signature, SignerProof};
 use crate::auth::signer::SignerKey;
 use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
+use base64ct::{Base64UrlUnpadded, Encoding};
 use soroban_sdk::{contracttype, Bytes, BytesN, Env};
 
 #[contracttype]
@@ -57,7 +58,10 @@ impl SignatureVerifier for Secp256r1Signer {
                     serde_json_core::de::from_slice(client_data_json)
                         .map_err(|_| Error::InvalidWebauthnClientDataJson)?;
 
-                let expected_challenge = base64_url::encode(&signature_payload.to_array());
+                let mut buf = [0u8; 64];
+                let expected_challenge =
+                    Base64UrlUnpadded::encode(&signature_payload.to_array(), &mut buf)
+                        .map_err(|_| Error::InvalidWebauthnClientDataJson)?;
                 if client_data_json.challenge.as_bytes() != expected_challenge.as_bytes() {
                     return Err(Error::ClientDataJsonIncorrectChallenge);
                 }

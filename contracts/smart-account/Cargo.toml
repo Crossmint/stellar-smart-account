@@ -15,7 +15,7 @@ initializable = { workspace = true }
 storage = { workspace = true }
 upgradeable = { workspace = true }
 smart-account-interfaces = { workspace = true }
-base64-url = "3.0.0"
+base64ct = { version = "1.6", default-features = false }
 serde = { version = "1", default-features = false }
 serde-json-core = { version = "0.6.0", default-features = false }
 
