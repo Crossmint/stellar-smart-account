@@ -1,5 +1,6 @@
 use crate::auth::core::authorizer::Authorizer;
 use crate::auth::permissions::{PolicyCallback, SignerPolicy, SignerRole};
+use crate::auth::plugins::Plugin;
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::config::{
@@ -64,7 +65,7 @@ impl SmartAccount {
 /// for all administrative operations on the smart account.
 #[contractimpl]
 impl SmartAccountInterface for SmartAccount {
-    fn __constructor(env: Env, signers: Vec<Signer>, plugins: Vec<Address>) {
+    fn __constructor(env: Env, signers: Vec<Signer>, plugins: Vec<Plugin>) {
         only_not_initialized!(&env);
 
         // Check that there is at least one admin signer to prevent the contract from being locked out.
@@ -164,22 +165,22 @@ impl SmartAccountInterface for SmartAccount {
         Ok(())
     }
 
-    fn install_plugin(env: &Env, plugin: Address) -> Result<(), Error> {
+    fn install_plugin(env: &Env, plugin: Plugin) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
 
         // Store the plugin in the storage
         let storage = Storage::instance();
         let mut existing_plugins = storage
-            .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
+            .get::<Symbol, Map<Plugin, ()>>(env, &PLUGINS_KEY)
             .unwrap();
         if existing_plugins.contains_key(plugin.clone()) {
             return Err(Error::PluginAlreadyInstalled);
         }
         existing_plugins.set(plugin.clone(), ());
-        storage.update::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY, &existing_plugins)?;
+        storage.update::<Symbol, Map<Plugin, ()>>(env, &PLUGINS_KEY, &existing_plugins)?;
 
         // Call the plugin's on_install callback for initialization
-        SmartAccountPluginClient::new(env, &plugin)
+        SmartAccountPluginClient::new(env, &plugin.address())
             .try_on_install(&env.current_contract_address())
             .map_err(|_| Error::PluginInitializationFailed)?
             .map_err(|_| Error::PluginInitializationFailed)?;
@@ -192,12 +193,12 @@ impl SmartAccountInterface for SmartAccount {
         Ok(())
     }
 
-    fn uninstall_plugin(env: &Env, plugin: Address) -> Result<(), Error> {
+    fn uninstall_plugin(env: &Env, plugin: Plugin) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
 
         let storage = Storage::instance();
         let mut existing_plugins = storage
-            .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
+            .get::<Symbol, Map<Plugin, ()>>(env, &PLUGINS_KEY)
             .unwrap();
 
         if !existing_plugins.contains_key(plugin.clone()) {
@@ -208,7 +209,7 @@ impl SmartAccountInterface for SmartAccount {
 
         // Counterwise to install, we don't want to fail if the plugin's on_uninstall fails,
         // as it would prevent an admin from uninstalling a potentially-malicious plugin.
-        let res = SmartAccountPluginClient::new(env, &plugin)
+        let res = SmartAccountPluginClient::new(env, &plugin.address())
             .try_on_uninstall(&env.current_contract_address());
         handle_nested_result_failure!(res, {
             env.events().publish(
@@ -227,9 +228,9 @@ impl SmartAccountInterface for SmartAccount {
         Ok(())
     }
 
-    fn is_plugin_installed(env: &Env, plugin: Address) -> bool {
+    fn is_plugin_installed(env: &Env, plugin: Plugin) -> bool {
         Storage::instance()
-            .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
+            .get::<Symbol, Map<Plugin, ()>>(env, &PLUGINS_KEY)
             .unwrap()
             .contains_key(plugin)
     }
@@ -432,29 +433,11 @@ impl CustomAccountInterface for SmartAccount {
 
         let storage = Storage::instance();
         for (plugin, _) in storage
-            .get::<Symbol, Map<Address, ()>>(&env, &PLUGINS_KEY)
+            .get::<Symbol, Map<Plugin, ()>>(&env, &PLUGINS_KEY)
             .unwrap()
             .iter()
         {
-            // Use try_on_auth to prevent plugin failures from blocking authorization
-            match SmartAccountPluginClient::new(&env, &plugin)
-                .try_on_auth(&env.current_contract_address(), &auth_contexts)
-            {
-                Err(_error) => {
-                    // Plugin failed, emit event for telemetry but don't revert
-                    env.events().publish(
-                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
-                        PluginAuthFailedEvent {
-                            plugin: plugin.clone(),
-                            error: soroban_sdk::String::from_str(&env, "Plugin execution failed"),
-                        },
-                    );
-                }
-                _ => {
-
-                    // Plugin executed successfully, continue
-                }
-            }
+            plugin.execute(&env, &auth_contexts)?;
         }
 
         Ok(())

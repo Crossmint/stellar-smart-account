@@ -1,3 +1,4 @@
+use crate::auth::plugins::Plugin;
 use crate::auth::signer::{Signer, SignerKey};
 use soroban_sdk::{contracttype, Address, String};
 
@@ -52,25 +53,25 @@ impl From<Signer> for SignerRevokedEvent {
 #[contracttype]
 #[derive(Clone)]
 pub struct PluginInstalledEvent {
-    pub plugin: Address,
+    pub plugin: Plugin,
 }
 
 #[contracttype]
 #[derive(Clone)]
 pub struct PluginUninstalledEvent {
-    pub plugin: Address,
+    pub plugin: Plugin,
 }
 
 #[contracttype]
 #[derive(Clone)]
 pub struct PluginUninstallFailedEvent {
-    pub plugin: Address,
+    pub plugin: Plugin,
 }
 
 #[contracttype]
 #[derive(Clone)]
 pub struct PluginAuthFailedEvent {
-    pub plugin: Address,
+    pub plugin: Plugin,
     pub error: String,
 }
 
