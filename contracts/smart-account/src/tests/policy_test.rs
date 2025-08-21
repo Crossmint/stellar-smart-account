@@ -22,7 +22,7 @@ impl DummyExternalPolicy {
     pub fn on_add(env: &Env, source: Address) -> Result<(), Error> {
         source.require_auth();
         env.events()
-            .publish((symbol_short!("ON_ADD"),), &env.current_contract_address());
+            .publish((symbol_short!("ON_ADD"),), env.current_contract_address());
         Ok(())
     }
 
@@ -30,7 +30,7 @@ impl DummyExternalPolicy {
         source.require_auth();
         env.events().publish(
             (symbol_short!("ON_REVOKE"),),
-            &env.current_contract_address(),
+            env.current_contract_address(),
         );
         Ok(())
     }
@@ -38,7 +38,7 @@ impl DummyExternalPolicy {
     pub fn is_authorized(env: &Env, source: Address, _contexts: Vec<Context>) -> bool {
         env.events().publish(
             (symbol_short!("IS_AUTHZD"),),
-            &env.current_contract_address(),
+            env.current_contract_address(),
         );
         source.require_auth();
         true
@@ -158,7 +158,7 @@ fn test_add_signer_with_external_polic_calls_on_add() {
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
     let test_signer =
         Ed25519TestSigner::generate(SignerRole::Standard(vec![&env, policy])).into_signer(&env);
-    let account_id = env.register(
+    env.register(
         SmartAccount,
         (
             vec![&env, admin_signer, test_signer],
