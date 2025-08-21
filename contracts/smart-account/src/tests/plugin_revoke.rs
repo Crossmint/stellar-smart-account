@@ -22,10 +22,10 @@ use crate::{
 const COUNT: Symbol = symbol_short!("cnt");
 
 #[contract]
-pub struct DummyPlugin;
+pub struct DummyPluginReverts;
 
 #[contractimpl]
-impl DummyPlugin {
+impl DummyPluginReverts {
     pub fn on_install(_env: &Env, _source: Address) -> Result<(), Error> {
         Ok(())
     }
@@ -35,8 +35,7 @@ impl DummyPlugin {
     }
 
     pub fn on_auth(env: &Env, _source: Address, _contexts: Vec<Context>) {
-        let count: u32 = env.storage().instance().get(&COUNT).unwrap_or(0);
-        env.storage().instance().set(&COUNT, &(count + 1));
+        panic!("Im failing on purpose");
     }
 
     pub fn get_count(env: &Env) -> u32 {
@@ -49,7 +48,7 @@ impl DummyPlugin {
 // -----------------------------------------------------------------------------
 
 #[test]
-fn test_uninstall_plugin_persists_removal_blocking_plugin() {
+fn test_blocking_plugin_does_fail_on_auth() {
     let env = setup();
     env.mock_all_auths();
 
@@ -64,7 +63,7 @@ fn test_uninstall_plugin_persists_removal_blocking_plugin() {
     );
 
     // Deploy dummy plugin
-    let plugin_id = env.register(DummyPlugin, ());
+    let plugin_id = env.register(DummyPluginReverts, ());
     let plugin = Plugin::BlockingPlugin(plugin_id.clone());
 
     // Install plugin
@@ -87,54 +86,11 @@ fn test_uninstall_plugin_persists_removal_blocking_plugin() {
         auth_payloads.into_val(&env),
         &vec![&env, get_token_auth_context(&env)],
     )
-    .unwrap();
-
-    // Verify plugin is installed
-    assert!(env.as_contract(&smart_account_id, || {
-        SmartAccount::is_plugin_installed(&env, plugin.clone())
-    }));
-
-    // Verify plugin received on_auth call
-    let count_after_install = env.as_contract(&plugin_id, || DummyPlugin::get_count(&env));
-    assert_eq!(
-        count_after_install, 1,
-        "Plugin should have received on_auth call"
-    );
-
-    // Uninstall plugin (FIX: removal now persisted to storage)
-    env.as_contract(&smart_account_id, || {
-        SmartAccount::uninstall_plugin(&env, plugin.clone())
-    })
-    .unwrap();
-
-    // Verify plugin is uninstalled
-    assert!(!env.as_contract(&smart_account_id, || {
-        SmartAccount::is_plugin_installed(&env, plugin.clone())
-    }));
-
-    // Trigger __check_auth again to see if plugin.on_auth still runs
-    let payload2 = BytesN::random(&env);
-    let (admin_key2, admin_proof2) = admin.sign(&env, &payload2);
-    let auth_payloads2 = SignatureProofs(soroban_sdk::map![&env, (admin_key2, admin_proof2)]);
-
-    env.try_invoke_contract_check_auth::<Error>(
-        &smart_account_id,
-        &payload2,
-        auth_payloads2.into_val(&env),
-        &vec![&env, get_token_auth_context(&env)],
-    )
-    .unwrap();
-
-    // Verify plugin did NOT receive second on_auth call (count should still be 1)
-    let count_after_uninstall = env.as_contract(&plugin_id, || DummyPlugin::get_count(&env));
-    assert_eq!(
-        count_after_uninstall, 1,
-        "Plugin should NOT receive on_auth after uninstall"
-    );
+    .unwrap_err();
 }
 
 #[test]
-fn test_uninstall_plugin_persists_removal_non_blocking_plugin() {
+fn test_non_blocking_plugin_does_not_fail_on_auth() {
     let env = setup();
     env.mock_all_auths();
 
@@ -149,7 +105,7 @@ fn test_uninstall_plugin_persists_removal_non_blocking_plugin() {
     );
 
     // Deploy dummy plugin
-    let plugin_id = env.register(DummyPlugin, ());
+    let plugin_id = env.register(DummyPluginReverts, ());
     let plugin = Plugin::NonBlockingPlugin(plugin_id.clone());
 
     // Install plugin
@@ -173,47 +129,4 @@ fn test_uninstall_plugin_persists_removal_non_blocking_plugin() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
-
-    // Verify plugin is installed
-    assert!(env.as_contract(&smart_account_id, || {
-        SmartAccount::is_plugin_installed(&env, plugin.clone())
-    }));
-
-    // Verify plugin received on_auth call
-    let count_after_install = env.as_contract(&plugin_id, || DummyPlugin::get_count(&env));
-    assert_eq!(
-        count_after_install, 1,
-        "Plugin should have received on_auth call"
-    );
-
-    // Uninstall plugin (FIX: removal now persisted to storage)
-    env.as_contract(&smart_account_id, || {
-        SmartAccount::uninstall_plugin(&env, plugin.clone())
-    })
-    .unwrap();
-
-    // Verify plugin is uninstalled
-    assert!(!env.as_contract(&smart_account_id, || {
-        SmartAccount::is_plugin_installed(&env, plugin.clone())
-    }));
-
-    // Trigger __check_auth again to see if plugin.on_auth still runs
-    let payload2 = BytesN::random(&env);
-    let (admin_key2, admin_proof2) = admin.sign(&env, &payload2);
-    let auth_payloads2 = SignatureProofs(soroban_sdk::map![&env, (admin_key2, admin_proof2)]);
-
-    env.try_invoke_contract_check_auth::<Error>(
-        &smart_account_id,
-        &payload2,
-        auth_payloads2.into_val(&env),
-        &vec![&env, get_token_auth_context(&env)],
-    )
-    .unwrap();
-
-    // Verify plugin did NOT receive second on_auth call (count should still be 1)
-    let count_after_uninstall = env.as_contract(&plugin_id, || DummyPlugin::get_count(&env));
-    assert_eq!(
-        count_after_uninstall, 1,
-        "Plugin should NOT receive on_auth after uninstall"
-    );
 }

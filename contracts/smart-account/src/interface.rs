@@ -1,5 +1,6 @@
 use soroban_sdk::{Address, Env, Vec};
 
+use crate::auth::plugins::Plugin;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::error::Error;
 
@@ -8,7 +9,7 @@ use crate::error::Error;
 /// Provides initialization, signer management, and plugin lifecycle operations.
 pub trait SmartAccountInterface {
     /// Initializes the contract with the given signers and plugins.
-    fn __constructor(env: Env, signers: Vec<Signer>, plugins: Vec<Address>);
+    fn __constructor(env: Env, signers: Vec<Signer>, plugins: Vec<Plugin>);
     /// Adds a new signer to the account.
     fn add_signer(env: &Env, signer: Signer) -> Result<(), Error>;
     /// Updates an existing signer configuration.
@@ -16,9 +17,9 @@ pub trait SmartAccountInterface {
     /// Revokes a signer by key.
     fn revoke_signer(env: &Env, signer: SignerKey) -> Result<(), Error>;
     /// Installs a plugin and invokes its initialization hook.
-    fn install_plugin(env: &Env, plugin: Address) -> Result<(), Error>;
+    fn install_plugin(env: &Env, plugin: Plugin) -> Result<(), Error>;
     /// Uninstalls a plugin and invokes its uninstall hook. Emits uninstall_failed on hook error.
-    fn uninstall_plugin(env: &Env, plugin: Address) -> Result<(), Error>;
+    fn uninstall_plugin(env: &Env, plugin: Plugin) -> Result<(), Error>;
     /// Checks if a plugin is installed.
-    fn is_plugin_installed(env: &Env, plugin: Address) -> bool;
+    fn is_plugin_installed(env: &Env, plugin: Plugin) -> bool;
 }
