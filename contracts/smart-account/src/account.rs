@@ -1,5 +1,5 @@
 use crate::auth::core::authorizer::Authorizer;
-use crate::auth::permissions::{SignerPolicy, SignerRole};
+use crate::auth::permissions::{PolicyCallback, SignerPolicy, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::config::{
@@ -239,7 +239,6 @@ impl SmartAccount {
         old_role: &SignerRole,
         new_role: &SignerRole,
     ) -> Result<(), Error> {
-        use crate::auth::permissions::SignerRole;
         match (old_role, new_role) {
             // Admin → Standard: decrease admin count, activate policies
             (SignerRole::Admin, SignerRole::Standard(policies)) => {
@@ -292,8 +291,6 @@ impl SmartAccount {
 
     /// Activates policies by calling their on_add callbacks
     fn activate_policies(env: &Env, policies: &Vec<SignerPolicy>) -> Result<(), Error> {
-        use crate::auth::permissions::PolicyCallback;
-
         for policy in policies {
             policy.on_add(env)?;
         }
@@ -302,8 +299,6 @@ impl SmartAccount {
 
     /// Deactivates policies by calling their on_revoke callbacks
     fn deactivate_policies(env: &Env, policies: &Vec<SignerPolicy>) -> Result<(), Error> {
-        use crate::auth::permissions::PolicyCallback;
-
         for policy in policies {
             policy.on_revoke(env)?;
         }
@@ -312,7 +307,6 @@ impl SmartAccount {
 
     /// Handles changes to a policy set by calling appropriate callbacks
     ///
-    /// True O(n+m) implementation using hash map for O(1) lookups:
     /// - Policies only in old set: on_revoke() called (removed)
     /// - Policies only in new set: on_add() called (added)
     /// - Policies in both sets: no callbacks (unchanged)
@@ -321,16 +315,13 @@ impl SmartAccount {
         old_policies: &Vec<SignerPolicy>,
         new_policies: &Vec<SignerPolicy>,
     ) -> Result<(), Error> {
-        use crate::auth::permissions::PolicyCallback;
-        use soroban_sdk::Map;
-
         // Early exit optimizations
         if old_policies.is_empty() && new_policies.is_empty() {
             return Ok(());
         }
 
         if old_policies.is_empty() {
-            // All new policies need to be added - O(m)
+            // All new policies need to be added
             for policy in new_policies {
                 policy.on_add(env)?;
             }
@@ -338,73 +329,40 @@ impl SmartAccount {
         }
 
         if new_policies.is_empty() {
-            // All old policies need to be revoked - O(n)
+            // All old policies need to be revoked
             for policy in old_policies {
                 policy.on_revoke(env)?;
             }
             return Ok(());
         }
 
-        // Create a simple hash using policy content for O(1) lookup
-        // Since we can't hash policies directly, we'll create a workaround
+        // Create a simple hash using policy content for constant-time lookup
         let mut new_policy_set = Map::new(env);
 
-        // Build set of new policies - O(m)
+        // Build set of new policies
         for policy in new_policies {
-            // Create a simple "hash" by converting policy to string representation
-            // This is a workaround since Soroban doesn't have built-in hashing
-            let policy_key = Self::policy_to_key(env, &policy);
-            new_policy_set.set(policy_key, true);
+            new_policy_set.set(policy, true);
         }
 
-        // Process old policies - find ones to revoke - O(n)
+        // Process old policies - find ones to revoke
         for old_policy in old_policies {
-            let policy_key = Self::policy_to_key(env, &old_policy);
-
-            if new_policy_set.contains_key(policy_key) {
-                // Policy exists in both sets, mark as used
-                new_policy_set.set(policy_key, false);
+            if new_policy_set.contains_key(old_policy.clone()) {
+                new_policy_set.set(old_policy, false);
             } else {
                 // Policy only in old set, revoke it
                 old_policy.on_revoke(env)?;
             }
         }
 
-        // Process new policies - find ones to add - O(m)
+        // Process new policies - find ones to add
         for policy in new_policies {
-            let policy_key = Self::policy_to_key(env, &policy);
-
             // If still marked as true, it's a new policy that needs to be added
-            if new_policy_set.get(policy_key).unwrap_or(false) {
+            if new_policy_set.get(policy.clone()).unwrap_or(false) {
                 policy.on_add(env)?;
             }
         }
 
         Ok(())
-    }
-
-    /// Creates a unique key for a policy to use in hash map lookups
-    /// This is a workaround since Soroban doesn't have built-in policy hashing
-    fn policy_to_key(_env: &Env, policy: &SignerPolicy) -> u32 {
-        // Create a simple hash based on policy content
-        // This is deterministic and will be the same for identical policies
-        match policy {
-            SignerPolicy::TimeWindowPolicy(time_policy) => {
-                // Combine not_before and not_after to create a unique key
-                ((time_policy.not_before as u32).wrapping_mul(31))
-                    .wrapping_add(time_policy.not_after as u32)
-            }
-            SignerPolicy::ExternalValidatorPolicy(external_policy) => {
-                // For external policies, we can use the address as a unique identifier
-                // Convert address to a simple hash - this is deterministic for the same address
-                let addr_str = external_policy.policy_address.to_string();
-                let len = addr_str.len();
-
-                // Simple hash based on string length - good enough for small policy sets
-                // In practice, external policies with same address are identical
-                len.wrapping_mul(17).wrapping_add(42)
-            }
-        }
     }
 }
 
