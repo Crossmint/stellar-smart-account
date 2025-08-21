@@ -42,6 +42,10 @@ pub enum Error {
     InvalidProofType = 42,
     /// No proofs found in the authentication entry
     NoProofsInAuthEntry = 43,
+    /// Client data JSON challenge incorrect
+    ClientDataJsonIncorrectChallenge = 44,
+    /// JSON parse error
+    InvalidWebauthnClientDataJson = 45,
 
     // === Permission Errors (60-79) ===
     /// Insufficient permissions to perform the requested operation
