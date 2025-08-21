@@ -1,5 +1,5 @@
 use crate::auth::core::authorizer::Authorizer;
-use crate::auth::permissions::{PolicyCallback, SignerRole};
+use crate::auth::permissions::{PolicyCallback, SignerPolicy, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::config::{
@@ -103,18 +103,14 @@ impl SmartAccountInterface for SmartAccount {
         let storage = Storage::persistent();
         storage.store::<SignerKey, Signer>(env, &key, &signer)?;
 
-        if let SignerRole::Standard(policies) = signer.role() {
-            for policy in policies {
-                policy.on_add(env)?;
+        // Handle role-specific initialization
+        match signer.role() {
+            SignerRole::Standard(policies) => {
+                Self::activate_policies(env, &policies)?;
             }
-        }
-        if signer.role() == SignerRole::Admin {
-            let storage = Storage::persistent();
-            let count = storage
-                .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
-                .unwrap_or(0);
-            let new_count = count.checked_add(1).ok_or(Error::MaxSignersReached)?;
-            storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
+            SignerRole::Admin => {
+                Self::increment_admin_count(env)?;
+            }
         }
         env.events()
             .publish((TOPIC_SIGNER, VERB_ADDED), SignerAddedEvent::from(signer));
@@ -129,25 +125,11 @@ impl SmartAccountInterface for SmartAccount {
         let old_signer = storage
             .get::<SignerKey, Signer>(env, &key)
             .ok_or(Error::SignerNotFound)?;
-        if old_signer.role() == SignerRole::Admin && signer.role() != SignerRole::Admin {
-            let count = storage
-                .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
-                .unwrap_or(0);
-            if count <= 1 {
-                return Err(Error::CannotDowngradeLastAdmin);
-            }
-            // Use checked_sub to detect underflow and handle it as an error
-            let new_count = count
-                .checked_sub(1)
-                .ok_or(Error::CannotDowngradeLastAdmin)?;
-            storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
-        } else if old_signer.role() != SignerRole::Admin && signer.role() == SignerRole::Admin {
-            let count = storage
-                .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
-                .unwrap_or(0);
-            let new_count = count.checked_add(1).ok_or(Error::MaxSignersReached)?;
-            storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
-        }
+
+        // Handle role transitions: admin count and policy lifecycle callbacks
+        Self::handle_role_transition(env, &old_signer.role(), &signer.role())?;
+
+        // Update the signer in storage
         storage.update::<SignerKey, Signer>(env, &key, &signer)?;
         env.events().publish(
             (TOPIC_SIGNER, VERB_UPDATED),
@@ -169,11 +151,11 @@ impl SmartAccountInterface for SmartAccount {
         if signer_to_revoke.role() == SignerRole::Admin {
             return Err(Error::CannotRevokeAdminSigner);
         }
+
         storage.delete::<SignerKey>(env, &signer_key)?;
+        // Deactivate policies if this is a Standard signer
         if let SignerRole::Standard(policies) = signer_to_revoke.role() {
-            for policy in policies {
-                policy.on_revoke(env)?;
-            }
+            Self::deactivate_policies(env, &policies)?;
         }
         env.events().publish(
             (TOPIC_SIGNER, VERB_REVOKED),
@@ -250,6 +232,144 @@ impl SmartAccountInterface for SmartAccount {
             .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
             .unwrap()
             .contains_key(plugin)
+    }
+}
+
+// ============================================================================
+// Private helper methods for SmartAccount
+// ============================================================================
+
+impl SmartAccount {
+    /// Handles role transitions including admin count management and policy lifecycle callbacks
+    fn handle_role_transition(
+        env: &Env,
+        old_role: &SignerRole,
+        new_role: &SignerRole,
+    ) -> Result<(), Error> {
+        match (old_role, new_role) {
+            // Admin → Standard: decrease admin count, activate policies
+            (SignerRole::Admin, SignerRole::Standard(policies)) => {
+                Self::decrement_admin_count(env)?;
+                Self::activate_policies(env, policies)?;
+            }
+            // Standard → Admin: increase admin count, deactivate policies
+            (SignerRole::Standard(policies), SignerRole::Admin) => {
+                Self::increment_admin_count(env)?;
+                Self::deactivate_policies(env, policies)?;
+            }
+            // Standard → Standard: handle policy set changes
+            (SignerRole::Standard(old_policies), SignerRole::Standard(new_policies)) => {
+                Self::handle_policy_set_changes(env, old_policies, new_policies)?;
+            }
+            // Admin → Admin: no changes needed
+            (SignerRole::Admin, SignerRole::Admin) => {}
+        }
+        Ok(())
+    }
+
+    /// Decrements admin count with validation
+    fn decrement_admin_count(env: &Env) -> Result<(), Error> {
+        let storage = Storage::persistent();
+        let count = storage
+            .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
+            .unwrap_or(0);
+
+        if count <= 1 {
+            return Err(Error::CannotDowngradeLastAdmin);
+        }
+
+        let new_count = count
+            .checked_sub(1)
+            .ok_or(Error::CannotDowngradeLastAdmin)?;
+        storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
+        Ok(())
+    }
+
+    /// Increments admin count with validation
+    fn increment_admin_count(env: &Env) -> Result<(), Error> {
+        let storage = Storage::persistent();
+        let count = storage
+            .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
+            .unwrap_or(0);
+        let new_count = count.checked_add(1).ok_or(Error::MaxSignersReached)?;
+        storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
+        Ok(())
+    }
+
+    /// Activates policies by calling their on_add callbacks
+    fn activate_policies(env: &Env, policies: &Vec<SignerPolicy>) -> Result<(), Error> {
+        for policy in policies {
+            policy.on_add(env)?;
+        }
+        Ok(())
+    }
+
+    /// Deactivates policies by calling their on_revoke callbacks
+    fn deactivate_policies(env: &Env, policies: &Vec<SignerPolicy>) -> Result<(), Error> {
+        for policy in policies {
+            policy.on_revoke(env)?;
+        }
+        Ok(())
+    }
+
+    /// Handles changes to a policy set by calling appropriate callbacks
+    ///
+    /// - Policies only in old set: on_revoke() called (removed)
+    /// - Policies only in new set: on_add() called (added)
+    /// - Policies in both sets: no callbacks (unchanged)
+    fn handle_policy_set_changes(
+        env: &Env,
+        old_policies: &Vec<SignerPolicy>,
+        new_policies: &Vec<SignerPolicy>,
+    ) -> Result<(), Error> {
+        // Early exit optimizations
+        if old_policies.is_empty() && new_policies.is_empty() {
+            return Ok(());
+        }
+
+        if old_policies.is_empty() {
+            // All new policies need to be added
+            for policy in new_policies {
+                policy.on_add(env)?;
+            }
+            return Ok(());
+        }
+
+        if new_policies.is_empty() {
+            // All old policies need to be revoked
+            for policy in old_policies {
+                policy.on_revoke(env)?;
+            }
+            return Ok(());
+        }
+
+        // Create a simple hash using policy content for constant-time lookup
+        let mut new_policy_set = Map::new(env);
+
+        // Build set of new policies
+        for policy in new_policies {
+            new_policy_set.set(policy, true);
+        }
+
+        // Process old policies - find ones to revoke
+        for old_policy in old_policies {
+            if new_policy_set.contains_key(old_policy.clone()) {
+                new_policy_set.set(old_policy, false);
+            } else {
+                // Policy only in old set, revoke it
+                old_policy.on_revoke(env)?;
+            }
+        }
+
+        // Process new policies - find ones to add
+        for policy in new_policies {
+            // If still marked as true, it's a new policy that needs to be added
+            if new_policy_set.get(policy.clone()).unwrap_or(false) {
+                policy.on_add(env)?;
+            }
+        }
+
+        Ok(())
     }
 }
 
