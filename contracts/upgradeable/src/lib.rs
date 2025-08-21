@@ -27,6 +27,10 @@ pub trait SmartAccountUpgradeableMigratable:
     fn upgrade(e: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
         Self::_require_auth_upgrade(e);
         enable_migration(e);
+        e.events().publish(
+            (Symbol::new(e, "UPGRADE_STARTED"),),
+            e.current_contract_address(),
+        );
         e.deployer().update_current_contract_wasm(new_wasm_hash);
     }
 
@@ -35,6 +39,10 @@ pub trait SmartAccountUpgradeableMigratable:
         ensure_can_complete_migration(e);
         Self::_migrate(e, &migration_data);
         complete_migration(e);
+        e.events().publish(
+            (Symbol::new(e, "UPGRADE_COMPLETED"),),
+            e.current_contract_address(),
+        );
     }
 }
 

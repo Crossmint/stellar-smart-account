@@ -10,7 +10,7 @@ pub enum Error {
     NotInitialized = 1,
 }
 
-const INITIALIZED: Symbol = symbol_short!("init");
+const INITIALIZED: Symbol = symbol_short!("INIT");
 
 /// Macro to ensure a function only runs if the contract is initialized
 /// Usage: only_initialized!(env);
@@ -57,11 +57,22 @@ pub trait Initializable {
         Ok(())
     }
 
+    fn ensure_initialized(env: &Env) -> Result<(), Error> {
+        if !Self::get_initialization_value(env) {
+            return Err(Error::NotInitialized);
+        }
+        Ok(())
+    }
+
     fn mark_initialized(env: &Env) -> Result<(), Error> {
         if Self::get_initialization_value(env) {
             return Err(Error::AlreadyInitialized);
         }
         Self::set_initialization_value(env, true);
+        env.events().publish(
+            (Symbol::new(env, "INITIALIZED"),),
+            env.current_contract_address(),
+        );
         Ok(())
     }
 
@@ -72,6 +83,7 @@ pub trait Initializable {
     fn initialize(env: &Env) -> Result<(), Error> {
         Self::ensure_not_initialized(env)?;
         Self::mark_initialized(env)?;
+        Self::ensure_initialized(env)?;
         Ok(())
     }
 }
