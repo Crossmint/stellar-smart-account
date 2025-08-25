@@ -65,7 +65,6 @@ impl Authorizer {
             .unwrap()
             .iter()
         {
-            // Use try_on_auth to prevent plugin failures from blocking authorization
             let res = SmartAccountPluginClient::new(env, &plugin)
                 .try_on_auth(&env.current_contract_address(), auth_contexts);
             handle_nested_result_failure!(res, {
