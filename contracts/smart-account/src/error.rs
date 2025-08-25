@@ -70,6 +70,8 @@ pub enum Error {
     PluginAlreadyInstalled = 101,
     /// Plugin initialization failed
     PluginInitializationFailed = 102,
+    /// Plugin authentication failed
+    PluginOnAuthFailed = 103,
 
     // === Generic Errors (1000+) ===
     /// Requested resource was not found

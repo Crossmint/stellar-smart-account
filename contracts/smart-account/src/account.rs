@@ -19,7 +19,7 @@ use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    map, panic_with_error, Address, Env, Map, Symbol, Vec,
+    map, panic_with_error, Address, Env, Map, String, Symbol, Vec,
 };
 use storage::Storage;
 use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
@@ -429,34 +429,7 @@ impl CustomAccountInterface for SmartAccount {
         auth_contexts: Vec<Context>,
     ) -> Result<(), Error> {
         Authorizer::check(&env, signature_payload, &auth_payloads, &auth_contexts)?;
-
-        let storage = Storage::instance();
-        for (plugin, _) in storage
-            .get::<Symbol, Map<Address, ()>>(&env, &PLUGINS_KEY)
-            .unwrap()
-            .iter()
-        {
-            // Use try_on_auth to prevent plugin failures from blocking authorization
-            match SmartAccountPluginClient::new(&env, &plugin)
-                .try_on_auth(&env.current_contract_address(), &auth_contexts)
-            {
-                Err(_error) => {
-                    // Plugin failed, emit event for telemetry but don't revert
-                    env.events().publish(
-                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
-                        PluginAuthFailedEvent {
-                            plugin: plugin.clone(),
-                            error: soroban_sdk::String::from_str(&env, "Plugin execution failed"),
-                        },
-                    );
-                }
-                _ => {
-
-                    // Plugin executed successfully, continue
-                }
-            }
-        }
-
+        Authorizer::call_plugins_on_auth(&env, &auth_contexts)?;
         Ok(())
     }
 }
