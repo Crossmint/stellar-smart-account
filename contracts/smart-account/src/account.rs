@@ -3,13 +3,13 @@ use crate::auth::permissions::{PolicyCallback, SignerPolicy, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::config::{
-    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_AUTH_FAILED,
-    VERB_INSTALLED, VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
+    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED,
+    VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
 };
 use crate::error::Error;
 use crate::events::{
-    PluginAuthFailedEvent, PluginInstalledEvent, PluginUninstallFailedEvent,
-    PluginUninstalledEvent, SignerAddedEvent, SignerRevokedEvent, SignerUpdatedEvent,
+    PluginInstalledEvent, PluginUninstallFailedEvent, PluginUninstalledEvent, SignerAddedEvent,
+    SignerRevokedEvent, SignerUpdatedEvent,
 };
 use crate::handle_nested_result_failure;
 use crate::interface::SmartAccountInterface;
@@ -429,34 +429,7 @@ impl CustomAccountInterface for SmartAccount {
         auth_contexts: Vec<Context>,
     ) -> Result<(), Error> {
         Authorizer::check(&env, signature_payload, &auth_payloads, &auth_contexts)?;
-
-        let storage = Storage::instance();
-        for (plugin, _) in storage
-            .get::<Symbol, Map<Address, ()>>(&env, &PLUGINS_KEY)
-            .unwrap()
-            .iter()
-        {
-            // Use try_on_auth to prevent plugin failures from blocking authorization
-            match SmartAccountPluginClient::new(&env, &plugin)
-                .try_on_auth(&env.current_contract_address(), &auth_contexts)
-            {
-                Err(_error) => {
-                    // Plugin failed, emit event for telemetry but don't revert
-                    env.events().publish(
-                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
-                        PluginAuthFailedEvent {
-                            plugin: plugin.clone(),
-                            error: soroban_sdk::String::from_str(&env, "Plugin execution failed"),
-                        },
-                    );
-                }
-                _ => {
-
-                    // Plugin executed successfully, continue
-                }
-            }
-        }
-
+        Authorizer::call_plugins_on_auth(&env, &auth_contexts)?;
         Ok(())
     }
 }

@@ -3,8 +3,13 @@ use crate::auth::permissions::{AuthorizationCheck, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
+use crate::config::{PLUGINS_KEY, TOPIC_PLUGIN, VERB_AUTH_FAILED};
 use crate::error::Error;
+use crate::events::PluginAuthFailedEvent;
+use crate::handle_nested_result_failure;
+use smart_account_interfaces::SmartAccountPluginClient;
 use soroban_sdk::{auth::Context, crypto::Hash, Env, Vec};
+use soroban_sdk::{Address, Map, String, Symbol};
 use storage::Storage;
 
 pub struct Authorizer;
@@ -51,5 +56,28 @@ impl Authorizer {
         }
 
         Err(Error::InsufficientPermissions)
+    }
+
+    pub fn call_plugins_on_auth(env: &Env, auth_contexts: &Vec<Context>) -> Result<(), Error> {
+        let storage = Storage::instance();
+        for (plugin, _) in storage
+            .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
+            .unwrap()
+            .iter()
+        {
+            let res = SmartAccountPluginClient::new(env, &plugin)
+                .try_on_auth(&env.current_contract_address(), auth_contexts);
+            handle_nested_result_failure!(res, {
+                env.events().publish(
+                    (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
+                    PluginAuthFailedEvent {
+                        plugin: plugin.clone(),
+                        error: String::from_str(env, "Plugin on_auth failed"),
+                    },
+                );
+                return Err(Error::PluginOnAuthFailed);
+            });
+        }
+        Ok(())
     }
 }
