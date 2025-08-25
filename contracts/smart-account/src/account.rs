@@ -3,12 +3,12 @@ use crate::auth::permissions::{PolicyCallback, SignerPolicy, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::config::{
-    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_AUTH_FAILED,
+    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED,
     VERB_INSTALLED, VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
 };
 use crate::error::Error;
 use crate::events::{
-    PluginAuthFailedEvent, PluginInstalledEvent, PluginUninstallFailedEvent,
+    PluginInstalledEvent, PluginUninstallFailedEvent,
     PluginUninstalledEvent, SignerAddedEvent, SignerRevokedEvent, SignerUpdatedEvent,
 };
 use crate::handle_nested_result_failure;
@@ -19,7 +19,7 @@ use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    map, panic_with_error, Address, Env, Map, String, Symbol, Vec,
+    map, panic_with_error, Address, Env, Map, Symbol, Vec,
 };
 use storage::Storage;
 use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};

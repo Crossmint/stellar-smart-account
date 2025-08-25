@@ -61,19 +61,19 @@ impl Authorizer {
     pub fn call_plugins_on_auth(env: &Env, auth_contexts: &Vec<Context>) -> Result<(), Error> {
         let storage = Storage::instance();
         for (plugin, _) in storage
-            .get::<Symbol, Map<Address, ()>>(&env, &PLUGINS_KEY)
+            .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
             .unwrap()
             .iter()
         {
             // Use try_on_auth to prevent plugin failures from blocking authorization
-            let res = SmartAccountPluginClient::new(&env, &plugin)
-                .try_on_auth(&env.current_contract_address(), &auth_contexts);
+            let res = SmartAccountPluginClient::new(env, &plugin)
+                .try_on_auth(&env.current_contract_address(), auth_contexts);
             handle_nested_result_failure!(res, {
                 env.events().publish(
                     (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
                     PluginAuthFailedEvent {
                         plugin: plugin.clone(),
-                        error: String::from_str(&env, "Plugin on_auth failed"),
+                        error: String::from_str(env, "Plugin on_auth failed"),
                     },
                 );
                 return Err(Error::PluginOnAuthFailed);
