@@ -112,17 +112,39 @@ jobs:
         pnpm run build
         cd ../..
 
+    - name: Optimize WASM contracts
+      run: |
+        set -euo pipefail
+        OUT_DIR="target/wasm32v1-none/release/optimized"
+        mkdir -p "$OUT_DIR"
+        for wasm in target/wasm32v1-none/release/*.wasm; do
+          [ -e "$wasm" ] || continue
+          base="$(basename "$wasm" .wasm)"
+          stellar contract optimize \
+            --wasm "$wasm" \
+            --wasm-out "$OUT_DIR/${base}.optimized.wasm"
+        done
+
     - name: Calculate WASM hashes and create release tarfile
       run: |
         # Create release directory
         mkdir -p release-artifacts
         
-        # Copy WASM files
+        # Copy unoptimized WASM files
         cp target/wasm32v1-none/release/*.wasm release-artifacts/
         
-        # Generate hash file
+        # Copy optimized WASM files (if present)
+        mkdir -p release-artifacts/optimized
+        if [ -d "target/wasm32v1-none/release/optimized" ]; then
+          cp target/wasm32v1-none/release/optimized/*.wasm release-artifacts/optimized/ || true
+        fi
+        
+        # Generate hash files
         cd release-artifacts
         sha256sum *.wasm > wasm-hashes.txt
+        if [ -d "optimized" ] && ls optimized/*.wasm >/dev/null 2>&1; then
+          (cd optimized && sha256sum *.wasm > ../optimized-wasm-hashes.txt)
+        fi
         cd ..
         
         # Copy TypeScript packages
@@ -133,7 +155,7 @@ jobs:
         cp packages/smart_account/package.json release-artifacts/smart_account_types/
         cp packages/factory/package.json release-artifacts/factory_types/
         
-        # Create tarfile
+        # Create tarfile including both optimized and unoptimized artifacts
         tar -czf stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz -C release-artifacts .
         
         # List contents for verification
