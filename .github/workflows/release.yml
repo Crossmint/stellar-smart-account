@@ -114,13 +114,16 @@ jobs:
 
     - name: Optimize WASM contracts
       run: |
-        mkdir -p target/wasm32v1-none/release/optimized
-        stellar contract optimize \
-          --wasm target/wasm32v1-none/release/smart_account.wasm \
-          --wasm-out target/wasm32v1-none/release/optimized/smart_account.optimized.wasm
-        stellar contract optimize \
-          --wasm target/wasm32v1-none/release/contract_factory.wasm \
-          --wasm-out target/wasm32v1-none/release/optimized/contract_factory.optimized.wasm
+        set -euo pipefail
+        OUT_DIR="target/wasm32v1-none/release/optimized"
+        mkdir -p "$OUT_DIR"
+        for wasm in target/wasm32v1-none/release/*.wasm; do
+          [ -e "$wasm" ] || continue
+          base="$(basename "$wasm" .wasm)"
+          stellar contract optimize \
+            --wasm "$wasm" \
+            --wasm-out "$OUT_DIR/${base}.optimized.wasm"
+        done
 
     - name: Calculate WASM hashes and create release tarfile
       run: |
