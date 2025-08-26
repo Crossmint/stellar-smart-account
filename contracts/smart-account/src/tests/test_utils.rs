@@ -1,4 +1,5 @@
 #![cfg(test)]
+extern crate std;
 
 use ed25519_dalek::Keypair;
 use ed25519_dalek::Signer as _;
@@ -76,4 +77,28 @@ impl TestSignerTrait for Ed25519TestSigner {
         let signature = SignerProof::Ed25519(BytesN::from_array(env, &signature_bytes));
         (signer_key, signature)
     }
+}
+
+pub struct BudgetSnapshot {
+    pub cpu: u64,
+    pub mem: u64,
+}
+
+pub fn budget_snapshot(env: &Env) -> BudgetSnapshot {
+    let budget = env.cost_estimate().budget();
+    BudgetSnapshot {
+        cpu: budget.cpu_instruction_cost(),
+        mem: budget.memory_bytes_cost(),
+    }
+}
+
+pub fn print_budget_delta(label: &str, before: &BudgetSnapshot, after: &BudgetSnapshot) {
+    let cpu_delta = after.cpu.saturating_sub(before.cpu);
+    let mem_delta = after.mem.saturating_sub(before.mem);
+    std::println!(
+        "[Budget] {} cpu_insns={} mem_bytes={}",
+        label,
+        cpu_delta,
+        mem_delta
+    );
 }
