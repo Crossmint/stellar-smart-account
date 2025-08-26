@@ -144,7 +144,7 @@ impl ContractFactory {
             .deploy_v2(wasm_hash, constructor_args)
     }
 
-    pub fn get_deployed_address(env: &Env, salt: BytesN<32>) -> Address {
+    #[must_use] pub fn get_deployed_address(env: &Env, salt: BytesN<32>) -> Address {
         env.deployer()
             .with_current_contract(salt)
             .deployed_address()

@@ -10,7 +10,7 @@ pub struct SignerAddedEvent {
 
 impl From<Signer> for SignerAddedEvent {
     fn from(signer: Signer) -> Self {
-        SignerAddedEvent {
+        return Self {
             signer_key: signer.clone().into(),
             signer,
         }
@@ -26,7 +26,7 @@ pub struct SignerUpdatedEvent {
 
 impl From<Signer> for SignerUpdatedEvent {
     fn from(signer: Signer) -> Self {
-        SignerUpdatedEvent {
+        return Self {
             signer_key: signer.clone().into(),
             new_signer: signer,
         }
@@ -42,7 +42,7 @@ pub struct SignerRevokedEvent {
 
 impl From<Signer> for SignerRevokedEvent {
     fn from(signer: Signer) -> Self {
-        SignerRevokedEvent {
+        return Self {
             signer_key: signer.clone().into(),
             revoked_signer: signer,
         }

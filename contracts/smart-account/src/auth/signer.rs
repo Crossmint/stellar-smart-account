@@ -7,14 +7,14 @@ use soroban_sdk::Vec;
 use soroban_sdk::{auth::Context, contracttype, Bytes, BytesN, Env};
 
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SignerKey {
     Ed25519(BytesN<32>),
     Secp256r1(Bytes),
 }
 
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Signer {
     Ed25519(Ed25519Signer, SignerRole),
     Secp256r1(Secp256r1Signer, SignerRole),
@@ -23,8 +23,8 @@ pub enum Signer {
 impl SignatureVerifier for Signer {
     fn verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
         match self {
-            Signer::Ed25519(signer, _) => signer.verify(env, payload, proof),
-            Signer::Secp256r1(signer, _) => signer.verify(env, payload, proof),
+            Self::Ed25519(signer, _) => signer.verify(env, payload, proof),
+            Self::Secp256r1(signer, _) => signer.verify(env, payload, proof),
         }
     }
 }
@@ -45,10 +45,10 @@ impl From<Signer> for SignerKey {
 }
 
 impl Signer {
-    pub fn role(&self) -> SignerRole {
+    #[must_use] pub fn role(&self) -> SignerRole {
         match self {
-            Signer::Ed25519(_, role) => role.clone(),
-            Signer::Secp256r1(_, role) => role.clone(),
+            Self::Ed25519(_, role) => role.clone(),
+            Self::Secp256r1(_, role) => role.clone(),
         }
     }
 }

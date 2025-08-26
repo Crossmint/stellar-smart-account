@@ -2,18 +2,18 @@ use crate::auth::proof::{Secp256r1Signature, SignerProof};
 use crate::auth::signer::SignerKey;
 use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
-use base64ct::{Base64UrlUnpadded, Encoding};
+use base64ct::{Base64UrlUnpadded, Encoding as _};
 use soroban_sdk::{contracttype, Bytes, BytesN, Env};
 
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Secp256r1Signer {
     pub key_id: Bytes,
     pub public_key: BytesN<65>,
 }
 
 impl Secp256r1Signer {
-    pub fn new(key_id: Bytes, public_key: BytesN<65>) -> Self {
+    #[must_use] pub const fn new(key_id: Bytes, public_key: BytesN<65>) -> Self {
         Self { key_id, public_key }
     }
 }
@@ -76,6 +76,6 @@ impl SignatureVerifier for Secp256r1Signer {
 
 impl From<Secp256r1Signer> for SignerKey {
     fn from(signer: Secp256r1Signer) -> Self {
-        SignerKey::Secp256r1(signer.key_id.clone())
+        return Self::Secp256r1(signer.key_id)
     }
 }

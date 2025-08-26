@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ExternalPolicy {
     pub policy_address: Address,
 }

@@ -3,7 +3,7 @@ use soroban_sdk::contracterror;
 use storage::Error as StorageError;
 
 #[contracterror]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum Error {
     // === Initialization Errors (0-9) ===
@@ -81,8 +81,8 @@ pub enum Error {
 impl From<InitializableError> for Error {
     fn from(e: InitializableError) -> Self {
         match e {
-            InitializableError::AlreadyInitialized => Error::AlreadyInitialized,
-            InitializableError::NotInitialized => Error::NotInitialized,
+            InitializableError::AlreadyInitialized => return Self::AlreadyInitialized,
+            InitializableError::NotInitialized => return Self::NotInitialized,
         }
     }
 }
@@ -90,8 +90,8 @@ impl From<InitializableError> for Error {
 impl From<StorageError> for Error {
     fn from(e: StorageError) -> Self {
         match e {
-            StorageError::NotFound => Error::StorageEntryNotFound,
-            StorageError::AlreadyExists => Error::StorageEntryAlreadyExists,
+            StorageError::NotFound => return Self::StorageEntryNotFound,
+            StorageError::AlreadyExists => return Self::StorageEntryAlreadyExists,
         }
     }
 }

@@ -3,7 +3,7 @@
 extern crate std;
 
 use soroban_sdk::{
-    symbol_short, testutils::Address as _, vec, Address, BytesN, Env, IntoVal, Val, Vec,
+    symbol_short, testutils::Address as _, vec, Address, BytesN, Env, IntoVal as _, Val, Vec,
 };
 
 use crate::test_constants::SMART_ACCOUNT_WASM;
@@ -11,7 +11,7 @@ use crate::{ContractDeploymentArgs, ContractFactory, ContractFactoryClient};
 
 fn create_factory_client<'a>(e: &Env, admin: &Address) -> ContractFactoryClient<'a> {
     let address = e.register(ContractFactory, (admin,));
-    ContractFactoryClient::new(e, &address)
+    return ContractFactoryClient::new(e, &address)
 }
 
 pub struct TestAccounts {
@@ -37,7 +37,7 @@ fn setup_roles(e: &Env, client: &ContractFactoryClient, admin: &Address) -> Test
     client.grant_role(&deployer_admin, &deployer1, &symbol_short!("deployer"));
     client.grant_role(&deployer_admin, &deployer2, &symbol_short!("deployer"));
 
-    TestAccounts {
+    return TestAccounts {
         deployer_admin,
         deployer1,
         deployer2,
@@ -47,9 +47,9 @@ fn setup_roles(e: &Env, client: &ContractFactoryClient, admin: &Address) -> Test
 
 // Helper function to create a mock salt
 fn create_mock_salt(e: &Env, value: u8) -> BytesN<32> {
-    let mut bytes = [0u8; 32];
+    let mut bytes = [0_u8; 32];
     bytes[0] = value; // Make it unique
-    BytesN::from_array(e, &bytes)
+    return BytesN::from_array(e, &bytes)
 }
 
 #[test]
@@ -279,7 +279,7 @@ fn test_constructor_args_handling() {
 
     // Create constructor args with some values (unused but kept for documentation)
     let _arg1 = Address::generate(&e);
-    let _arg2 = 42u32;
+    let _arg2 = 42_u32;
     let _constructor_args: Vec<Val> = vec![&e, _arg1.into_val(&e), _arg2.into_val(&e)];
 
     // Should be able to get deployed address regardless of constructor args
@@ -400,7 +400,7 @@ fn test_deploy_idempotency() {
         &ContractDeploymentArgs {
             wasm_hash,
             salt,
-            constructor_args: constructor_args.clone(),
+            constructor_args: constructor_args,
         },
     );
 
@@ -410,13 +410,13 @@ fn test_deploy_idempotency() {
     // Verify first deployment returns the predicted address
     assert_eq!(deployed_address1, predicted_address);
 
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+    let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
         let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
         let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
         let salt = create_mock_salt(&e, 1);
         let constructor_args: Vec<Val> = vec![&e];
 
-        client.deploy(
+        return client.deploy(
             &accounts.deployer1,
             &ContractDeploymentArgs {
                 wasm_hash,
