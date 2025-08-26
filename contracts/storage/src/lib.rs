@@ -55,7 +55,6 @@ impl Storage {
 }
 
 impl Storage {
-
     pub fn get<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
         &self,
         env: &Env,
@@ -78,22 +77,26 @@ impl Storage {
     ) -> Result<(), Error> {
         let result = match self.storage_type {
             StorageType::Persistent => {
-                env.storage().persistent().try_update(key, |existing: Option<V>| {
-                    if existing.is_some() {
-                        Err(Error::AlreadyExists)
-                    } else {
-                        Ok(value.clone())
-                    }
-                })
+                env.storage()
+                    .persistent()
+                    .try_update(key, |existing: Option<V>| {
+                        if existing.is_some() {
+                            Err(Error::AlreadyExists)
+                        } else {
+                            Ok(value.clone())
+                        }
+                    })
             }
             StorageType::Instance => {
-                env.storage().instance().try_update(key, |existing: Option<V>| {
-                    if existing.is_some() {
-                        Err(Error::AlreadyExists)
-                    } else {
-                        Ok(value.clone())
-                    }
-                })
+                env.storage()
+                    .instance()
+                    .try_update(key, |existing: Option<V>| {
+                        if existing.is_some() {
+                            Err(Error::AlreadyExists)
+                        } else {
+                            Ok(value.clone())
+                        }
+                    })
             }
         };
 
@@ -119,22 +122,26 @@ impl Storage {
     ) -> Result<(), Error> {
         let result = match self.storage_type {
             StorageType::Persistent => {
-                env.storage().persistent().try_update(key, |existing: Option<V>| {
-                    if existing.is_none() {
-                        Err(Error::NotFound)
-                    } else {
-                        Ok(value.clone())
-                    }
-                })
+                env.storage()
+                    .persistent()
+                    .try_update(key, |existing: Option<V>| {
+                        if existing.is_none() {
+                            Err(Error::NotFound)
+                        } else {
+                            Ok(value.clone())
+                        }
+                    })
             }
             StorageType::Instance => {
-                env.storage().instance().try_update(key, |existing: Option<V>| {
-                    if existing.is_none() {
-                        Err(Error::NotFound)
-                    } else {
-                        Ok(value.clone())
-                    }
-                })
+                env.storage()
+                    .instance()
+                    .try_update(key, |existing: Option<V>| {
+                        if existing.is_none() {
+                            Err(Error::NotFound)
+                        } else {
+                            Ok(value.clone())
+                        }
+                    })
             }
         };
 
