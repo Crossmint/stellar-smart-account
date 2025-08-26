@@ -102,7 +102,8 @@ impl Storage {
         key: &K,
         value: &V,
     ) -> Result<(), Error> {
-        if self.has(env, key) {
+        let exists = self.get::<K, Val>(env, key).is_some();
+        if exists {
             return Err(Error::AlreadyExists);
         }
         self.execute_storage_set(env, key, value);
@@ -123,7 +124,8 @@ impl Storage {
         key: &K,
         value: &V,
     ) -> Result<(), Error> {
-        if !self.has(env, key) {
+        let exists = self.get::<K, Val>(env, key).is_some();
+        if !exists {
             return Err(Error::NotFound);
         }
         self.execute_storage_set(env, key, value);
@@ -139,9 +141,15 @@ impl Storage {
     }
 
     pub fn delete<K: IntoVal<Env, Val>>(&self, env: &Env, key: &K) -> Result<(), Error> {
-        if !self.has(env, key) {
+        let exists = match self.storage_type {
+            StorageType::Persistent => env.storage().persistent().get::<K, Val>(key).is_some(),
+            StorageType::Instance => env.storage().instance().get::<K, Val>(key).is_some(),
+        };
+
+        if !exists {
             return Err(Error::NotFound);
         }
+
         self.execute_storage_remove(env, key);
 
         let event = StorageChangeEvent {
