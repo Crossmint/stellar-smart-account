@@ -10,48 +10,48 @@ pub struct StorageTestContract;
 impl StorageTestContract {
     pub fn store_and_check(env: Env, key: Symbol, value: SorobanString) -> bool {
         let storage = Storage::default();
-        storage.store(&env, &key, &value).is_ok()
+        return storage.store(&env, &key, &value).is_ok()
     }
 
     pub fn store_persistent_and_check(env: Env, key: Symbol, value: SorobanString) -> bool {
         let storage = Storage {
             storage_type: StorageType::Persistent,
         };
-        storage.store(&env, &key, &value).is_ok()
+        return storage.store(&env, &key, &value).is_ok()
     }
 
     pub fn get_value(env: Env, key: Symbol) -> Option<SorobanString> {
         let storage = Storage::default();
-        storage.get(&env, &key)
+        return storage.get(&env, &key)
     }
 
     pub fn get_persistent_value(env: Env, key: Symbol) -> Option<SorobanString> {
         let storage = Storage {
             storage_type: StorageType::Persistent,
         };
-        storage.get(&env, &key)
+        return storage.get(&env, &key)
     }
 
     pub fn update_and_check(env: Env, key: Symbol, value: SorobanString) -> bool {
         let storage = Storage::default();
-        storage.update(&env, &key, &value).is_ok()
+        return storage.update(&env, &key, &value).is_ok()
     }
 
     pub fn delete_and_check(env: Env, key: Symbol) -> bool {
         let storage = Storage::default();
-        storage.delete(&env, &key).is_ok()
+        return storage.delete(&env, &key).is_ok()
     }
 
     pub fn has_key(env: Env, key: Symbol) -> bool {
         let storage = Storage::default();
-        storage.has(&env, &key)
+        return storage.has(&env, &key)
     }
 
     pub fn has_persistent_key(env: Env, key: Symbol) -> bool {
         let storage = Storage {
             storage_type: StorageType::Persistent,
         };
-        storage.has(&env, &key)
+        return storage.has(&env, &key)
     }
 
     pub fn try_duplicate_store(env: Env, key: Symbol, value: SorobanString) -> bool {
@@ -59,17 +59,17 @@ impl StorageTestContract {
         // First store should succeed
         let _ = storage.store(&env, &key, &value);
         // Second store should fail
-        storage.store(&env, &key, &value).is_err()
+        return storage.store(&env, &key, &value).is_err()
     }
 
     pub fn try_update_nonexistent(env: Env, key: Symbol, value: SorobanString) -> bool {
         let storage = Storage::default();
-        storage.update(&env, &key, &value).is_err()
+        return storage.update(&env, &key, &value).is_err()
     }
 
     pub fn try_delete_nonexistent(env: Env, key: Symbol) -> bool {
         let storage = Storage::default();
-        storage.delete(&env, &key).is_err()
+        return storage.delete(&env, &key).is_err()
     }
 }
 
@@ -77,7 +77,7 @@ fn create_test_env() -> (Env, Address, StorageTestContractClient<'static>) {
     let env = Env::default();
     let contract_address = env.register(StorageTestContract, ());
     let client = StorageTestContractClient::new(&env, &contract_address);
-    (env, contract_address, client)
+    return (env, contract_address, client)
 }
 
 #[test]

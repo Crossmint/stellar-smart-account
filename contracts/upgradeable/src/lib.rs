@@ -55,7 +55,7 @@ pub trait SmartAccountUpgradeableAuth {
     fn _require_auth_upgrade(e: &Env);
 }
 
-/// Macro to implement SmartAccountUpgradeable for a contract type.
+/// Macro to implement `SmartAccountUpgradeable` for a contract type.
 /// This generates the necessary contractimpl block with the upgrade function.
 ///
 /// # Usage
@@ -81,7 +81,7 @@ pub fn ensure_can_complete_migration(e: &Env) {
         panic_with_error!(e, Error::MigrationNotAllowed)
     }
 }
-pub fn can_complete_migration(e: &Env) -> bool {
+#[must_use] pub fn can_complete_migration(e: &Env) -> bool {
     e.storage()
         .instance()
         .get::<_, bool>(&MIGRATING)

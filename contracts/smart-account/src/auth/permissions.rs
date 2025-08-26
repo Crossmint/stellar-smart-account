@@ -19,7 +19,7 @@ pub trait PolicyCallback {
 
 // Main policy enum that wraps the individual policies
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SignerPolicy {
     TimeWindowPolicy(TimeBasedPolicy),
     ExternalValidatorPolicy(ExternalPolicy),
@@ -29,8 +29,8 @@ pub enum SignerPolicy {
 impl AuthorizationCheck for SignerPolicy {
     fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
         match self {
-            SignerPolicy::TimeWindowPolicy(policy) => policy.is_authorized(env, contexts),
-            SignerPolicy::ExternalValidatorPolicy(policy) => policy.is_authorized(env, contexts),
+            Self::TimeWindowPolicy(policy) => policy.is_authorized(env, contexts),
+            Self::ExternalValidatorPolicy(policy) => policy.is_authorized(env, contexts),
         }
     }
 }
@@ -38,21 +38,21 @@ impl AuthorizationCheck for SignerPolicy {
 impl PolicyCallback for SignerPolicy {
     fn on_add(&self, env: &Env) -> Result<(), Error> {
         match self {
-            SignerPolicy::TimeWindowPolicy(policy) => policy.on_add(env),
-            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_add(env),
+            Self::TimeWindowPolicy(policy) => policy.on_add(env),
+            Self::ExternalValidatorPolicy(policy) => policy.on_add(env),
         }
     }
     fn on_revoke(&self, env: &Env) -> Result<(), Error> {
         match self {
-            SignerPolicy::TimeWindowPolicy(policy) => policy.on_revoke(env),
-            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_revoke(env),
+            Self::TimeWindowPolicy(policy) => policy.on_revoke(env),
+            Self::ExternalValidatorPolicy(policy) => policy.on_revoke(env),
         }
     }
 }
 
 // This defines the roles that a configured signer can have
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SignerRole {
     // Can authorize any operation, including changing signers and upgrading the contract
     Admin,
@@ -77,8 +77,8 @@ impl AuthorizationCheck for SignerRole {
         });
 
         match self {
-            SignerRole::Admin => true,
-            SignerRole::Standard(policies) => {
+            Self::Admin => true,
+            Self::Standard(policies) => {
                 // Standard signers cannot perform admin operations
                 if needs_admin_approval {
                     false

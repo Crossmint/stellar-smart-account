@@ -1,5 +1,5 @@
 /// Authorization service that verifies proofs and enforces role/policy checks.
-use crate::auth::permissions::{AuthorizationCheck, SignerRole};
+use crate::auth::permissions::{AuthorizationCheck as _, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
@@ -60,7 +60,7 @@ impl Authorizer {
 
     pub fn call_plugins_on_auth(env: &Env, auth_contexts: &Vec<Context>) -> Result<(), Error> {
         let storage = Storage::instance();
-        for (plugin, _) in storage
+        for (plugin, ()) in storage
             .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
             .unwrap()
             .iter()

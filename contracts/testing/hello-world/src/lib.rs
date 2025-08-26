@@ -15,7 +15,7 @@ pub struct Contract;
 // <https://developers.stellar.org/docs/build/smart-contracts/overview>.
 
 #[contracterror(export = false)]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum Error {
     CustomContractError = 0,
@@ -23,16 +23,16 @@ pub enum Error {
 
 #[contractimpl]
 impl Contract {
-    pub fn hello(env: Env, to: String) -> Vec<String> {
+    #[must_use] pub fn hello(env: Env, to: String) -> Vec<String> {
         vec![&env, String::from_str(&env, "Hello"), to]
     }
 
-    pub fn hello_requires_auth(env: Env, caller: Address) -> Vec<String> {
+    #[must_use] pub fn hello_requires_auth(env: Env, caller: Address) -> Vec<String> {
         caller.require_auth();
         vec![&env, String::from_str(&env, "Hello"), caller.to_string()]
     }
 
-    pub fn hello_requires_two_auths(env: Env, caller: Address, caller2: Address) -> Vec<String> {
+    #[must_use] pub fn hello_requires_two_auths(env: Env, caller: Address, caller2: Address) -> Vec<String> {
         caller.require_auth();
         caller2.require_auth();
         vec![

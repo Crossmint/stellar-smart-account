@@ -2,7 +2,7 @@
 use smart_account_interfaces::{SmartAccountPlugin, SmartAccountPolicy};
 use soroban_sdk::{
     auth::{Context, ContractContext},
-    contract, contractimpl, contracttype, symbol_short, Address, Env, Symbol, TryFromVal, Vec,
+    contract, contractimpl, contracttype, symbol_short, Address, Env, Symbol, TryFromVal as _, Vec,
 };
 
 const AUTH_COUNTER_KEY: Symbol = symbol_short!("COUNTER");
@@ -121,7 +121,7 @@ impl SmartAccountPolicy for PluginPolicyContract {
 // Helper function to get the current counter (for testing purposes)
 #[contractimpl]
 impl PluginPolicyContract {
-    pub fn get_auth_counter(env: Env) -> u32 {
+    #[must_use] pub fn get_auth_counter(env: Env) -> u32 {
         env.storage().instance().get(&AUTH_COUNTER_KEY).unwrap_or(0)
     }
 }
@@ -129,10 +129,10 @@ impl PluginPolicyContract {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{auth::ContractContext, testutils::Address as _, IntoVal};
+    use soroban_sdk::{auth::ContractContext, testutils::Address as _, IntoVal as _};
 
     fn setup() -> Env {
-        Env::default()
+        return Env::default()
     }
 
     #[test]
@@ -175,7 +175,7 @@ mod test {
         let transfer_context = Context::Contract(ContractContext {
             contract: token_address,
             fn_name: symbol_short!("transfer"),
-            args: (Address::generate(&env), Address::generate(&env), 50i128).into_val(&env),
+            args: (Address::generate(&env), Address::generate(&env), 50_i128).into_val(&env),
         });
 
         let mut contexts = Vec::new(&env);
@@ -199,7 +199,7 @@ mod test {
         let transfer_context = Context::Contract(ContractContext {
             contract: token_address,
             fn_name: symbol_short!("transfer"),
-            args: (Address::generate(&env), Address::generate(&env), 150i128).into_val(&env),
+            args: (Address::generate(&env), Address::generate(&env), 150_i128).into_val(&env),
         });
 
         let mut contexts = Vec::new(&env);
@@ -223,7 +223,7 @@ mod test {
         let other_context = Context::Contract(ContractContext {
             contract: contract_address,
             fn_name: symbol_short!("approve"),
-            args: (Address::generate(&env), 1000i128).into_val(&env),
+            args: (Address::generate(&env), 1000_i128).into_val(&env),
         });
 
         let mut contexts = Vec::new(&env);

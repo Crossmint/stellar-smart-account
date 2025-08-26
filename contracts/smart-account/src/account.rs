@@ -1,5 +1,5 @@
 use crate::auth::core::authorizer::Authorizer;
-use crate::auth::permissions::{PolicyCallback, SignerPolicy, SignerRole};
+use crate::auth::permissions::{PolicyCallback as _, SignerPolicy, SignerRole};
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signer::{Signer, SignerKey};
 use crate::config::{
@@ -24,7 +24,7 @@ use soroban_sdk::{
 use storage::Storage;
 use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
 
-/// SmartAccount is a multi-signature account contract that provides enhanced security
+/// `SmartAccount` is a multi-signature account contract that provides enhanced security
 /// through role-based access control, policy-based authorization, and an extensible plugin system.
 ///
 /// The account supports different signers with different signer roles (Admin, Standard, Restricted) with customizable
@@ -79,7 +79,7 @@ impl SmartAccountInterface for SmartAccount {
 
         // Register signers. Duplication will fail
         for signer in signers.iter() {
-            SmartAccount::add_signer(&env, signer).unwrap_or_else(|e| panic_with_error!(env, e));
+            Self::add_signer(&env, signer).unwrap_or_else(|e| panic_with_error!(env, e));
         }
 
         // Initialize plugins storage
@@ -89,12 +89,12 @@ impl SmartAccountInterface for SmartAccount {
             .unwrap();
         // Install plugins
         for plugin in plugins {
-            SmartAccount::install_plugin(&env, plugin)
+            Self::install_plugin(&env, plugin)
                 .unwrap_or_else(|e| panic_with_error!(env, e));
         }
 
         // Initialize the contract
-        SmartAccount::initialize(&env).unwrap_or_else(|e| panic_with_error!(env, e));
+        Self::initialize(&env).unwrap_or_else(|e| panic_with_error!(env, e));
     }
 
     fn add_signer(env: &Env, signer: Signer) -> Result<(), Error> {
@@ -296,7 +296,7 @@ impl SmartAccount {
         Ok(())
     }
 
-    /// Activates policies by calling their on_add callbacks
+    /// Activates policies by calling their `on_add` callbacks
     fn activate_policies(env: &Env, policies: &Vec<SignerPolicy>) -> Result<(), Error> {
         for policy in policies {
             policy.on_add(env)?;
@@ -304,7 +304,7 @@ impl SmartAccount {
         Ok(())
     }
 
-    /// Deactivates policies by calling their on_revoke callbacks
+    /// Deactivates policies by calling their `on_revoke` callbacks
     fn deactivate_policies(env: &Env, policies: &Vec<SignerPolicy>) -> Result<(), Error> {
         for policy in policies {
             policy.on_revoke(env)?;
@@ -314,8 +314,8 @@ impl SmartAccount {
 
     /// Handles changes to a policy set by calling appropriate callbacks
     ///
-    /// - Policies only in old set: on_revoke() called (removed)
-    /// - Policies only in new set: on_add() called (added)
+    /// - Policies only in old set: `on_revoke()` called (removed)
+    /// - Policies only in new set: `on_add()` called (added)
     /// - Policies in both sets: no callbacks (unchanged)
     fn handle_policy_set_changes(
         env: &Env,

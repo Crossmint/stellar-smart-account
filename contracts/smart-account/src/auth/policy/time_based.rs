@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TimeBasedPolicy {
     pub not_before: u64,
     pub not_after: u64,

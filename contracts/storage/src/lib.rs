@@ -36,19 +36,19 @@ pub struct Storage {
 
 impl Default for Storage {
     fn default() -> Self {
-        Self {
+        return Self {
             storage_type: StorageType::Instance,
         }
     }
 }
 impl Storage {
-    pub fn instance() -> Self {
-        Self {
+    #[must_use] pub const fn instance() -> Self {
+        return Self {
             storage_type: StorageType::Instance,
         }
     }
-    pub fn persistent() -> Self {
-        Self {
+    #[must_use] pub const fn persistent() -> Self {
+        return Self {
             storage_type: StorageType::Persistent,
         }
     }
@@ -88,8 +88,8 @@ impl Storage {
         key: &K,
     ) -> Option<V> {
         match self.storage_type {
-            StorageType::Persistent => env.storage().persistent().get::<K, V>(key),
-            StorageType::Instance => env.storage().instance().get::<K, V>(key),
+            StorageType::Persistent => return env.storage().persistent().get::<K, V>(key),
+            StorageType::Instance => return env.storage().instance().get::<K, V>(key),
         }
     }
 
@@ -114,7 +114,7 @@ impl Storage {
         env.events()
             .publish((symbol_short!("storage"), symbol_short!("store")), event);
 
-        Ok(())
+        return Ok(())
     }
 
     pub fn update<K: IntoVal<Env, Val>, V: IntoVal<Env, Val>>(
@@ -135,7 +135,7 @@ impl Storage {
         env.events()
             .publish((symbol_short!("storage"), symbol_short!("update")), event);
 
-        Ok(())
+        return Ok(())
     }
 
     pub fn delete<K: IntoVal<Env, Val>>(&self, env: &Env, key: &K) -> Result<(), Error> {
@@ -151,13 +151,13 @@ impl Storage {
         env.events()
             .publish((symbol_short!("storage"), symbol_short!("delete")), event);
 
-        Ok(())
+        return Ok(())
     }
 
     pub fn has<K: IntoVal<Env, Val>>(&self, env: &Env, key: &K) -> bool {
         match self.storage_type {
-            StorageType::Persistent => env.storage().persistent().has::<K>(key),
-            StorageType::Instance => env.storage().instance().has::<K>(key),
+            StorageType::Persistent => return env.storage().persistent().has::<K>(key),
+            StorageType::Instance => return env.storage().instance().has::<K>(key),
         }
     }
 }

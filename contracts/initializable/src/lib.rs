@@ -3,7 +3,7 @@
 use soroban_sdk::{contracterror, symbol_short, Env, Symbol};
 
 #[contracterror(export = false)]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u32)]
 pub enum Error {
     AlreadyInitialized = 0,
@@ -13,7 +13,7 @@ pub enum Error {
 const INITIALIZED: Symbol = symbol_short!("INIT");
 
 /// Macro to ensure a function only runs if the contract is initialized
-/// Usage: only_initialized!(env);
+/// Usage: `only_initialized!(env)`;
 /// This should be called at the beginning of functions that require initialization
 #[macro_export]
 macro_rules! only_initialized {
@@ -25,7 +25,7 @@ macro_rules! only_initialized {
 }
 
 /// Macro to ensure a function only runs if the contract is initialized
-/// Usage: only_initialized!(env);
+/// Usage: `only_initialized!(env)`;
 /// This should be called at the beginning of functions that require initialization
 #[macro_export]
 macro_rules! only_not_initialized {
@@ -37,7 +37,7 @@ macro_rules! only_not_initialized {
 }
 
 pub trait Initializable {
-    fn get_initialization_value(env: &Env) -> bool {
+    #[must_use] fn get_initialization_value(env: &Env) -> bool {
         env.storage()
             .instance()
             .get::<Symbol, bool>(&INITIALIZED)
@@ -76,7 +76,7 @@ pub trait Initializable {
         Ok(())
     }
 
-    fn is_initialized(env: &Env) -> bool {
+    #[must_use] fn is_initialized(env: &Env) -> bool {
         Self::get_initialization_value(env)
     }
 
