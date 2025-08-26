@@ -10,8 +10,8 @@ use crate::{
     },
     error::Error,
     tests::test_utils::{
-        get_token_auth_context, get_update_signer_auth_context, setup, Ed25519TestSigner,
-        TestSignerTrait as _,
+        budget_snapshot, get_token_auth_context, get_update_signer_auth_context,
+        print_budget_delta, setup, Ed25519TestSigner, TestSignerTrait as _,
     },
 };
 
@@ -31,6 +31,7 @@ fn test_auth_ed25519_happy_case() {
     let payload = BytesN::random(&env);
     let (signer_key, proof) = test_signer.sign(&env, &payload);
     let auth_payloads = SignatureProofs(map![&env, (signer_key.clone(), proof.clone())]);
+    let b = budget_snapshot(&env);
     env.try_invoke_contract_check_auth::<Error>(
         &contract_id,
         &payload,
@@ -38,6 +39,8 @@ fn test_auth_ed25519_happy_case() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("check_auth", &b, &a);
 }
 
 #[test]
@@ -89,6 +92,7 @@ fn test_auth_ed25519_wrong_signature() {
         panic!("Invalid proof type");
     };
     let auth_payloads = SignatureProofs(map![&env, (signer_key.clone(), wrong_proof.clone())]);
+    let b = budget_snapshot(&env);
     env.try_invoke_contract_check_auth::<Error>(
         &contract_id,
         &payload,
@@ -96,6 +100,8 @@ fn test_auth_ed25519_wrong_signature() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("check_auth", &b, &a);
 }
 
 #[test]
@@ -170,6 +176,7 @@ fn test_auth_multi_signature_admin_and_standard() {
         (standard_key.clone(), standard_proof.clone())
     ]);
 
+    let b = budget_snapshot(&env);
     env.try_invoke_contract_check_auth::<Error>(
         &contract_id,
         &payload,
@@ -177,6 +184,8 @@ fn test_auth_multi_signature_admin_and_standard() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("check_auth", &b, &a);
 }
 
 #[test]
@@ -202,6 +211,7 @@ fn test_auth_multi_signature_only_admin_needed() {
 
     let auth_payloads = SignatureProofs(map![&env, (admin_key.clone(), admin_proof.clone())]);
 
+    let b = budget_snapshot(&env);
     env.try_invoke_contract_check_auth::<Error>(
         &contract_id,
         &payload,
@@ -209,6 +219,8 @@ fn test_auth_multi_signature_only_admin_needed() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("check_auth", &b, &a);
 }
 
 #[test]
@@ -234,6 +246,7 @@ fn test_auth_multi_signature_only_standard_needed() {
 
     let auth_payloads = SignatureProofs(map![&env, (standard_key.clone(), standard_proof.clone())]);
 
+    let b = budget_snapshot(&env);
     env.try_invoke_contract_check_auth::<Error>(
         &contract_id,
         &payload,
@@ -241,6 +254,8 @@ fn test_auth_multi_signature_only_standard_needed() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("check_auth", &b, &a);
 }
 
 // ============================================================================
@@ -352,6 +367,7 @@ fn test_auth_time_based_policy_within_window() {
         (restricted_key.clone(), restricted_proof.clone())
     ]);
 
+    let b = budget_snapshot(&env);
     env.try_invoke_contract_check_auth::<Error>(
         &contract_id,
         &payload,
@@ -359,6 +375,8 @@ fn test_auth_time_based_policy_within_window() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("check_auth", &b, &a);
 }
 
 #[test]
@@ -518,6 +536,7 @@ fn test_auth_idempotency() {
     )
     .unwrap();
 
+    let b = budget_snapshot(&env);
     env.try_invoke_contract_check_auth::<Error>(
         &contract_id,
         &payload,
@@ -525,6 +544,8 @@ fn test_auth_idempotency() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("check_auth", &b, &a);
 }
 
 #[test]

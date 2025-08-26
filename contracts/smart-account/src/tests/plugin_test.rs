@@ -12,7 +12,10 @@ use crate::{
     auth::{permissions::SignerRole, proof::SignatureProofs},
     error::Error,
     interface::SmartAccountInterface,
-    tests::test_utils::{get_token_auth_context, setup, Ed25519TestSigner, TestSignerTrait as _},
+    tests::test_utils::{
+        budget_snapshot, get_token_auth_context, print_budget_delta, setup, Ed25519TestSigner,
+        TestSignerTrait as _,
+    },
 };
 
 // -----------------------------------------------------------------------------
@@ -67,10 +70,13 @@ fn test_uninstall_plugin_persists_removal() {
     let plugin_id = env.register(DummyPlugin, ());
 
     // Install plugin
+    let b = budget_snapshot(&env);
     env.as_contract(&smart_account_id, || {
         SmartAccount::install_plugin(&env, plugin_id.clone())
     })
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("install_plugin", &b, &a);
 
     // Verify plugin is installed by triggering on_auth
     let payload = BytesN::random(&env);
@@ -80,6 +86,7 @@ fn test_uninstall_plugin_persists_removal() {
         (admin_key.clone(), admin_proof.clone())
     ]);
 
+    let b = budget_snapshot(&env);
     env.try_invoke_contract_check_auth::<Error>(
         &smart_account_id,
         &payload,
@@ -87,6 +94,8 @@ fn test_uninstall_plugin_persists_removal() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("__check_auth:plugin_on_auth", &b, &a);
 
     // Verify plugin is installed
     assert!(env.as_contract(&smart_account_id, || {
@@ -101,10 +110,13 @@ fn test_uninstall_plugin_persists_removal() {
     );
 
     // Uninstall plugin (FIX: removal now persisted to storage)
+    let b = budget_snapshot(&env);
     env.as_contract(&smart_account_id, || {
         SmartAccount::uninstall_plugin(&env, plugin_id.clone())
     })
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("uninstall_plugin", &b, &a);
 
     // Verify plugin is uninstalled
     assert!(!env.as_contract(&smart_account_id, || {
@@ -116,6 +128,7 @@ fn test_uninstall_plugin_persists_removal() {
     let (admin_key2, admin_proof2) = admin.sign(&env, &payload2);
     let auth_payloads2 = SignatureProofs(soroban_sdk::map![&env, (admin_key2, admin_proof2)]);
 
+    let b = budget_snapshot(&env);
     env.try_invoke_contract_check_auth::<Error>(
         &smart_account_id,
         &payload2,
@@ -123,6 +136,8 @@ fn test_uninstall_plugin_persists_removal() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("__check_auth:after_uninstall", &b, &a);
 
     // Verify plugin did NOT receive second on_auth call (count should still be 1)
     let count_after_uninstall = env.as_contract(&plugin_id, || DummyPlugin::get_count(&env));

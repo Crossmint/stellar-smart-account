@@ -7,7 +7,9 @@ use crate::{
     auth::{permissions::SignerRole, proof::SignatureProofs, signer::SignerKey},
     error::Error,
     interface::SmartAccountInterface,
-    tests::test_utils::{setup, Ed25519TestSigner, TestSignerTrait as _},
+    tests::test_utils::{
+        budget_snapshot, print_budget_delta, setup, Ed25519TestSigner, TestSignerTrait as _,
+    },
 };
 
 extern crate std;
@@ -37,9 +39,12 @@ fn test_revoke_admin_signer_prevented() {
     let admin_signer_key = SignerKey::Ed25519(admin_signer.public_key(&env));
 
     env.mock_all_auths();
+    let b = budget_snapshot(&env);
     let result = env.as_contract(&contract_id, || {
         SmartAccount::revoke_signer(&env, admin_signer_key)
     });
+    let a = budget_snapshot(&env);
+    print_budget_delta("revoke_signer:admin", &b, &a);
 
     assert_eq!(result.unwrap_err(), Error::CannotRevokeAdminSigner);
 }
@@ -69,9 +74,12 @@ fn test_revoke_standard_signer_allowed() {
     let standard_signer_key = SignerKey::Ed25519(standard_signer.public_key(&env));
 
     env.mock_all_auths();
+    let b = budget_snapshot(&env);
     let result = env.as_contract(&contract_id, || {
         SmartAccount::revoke_signer(&env, standard_signer_key)
     });
+    let a = budget_snapshot(&env);
+    print_budget_delta("revoke_signer:standard", &b, &a);
 
     assert!(result.is_ok());
 }
@@ -96,9 +104,12 @@ fn test_add_multiple_admin_signers_success() {
 
     // Call add_signer as contract (auth mocked) to simulate admin operation
     env.mock_all_auths();
+    let b = budget_snapshot(&env);
     let result = env.as_contract(&contract_id, || {
         SmartAccount::add_signer(&env, admin2_signer.clone())
     });
+    let a = budget_snapshot(&env);
+    print_budget_delta("add_signer:admin2", &b, &a);
 
     // Should succeed - this tests that the admin count arithmetic works correctly
     assert!(result.is_ok(), "Adding second admin should succeed");
@@ -107,9 +118,12 @@ fn test_add_multiple_admin_signers_success() {
     let admin3 = Ed25519TestSigner::generate(SignerRole::Admin);
     let admin3_signer = admin3.into_signer(&env);
 
+    let b = budget_snapshot(&env);
     let result2 = env.as_contract(&contract_id, || {
         SmartAccount::add_signer(&env, admin3_signer)
     });
+    let a = budget_snapshot(&env);
+    print_budget_delta("add_signer:admin3", &b, &a);
 
     assert!(result2.is_ok(), "Adding third admin should also succeed");
 }
@@ -133,9 +147,12 @@ fn test_admin_count_underflow_protection() {
     let admin1_standard = Ed25519TestSigner(admin1.0, SignerRole::Standard(vec![&env]));
 
     env.mock_all_auths();
+    let b = budget_snapshot(&env);
     let result = env.as_contract(&contract_id, || {
         SmartAccount::update_signer(&env, admin1_standard.into_signer(&env))
     });
+    let a = budget_snapshot(&env);
+    print_budget_delta("update_signer:admin1_to_standard", &b, &a);
 
     assert!(
         result.is_ok(),
@@ -145,9 +162,12 @@ fn test_admin_count_underflow_protection() {
     // Try to downgrade the last admin (should fail)
     let admin2_standard = Ed25519TestSigner(admin2.0, SignerRole::Standard(vec![&env]));
 
+    let b = budget_snapshot(&env);
     let result2 = env.as_contract(&contract_id, || {
         SmartAccount::update_signer(&env, admin2_standard.into_signer(&env))
     });
+    let a = budget_snapshot(&env);
+    print_budget_delta("update_signer:admin2_to_standard", &b, &a);
 
     assert_eq!(
         result2.unwrap_err(),

@@ -12,7 +12,7 @@ use crate::auth::permissions::{SignerPolicy, SignerRole};
 use crate::auth::policy::{ExternalPolicy, TimeBasedPolicy};
 use crate::auth::signer::{Signer, SignerKey};
 use crate::error::Error;
-use crate::tests::test_utils::{setup, Ed25519TestSigner};
+use crate::tests::test_utils::{budget_snapshot, print_budget_delta, setup, Ed25519TestSigner};
 
 #[contract]
 pub struct DummyExternalPolicy;
@@ -187,6 +187,7 @@ fn test_revoke_signer_with_external_polic_calls_on_revoke() {
         ),
     );
     env.mock_all_auths();
+    let b = budget_snapshot(&env);
     env.as_contract(&account_id, || {
         if let Signer::Ed25519(signer, _) = test_signer {
             let signer_key = SignerKey::Ed25519(signer.public_key);
@@ -196,6 +197,8 @@ fn test_revoke_signer_with_external_polic_calls_on_revoke() {
         }
     })
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("revoke_signer:with_external_policy", &b, &a);
 
     ensure_policy_event_is_emmited(&env, policy_id, symbol_short!("ON_REVOKE"));
 }
@@ -232,10 +235,13 @@ fn test_update_signer_with_external_polic_lifecycle() {
 
         ensure_policy_event_is_emmited(&env, policy_id_1.clone(), symbol_short!("ON_ADD"));
 
+        let b = budget_snapshot(&env);
         env.as_contract(&account_id, || {
             SmartAccount::update_signer(&env, test_signer_2)
         })
         .unwrap();
+        let a = budget_snapshot(&env);
+        print_budget_delta("update_signer:external_policy_lifecycle", &b, &a);
         ensure_policy_event_is_emmited(&env, policy_id_1, symbol_short!("ON_REVOKE"));
         ensure_policy_event_is_emmited(&env, policy_id_2, symbol_short!("ON_ADD"));
     } else {
@@ -266,9 +272,12 @@ fn test_update_signer_with_external_polic_lifecycle_with_same_policy() {
 
     ensure_policy_event_is_emmited(&env, policy_id_1.clone(), symbol_short!("ON_ADD"));
 
+    let b = budget_snapshot(&env);
     env.as_contract(&account_id, || {
         SmartAccount::update_signer(&env, test_signer_1)
     })
     .unwrap();
+    let a = budget_snapshot(&env);
+    print_budget_delta("update_signer:same_policy", &b, &a);
     ensure_policy_event_is_not_emmited(&env, policy_id_1.clone(), symbol_short!("ON_REVOKE"));
 }
