@@ -55,33 +55,6 @@ impl Storage {
 }
 
 impl Storage {
-    fn execute_storage_set<K: IntoVal<Env, Val>, V: IntoVal<Env, Val>>(
-        &self,
-        env: &Env,
-        key: &K,
-        value: &V,
-    ) {
-        match self.storage_type {
-            StorageType::Persistent => {
-                env.storage().persistent().set::<K, V>(key, value);
-            }
-            StorageType::Instance => {
-                env.storage().instance().set::<K, V>(key, value);
-            }
-        }
-    }
-
-    fn execute_storage_remove<K: IntoVal<Env, Val>>(&self, env: &Env, key: &K) {
-        match self.storage_type {
-            StorageType::Persistent => {
-                env.storage().persistent().remove::<K>(key);
-            }
-            StorageType::Instance => {
-                env.storage().instance().remove::<K>(key);
-            }
-        }
-    }
-
     pub fn get<K: IntoVal<Env, Val>, V: TryFromVal<Env, Val>>(
         &self,
         env: &Env,
@@ -96,53 +69,111 @@ impl Storage {
     /// Store a value in the storage.
     ///
     /// If the key already exists, the operation will fail.
-    pub fn store<K: IntoVal<Env, Val>, V: IntoVal<Env, Val>>(
+    pub fn store<K: IntoVal<Env, Val>, V: IntoVal<Env, Val> + TryFromVal<Env, Val> + Clone>(
         &self,
         env: &Env,
         key: &K,
         value: &V,
     ) -> Result<(), Error> {
-        if self.has(env, key) {
-            return Err(Error::AlreadyExists);
-        }
-        self.execute_storage_set(env, key, value);
-
-        let event = StorageChangeEvent {
-            storage_type: self.storage_type.clone(),
-            operation: StorageOperation::Store,
+        let result = match self.storage_type {
+            StorageType::Persistent => {
+                env.storage()
+                    .persistent()
+                    .try_update(key, |existing: Option<V>| {
+                        if existing.is_some() {
+                            Err(Error::AlreadyExists)
+                        } else {
+                            Ok(value.clone())
+                        }
+                    })
+            }
+            StorageType::Instance => {
+                env.storage()
+                    .instance()
+                    .try_update(key, |existing: Option<V>| {
+                        if existing.is_some() {
+                            Err(Error::AlreadyExists)
+                        } else {
+                            Ok(value.clone())
+                        }
+                    })
+            }
         };
-        env.events()
-            .publish((symbol_short!("storage"), symbol_short!("store")), event);
 
-        Ok(())
+        match result {
+            Ok(_) => {
+                let event = StorageChangeEvent {
+                    storage_type: self.storage_type.clone(),
+                    operation: StorageOperation::Store,
+                };
+                env.events()
+                    .publish((symbol_short!("storage"), symbol_short!("store")), event);
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
     }
 
-    pub fn update<K: IntoVal<Env, Val>, V: IntoVal<Env, Val>>(
+    pub fn update<K: IntoVal<Env, Val>, V: IntoVal<Env, Val> + TryFromVal<Env, Val> + Clone>(
         &self,
         env: &Env,
         key: &K,
         value: &V,
     ) -> Result<(), Error> {
-        if !self.has(env, key) {
-            return Err(Error::NotFound);
-        }
-        self.execute_storage_set(env, key, value);
-
-        let event = StorageChangeEvent {
-            storage_type: self.storage_type.clone(),
-            operation: StorageOperation::Update,
+        let result = match self.storage_type {
+            StorageType::Persistent => {
+                env.storage()
+                    .persistent()
+                    .try_update(key, |existing: Option<V>| {
+                        if existing.is_none() {
+                            Err(Error::NotFound)
+                        } else {
+                            Ok(value.clone())
+                        }
+                    })
+            }
+            StorageType::Instance => {
+                env.storage()
+                    .instance()
+                    .try_update(key, |existing: Option<V>| {
+                        if existing.is_none() {
+                            Err(Error::NotFound)
+                        } else {
+                            Ok(value.clone())
+                        }
+                    })
+            }
         };
-        env.events()
-            .publish((symbol_short!("storage"), symbol_short!("update")), event);
 
-        Ok(())
+        match result {
+            Ok(_) => {
+                let event = StorageChangeEvent {
+                    storage_type: self.storage_type.clone(),
+                    operation: StorageOperation::Update,
+                };
+                env.events()
+                    .publish((symbol_short!("storage"), symbol_short!("update")), event);
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
     }
 
     pub fn delete<K: IntoVal<Env, Val>>(&self, env: &Env, key: &K) -> Result<(), Error> {
-        if !self.has(env, key) {
-            return Err(Error::NotFound);
+        match self.storage_type {
+            StorageType::Persistent => {
+                if !env.storage().persistent().has::<K>(key) {
+                    return Err(Error::NotFound);
+                }
+                env.storage().persistent().remove::<K>(key);
+            }
+            StorageType::Instance => {
+                if !env.storage().instance().has::<K>(key) {
+                    return Err(Error::NotFound);
+                }
+                env.storage().instance().remove::<K>(key);
+            }
         }
-        self.execute_storage_remove(env, key);
 
         let event = StorageChangeEvent {
             storage_type: self.storage_type.clone(),
