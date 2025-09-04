@@ -155,3 +155,127 @@ fn test_admin_count_underflow_protection() {
         "Should prevent downgrading the last admin"
     );
 }
+
+#[test]
+fn test_has_signer_returns_true_when_signer_exists() {
+    let env = setup();
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![
+                &env,
+                admin_signer.into_signer(&env),
+                standard_signer.into_signer(&env),
+            ],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let admin_signer_key = SignerKey::Ed25519(admin_signer.public_key(&env));
+    let standard_signer_key = SignerKey::Ed25519(standard_signer.public_key(&env));
+
+    // Test that has_signer returns true for existing signers
+    let admin_result = env.as_contract(&contract_id, || {
+        SmartAccount::has_signer(&env, admin_signer_key)
+    });
+
+    let standard_result = env.as_contract(&contract_id, || {
+        SmartAccount::has_signer(&env, standard_signer_key)
+    });
+
+    assert!(admin_result.is_ok());
+    assert_eq!(admin_result.unwrap(), true);
+    assert!(standard_result.is_ok());
+    assert_eq!(standard_result.unwrap(), true);
+}
+
+#[test]
+fn test_has_signer_returns_false_when_signer_does_not_exist() {
+    let env = setup();
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
+    let non_existent_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin_signer.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let non_existent_signer_key = SignerKey::Ed25519(non_existent_signer.public_key(&env));
+
+    // Test that has_signer returns false for non-existent signer
+    let result = env.as_contract(&contract_id, || {
+        SmartAccount::has_signer(&env, non_existent_signer_key)
+    });
+
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), false);
+}
+
+#[test]
+fn test_get_signer_returns_signer_when_exists() {
+    let env = setup();
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![
+                &env,
+                admin_signer.into_signer(&env),
+                standard_signer.into_signer(&env),
+            ],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let admin_signer_key = SignerKey::Ed25519(admin_signer.public_key(&env));
+    let standard_signer_key = SignerKey::Ed25519(standard_signer.public_key(&env));
+    let expected_admin_signer = admin_signer.into_signer(&env);
+    let expected_standard_signer = standard_signer.into_signer(&env);
+
+    // Test that get_signer returns the correct signer for existing signers
+    let admin_result = env.as_contract(&contract_id, || {
+        SmartAccount::get_signer(&env, admin_signer_key)
+    });
+
+    let standard_result = env.as_contract(&contract_id, || {
+        SmartAccount::get_signer(&env, standard_signer_key)
+    });
+
+    assert!(admin_result.is_ok());
+    assert_eq!(admin_result.unwrap(), expected_admin_signer);
+    assert!(standard_result.is_ok());
+    assert_eq!(standard_result.unwrap(), expected_standard_signer);
+}
+
+#[test]
+fn test_get_signer_returns_error_when_signer_does_not_exist() {
+    let env = setup();
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
+    let non_existent_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin_signer.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let non_existent_signer_key = SignerKey::Ed25519(non_existent_signer.public_key(&env));
+
+    // Test that get_signer returns SignerNotFound error for non-existent signer
+    let result = env.as_contract(&contract_id, || {
+        SmartAccount::get_signer(&env, non_existent_signer_key)
+    });
+
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), Error::SignerNotFound);
+}
