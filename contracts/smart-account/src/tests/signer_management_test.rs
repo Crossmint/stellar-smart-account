@@ -187,9 +187,9 @@ fn test_has_signer_returns_true_when_signer_exists() {
     });
 
     assert!(admin_result.is_ok());
-    assert_eq!(admin_result.unwrap(), true);
+    assert!(admin_result.unwrap());
     assert!(standard_result.is_ok());
-    assert_eq!(standard_result.unwrap(), true);
+    assert!(standard_result.unwrap());
 }
 
 #[test]
@@ -214,7 +214,7 @@ fn test_has_signer_returns_false_when_signer_does_not_exist() {
     });
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), false);
+    assert!(!result.unwrap());
 }
 
 #[test]
