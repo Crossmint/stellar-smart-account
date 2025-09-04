@@ -164,6 +164,16 @@ impl SmartAccountInterface for SmartAccount {
         Ok(())
     }
 
+    fn get_signer(env: &Env, signer_key: SignerKey) -> Result<Signer, Error> {
+        Storage::persistent()
+            .get::<SignerKey, Signer>(env, &signer_key)
+            .ok_or(Error::SignerNotFound)
+    }
+
+    fn has_signer(env: &Env, signer_key: SignerKey) -> Result<bool, Error> {
+        Ok(Storage::persistent().has::<SignerKey>(env, &signer_key))
+    }
+
     fn install_plugin(env: &Env, plugin: Address) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
 
