@@ -11,10 +11,10 @@ use crate::events::{
     SignerRevokedEvent, SignerUpdatedEvent,
 };
 use crate::handle_nested_result_failure;
-use crate::interface::SmartAccountInterface;
 use crate::plugin::SmartAccountPluginClient;
 use initializable::{only_not_initialized, Initializable};
 use smart_account_interfaces::SmartAccountError;
+pub use smart_account_interfaces::SmartAccountInterface;
 use smart_account_interfaces::{Signer, SignerKey, SignerPolicy, SignerRole};
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},

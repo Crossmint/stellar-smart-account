@@ -1,11 +1,11 @@
 #![cfg(test)]
 
+pub use smart_account_interfaces::SmartAccountInterface;
 use soroban_sdk::{map, testutils::BytesN as _, vec, Address, BytesN, Vec};
 
 use crate::{
     account::SmartAccount,
     auth::proof::SignatureProofs,
-    interface::SmartAccountInterface,
     tests::test_utils::{setup, Ed25519TestSigner, TestSignerTrait as _},
 };
 use smart_account_interfaces::SmartAccountError as Error;

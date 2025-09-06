@@ -1,6 +1,6 @@
-use crate::interface::SmartAccountInterface;
 use crate::tests::test_utils::TestSignerTrait as _;
 use smart_account_interfaces::Ed25519Signer;
+pub use smart_account_interfaces::SmartAccountInterface;
 use soroban_sdk::auth::Context;
 use soroban_sdk::testutils::Events;
 use soroban_sdk::{
