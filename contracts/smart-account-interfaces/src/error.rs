@@ -59,5 +59,3 @@ impl From<storage::Error> for SmartAccountError {
         }
     }
 }
-
-

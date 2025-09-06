@@ -6,5 +6,3 @@ pub trait SmartAccountPolicy {
     fn on_revoke(env: &Env, source: Address);
     fn is_authorized(env: &Env, source: Address, contexts: Vec<Context>) -> bool;
 }
-
-
