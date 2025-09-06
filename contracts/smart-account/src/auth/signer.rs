@@ -2,7 +2,7 @@ use crate::auth::permissions::AuthorizationCheck;
 use crate::auth::proof::SignerProof;
 use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
-use smart_account_interfaces::{Ed25519Signer, Secp256r1Signer, Signer, SignerKey, SignerRole};
+use smart_account_interfaces::{Ed25519Signer, Secp256r1Signer, Signer};
 use soroban_sdk::Vec;
 use soroban_sdk::{auth::Context, BytesN, Env};
 

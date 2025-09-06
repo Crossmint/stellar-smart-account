@@ -3,8 +3,7 @@ use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
 use base64ct::{Base64UrlUnpadded, Encoding};
 use smart_account_interfaces::Secp256r1Signer;
-use smart_account_interfaces::SignerKey;
-use soroban_sdk::{Bytes, BytesN, Env};
+use soroban_sdk::{BytesN, Env};
 
 #[derive(serde::Deserialize)]
 struct ClientDataJson<'a> {
