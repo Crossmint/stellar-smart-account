@@ -1,11 +1,10 @@
+use crate::auth::proof::{Secp256r1Signature, SignerProof};
 use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
 use base64ct::{Base64UrlUnpadded, Encoding};
 use smart_account_interfaces::Secp256r1Signer;
-use crate::auth::proof::{Secp256r1Signature, SignerProof};
-use soroban_sdk::{BytesN, Env};
-
-// Secp256r1Signer type is now imported from smart_account_interfaces
+use smart_account_interfaces::SignerKey;
+use soroban_sdk::{Bytes, BytesN, Env};
 
 #[derive(serde::Deserialize)]
 struct ClientDataJson<'a> {
@@ -63,4 +62,4 @@ impl SignatureVerifier for Secp256r1Signer {
     }
 }
 
-// SignerKey construction is handled via helper in signer module
+// From<Secp256r1Signer> for SignerKey implemented in interfaces crate

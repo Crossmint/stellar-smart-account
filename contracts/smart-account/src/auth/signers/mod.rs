@@ -1,6 +1,5 @@
 mod ed25519;
 pub mod secp256r1;
-pub use smart_account_interfaces::account::{Ed25519Signer, Secp256r1Signer};
 
 use crate::auth::proof::SignerProof;
 use crate::error::Error;

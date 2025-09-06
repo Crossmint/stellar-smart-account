@@ -3,21 +3,19 @@ use soroban_sdk::{
     Env, Vec,
 };
 
-use crate::error::Error;
-// Re-exported policy types available for users; not needed directly here
-// use smart_account_interfaces::{ExternalPolicy, TimeBasedPolicy};
+use smart_account_interfaces::SmartAccountError;
+use smart_account_interfaces::{SignerPolicy, SignerRole};
 
 pub trait AuthorizationCheck {
     fn is_authorized(&self, env: &Env, context: &Vec<Context>) -> bool;
 }
 
 pub trait PolicyCallback {
-    fn on_add(&self, env: &Env) -> Result<(), Error>;
-    fn on_revoke(&self, env: &Env) -> Result<(), Error>;
+    fn on_add(&self, env: &Env) -> Result<(), SmartAccountError>;
+    fn on_revoke(&self, env: &Env) -> Result<(), SmartAccountError>;
 }
 
-// Main policy enum that wraps the individual policies
-pub use smart_account_interfaces::SignerPolicy;
+// Main policy enum moved to interfaces crate
 
 // Delegate to the specific policy implementation
 impl AuthorizationCheck for SignerPolicy {
@@ -29,20 +27,19 @@ impl AuthorizationCheck for SignerPolicy {
 }
 
 impl PolicyCallback for SignerPolicy {
-    fn on_add(&self, env: &Env) -> Result<(), Error> {
+    fn on_add(&self, env: &Env) -> Result<(), SmartAccountError> {
         match self {
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_add(env),
         }
     }
-    fn on_revoke(&self, env: &Env) -> Result<(), Error> {
+    fn on_revoke(&self, env: &Env) -> Result<(), SmartAccountError> {
         match self {
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_revoke(env),
         }
     }
 }
 
-// This defines the roles that a configured signer can have
-pub use smart_account_interfaces::SignerRole;
+// SignerRole moved to interfaces crate
 
 // Checks if, for a given execution context, the signer is authorized to perform the operation.
 // Logic:

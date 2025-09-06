@@ -1,6 +1,6 @@
-use crate::auth::signers::Ed25519Signer;
 use crate::interface::SmartAccountInterface;
 use crate::tests::test_utils::TestSignerTrait as _;
+use smart_account_interfaces::Ed25519Signer;
 use soroban_sdk::auth::Context;
 use soroban_sdk::testutils::Events;
 use soroban_sdk::{
@@ -8,11 +8,9 @@ use soroban_sdk::{
 };
 
 use crate::account::SmartAccount;
-use crate::auth::permissions::{SignerPolicy, SignerRole};
-use crate::auth::policy::ExternalPolicy;
-use crate::auth::signer::{Signer, SignerKey};
 use crate::error::Error;
 use crate::tests::test_utils::{setup, Ed25519TestSigner};
+use smart_account_interfaces::{ExternalPolicy, Signer, SignerKey, SignerPolicy, SignerRole};
 
 #[contract]
 pub struct DummyExternalPolicy;

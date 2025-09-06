@@ -3,17 +3,15 @@ use soroban_sdk::{map, testutils::BytesN as _, vec, Address, BytesN, IntoVal};
 
 use crate::{
     account::SmartAccount,
-    auth::{
-        permissions::{SignerPolicy, SignerRole},
-        // policy::TimeBasedPolicy,
-        proof::{SignatureProofs, SignerProof},
-    },
+    auth::proof::{SignatureProofs, SignerProof},
     error::Error,
     tests::test_utils::{
         get_token_auth_context, get_update_signer_auth_context, setup, Ed25519TestSigner,
         TestSignerTrait as _,
     },
 };
+use smart_account_interfaces::{SignerPolicy, SignerRole};
+use soroban_sdk::testutils::Address as _;
 
 extern crate std;
 
@@ -315,6 +313,11 @@ fn test_auth_standard_cannot_update_signers() {
         Ok(err) => assert_eq!(err, Error::InsufficientPermissions),
     }
 }
+
+// ============================================================================
+// ============================================================================
+
+// Time-based policy tests removed
 
 // ============================================================================
 // ============================================================================

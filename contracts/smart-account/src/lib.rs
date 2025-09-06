@@ -11,12 +11,12 @@ pub mod plugin;
 pub mod utils;
 
 // Re-export key types for external use and bindings generation
-pub use auth::permissions::{SignerPolicy, SignerRole};
 pub use auth::policy::SmartAccountPolicy;
 pub use auth::proof::{SignatureProofs, SignerProof};
-pub use auth::signer::{Signer, SignerKey};
 pub use error::Error;
 pub use plugin::SmartAccountPlugin;
+pub use smart_account_interfaces::{Signer, SignerKey};
+pub use smart_account_interfaces::{SignerPolicy, SignerRole};
 
 #[cfg(test)]
 mod tests;

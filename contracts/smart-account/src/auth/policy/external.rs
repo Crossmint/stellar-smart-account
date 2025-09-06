@@ -6,12 +6,11 @@ use crate::{
         policy::interface::SmartAccountPolicyClient,
     },
     config::{TOPIC_POLICY, VERB_CALLBACK_FAILED},
-    error::Error,
     events::PolicyCallbackFailedEvent,
     handle_nested_result_failure,
 };
-
-pub use smart_account_interfaces::ExternalPolicy;
+use smart_account_interfaces::ExternalPolicy;
+use smart_account_interfaces::SmartAccountError;
 
 impl AuthorizationCheck for ExternalPolicy {
     fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
@@ -22,7 +21,7 @@ impl AuthorizationCheck for ExternalPolicy {
 }
 
 impl PolicyCallback for ExternalPolicy {
-    fn on_add(&self, env: &Env) -> Result<(), Error> {
+    fn on_add(&self, env: &Env) -> Result<(), SmartAccountError> {
         let policy_client = SmartAccountPolicyClient::new(env, &self.policy_address);
         let res = policy_client.try_on_add(&env.current_contract_address());
         handle_nested_result_failure!(res, {
@@ -33,12 +32,12 @@ impl PolicyCallback for ExternalPolicy {
                     policy_address: self.policy_address.clone(),
                 },
             );
-            return Err(Error::PolicyClientInitializationError);
+            return Err(SmartAccountError::PolicyClientInitializationError);
         });
         Ok(())
     }
 
-    fn on_revoke(&self, env: &Env) -> Result<(), Error> {
+    fn on_revoke(&self, env: &Env) -> Result<(), SmartAccountError> {
         let policy_client = SmartAccountPolicyClient::new(env, &self.policy_address);
         let res = policy_client.try_on_revoke(&env.current_contract_address());
         handle_nested_result_failure!(res, {
