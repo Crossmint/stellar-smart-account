@@ -1,3 +1,4 @@
+use soroban_sdk::contractclient;
 use soroban_sdk::{Address, Env, Vec};
 
 use crate::policy::Signer;
@@ -7,6 +8,7 @@ use crate::policy::SmartAccountError;
 /// Public API of the Smart Account contract.
 ///
 /// Provides initialization, signer management, and plugin lifecycle operations.
+#[contractclient(name = "SmartAccountClient")]
 pub trait SmartAccountInterface {
     /// Initializes the contract with the given signers and plugins.
     fn __constructor(env: Env, signers: Vec<Signer>, plugins: Vec<Address>);
