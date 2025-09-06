@@ -17,10 +17,10 @@ use crate::account::SmartAccount;
 use crate::auth::permissions::SignerRole;
 use crate::auth::proof::{Secp256r1Signature, SignatureProofs, SignerProof};
 use crate::auth::signer::{Signer, SignerKey};
-use crate::auth::signers::secp256r1::Secp256r1Signer;
 use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
 use crate::tests::test_utils::get_token_auth_context;
+use smart_account_interfaces::Secp256r1Signer;
 
 // Helper functions for WebAuthn testing
 mod webauthn_helpers {

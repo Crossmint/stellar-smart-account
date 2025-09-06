@@ -1,4 +1,5 @@
-use crate::auth::signer::{Signer, SignerKey};
+use crate::auth::signer::signer_key_of;
+use smart_account_interfaces::{Signer, SignerKey};
 use soroban_sdk::{contracttype, Address, String};
 
 #[contracttype]
@@ -11,7 +12,7 @@ pub struct SignerAddedEvent {
 impl From<Signer> for SignerAddedEvent {
     fn from(signer: Signer) -> Self {
         SignerAddedEvent {
-            signer_key: signer.clone().into(),
+            signer_key: signer_key_of(&signer),
             signer,
         }
     }
@@ -27,7 +28,7 @@ pub struct SignerUpdatedEvent {
 impl From<Signer> for SignerUpdatedEvent {
     fn from(signer: Signer) -> Self {
         SignerUpdatedEvent {
-            signer_key: signer.clone().into(),
+            signer_key: signer_key_of(&signer),
             new_signer: signer,
         }
     }
@@ -43,7 +44,7 @@ pub struct SignerRevokedEvent {
 impl From<Signer> for SignerRevokedEvent {
     fn from(signer: Signer) -> Self {
         SignerRevokedEvent {
-            signer_key: signer.clone().into(),
+            signer_key: signer_key_of(&signer),
             revoked_signer: signer,
         }
     }

@@ -1,22 +1,11 @@
-use crate::auth::proof::SignerProof;
-use crate::auth::signer::SignerKey;
 use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
-use soroban_sdk::{contracttype, Bytes, BytesN, Env};
+use crate::auth::signer::signer_key_of;
+use smart_account_interfaces::{Ed25519Signer, Signer, SignerKey};
+use soroban_sdk::{Bytes, BytesN, Env};
+use crate::auth::proof::SignerProof;
 
-/// Ed25519 signer implementation
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub struct Ed25519Signer {
-    pub public_key: BytesN<32>,
-}
-
-impl Ed25519Signer {
-    /// Create a new Ed25519 signer with the given public key
-    pub fn new(public_key: BytesN<32>) -> Self {
-        Self { public_key }
-    }
-}
+// Ed25519Signer type is now imported from smart_account_interfaces
 
 impl SignatureVerifier for Ed25519Signer {
     fn verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
@@ -36,8 +25,4 @@ impl SignatureVerifier for Ed25519Signer {
     }
 }
 
-impl From<Ed25519Signer> for SignerKey {
-    fn from(signer: Ed25519Signer) -> Self {
-        SignerKey::Ed25519(signer.public_key.clone())
-    }
-}
+pub fn ed25519_signer_key(signer: &Signer) -> SignerKey { signer_key_of(signer) }

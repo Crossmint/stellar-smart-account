@@ -1,4 +1,4 @@
-use soroban_sdk::{auth::Context, contracttype, Address, Env, Vec};
+use soroban_sdk::{auth::Context, Env, Vec};
 
 use crate::{
     auth::{
@@ -11,11 +11,7 @@ use crate::{
     handle_nested_result_failure,
 };
 
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub struct ExternalPolicy {
-    pub policy_address: Address,
-}
+pub use smart_account_interfaces::ExternalPolicy;
 
 impl AuthorizationCheck for ExternalPolicy {
     fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {

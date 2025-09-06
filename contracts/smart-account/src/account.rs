@@ -1,7 +1,7 @@
 use crate::auth::core::authorizer::Authorizer;
 use crate::auth::permissions::{PolicyCallback, SignerPolicy, SignerRole};
 use crate::auth::proof::SignatureProofs;
-use crate::auth::signer::{Signer, SignerKey};
+use crate::auth::signer::{Signer, SignerExt, SignerKey};
 use crate::config::{
     ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED,
     VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
@@ -99,7 +99,7 @@ impl SmartAccountInterface for SmartAccount {
 
     fn add_signer(env: &Env, signer: Signer) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
-        let key = signer.clone().into();
+        let key = crate::auth::signer::signer_key_of(&signer);
         let storage = Storage::persistent();
         storage.store::<SignerKey, Signer>(env, &key, &signer)?;
 
@@ -120,7 +120,7 @@ impl SmartAccountInterface for SmartAccount {
 
     fn update_signer(env: &Env, signer: Signer) -> Result<(), Error> {
         Self::require_auth_if_initialized(env);
-        let key = signer.clone().into();
+        let key = crate::auth::signer::signer_key_of(&signer);
         let storage = Storage::persistent();
         let old_signer = storage
             .get::<SignerKey, Signer>(env, &key)
