@@ -1,9 +1,8 @@
 use soroban_sdk::contractclient;
 use soroban_sdk::{Address, Env, Vec};
 
-use crate::policy::Signer;
-use crate::policy::SignerKey;
-use crate::policy::SmartAccountError;
+use crate::auth::types::{Signer, SignerKey};
+use crate::error::SmartAccountError;
 
 /// Public API of the Smart Account contract.
 ///
