@@ -1,65 +1,45 @@
 use soroban_sdk::{
     auth::{Context, ContractContext},
-    contracttype, Env, Vec,
+    Env, Vec,
 };
 
-use crate::{
-    auth::policy::{ExternalPolicy, TimeBasedPolicy},
-    error::Error,
-};
+use smart_account_interfaces::SmartAccountError;
+use smart_account_interfaces::{SignerPolicy, SignerRole};
 
 pub trait AuthorizationCheck {
     fn is_authorized(&self, env: &Env, context: &Vec<Context>) -> bool;
 }
 
 pub trait PolicyCallback {
-    fn on_add(&self, env: &Env) -> Result<(), Error>;
-    fn on_revoke(&self, env: &Env) -> Result<(), Error>;
+    fn on_add(&self, env: &Env) -> Result<(), SmartAccountError>;
+    fn on_revoke(&self, env: &Env) -> Result<(), SmartAccountError>;
 }
 
-// Main policy enum that wraps the individual policies
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub enum SignerPolicy {
-    TimeWindowPolicy(TimeBasedPolicy),
-    ExternalValidatorPolicy(ExternalPolicy),
-}
+// Main policy enum moved to interfaces crate
 
 // Delegate to the specific policy implementation
 impl AuthorizationCheck for SignerPolicy {
     fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
         match self {
-            SignerPolicy::TimeWindowPolicy(policy) => policy.is_authorized(env, contexts),
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.is_authorized(env, contexts),
         }
     }
 }
 
 impl PolicyCallback for SignerPolicy {
-    fn on_add(&self, env: &Env) -> Result<(), Error> {
+    fn on_add(&self, env: &Env) -> Result<(), SmartAccountError> {
         match self {
-            SignerPolicy::TimeWindowPolicy(policy) => policy.on_add(env),
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_add(env),
         }
     }
-    fn on_revoke(&self, env: &Env) -> Result<(), Error> {
+    fn on_revoke(&self, env: &Env) -> Result<(), SmartAccountError> {
         match self {
-            SignerPolicy::TimeWindowPolicy(policy) => policy.on_revoke(env),
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_revoke(env),
         }
     }
 }
 
-// This defines the roles that a configured signer can have
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub enum SignerRole {
-    // Can authorize any operation, including changing signers and upgrading the contract
-    Admin,
-    // Can authorize any operation, except changing signers and upgrading the contract, subject
-    // to the restrictions specified in the policies (if any).
-    Standard(Vec<SignerPolicy>),
-}
+// SignerRole moved to interfaces crate
 
 // Checks if, for a given execution context, the signer is authorized to perform the operation.
 // Logic:

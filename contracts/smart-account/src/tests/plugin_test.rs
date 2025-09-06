@@ -9,11 +9,11 @@ use soroban_sdk::{
 
 use crate::{
     account::SmartAccount,
-    auth::{permissions::SignerRole, proof::SignatureProofs},
+    auth::proof::SignatureProofs,
     error::Error,
-    interface::SmartAccountInterface,
     tests::test_utils::{get_token_auth_context, setup, Ed25519TestSigner, TestSignerTrait as _},
 };
+use smart_account_interfaces::{SignerRole, SmartAccountInterface};
 
 // -----------------------------------------------------------------------------
 // Dummy plugin contract that increments a counter on every on_auth

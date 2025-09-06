@@ -1,7 +1,6 @@
 use crate::auth::core::authorizer::Authorizer;
-use crate::auth::permissions::{PolicyCallback, SignerPolicy, SignerRole};
+use crate::auth::permissions::PolicyCallback;
 use crate::auth::proof::SignatureProofs;
-use crate::auth::signer::{Signer, SignerKey};
 use crate::config::{
     ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED,
     VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
@@ -12,9 +11,11 @@ use crate::events::{
     SignerRevokedEvent, SignerUpdatedEvent,
 };
 use crate::handle_nested_result_failure;
-use crate::interface::SmartAccountInterface;
 use crate::plugin::SmartAccountPluginClient;
 use initializable::{only_not_initialized, Initializable};
+use smart_account_interfaces::SmartAccountError;
+pub use smart_account_interfaces::SmartAccountInterface;
+use smart_account_interfaces::{Signer, SignerKey, SignerPolicy, SignerRole};
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
@@ -97,7 +98,7 @@ impl SmartAccountInterface for SmartAccount {
         SmartAccount::initialize(&env).unwrap_or_else(|e| panic_with_error!(env, e));
     }
 
-    fn add_signer(env: &Env, signer: Signer) -> Result<(), Error> {
+    fn add_signer(env: &Env, signer: Signer) -> Result<(), SmartAccountError> {
         Self::require_auth_if_initialized(env);
         let key = signer.clone().into();
         let storage = Storage::persistent();
@@ -118,13 +119,13 @@ impl SmartAccountInterface for SmartAccount {
         Ok(())
     }
 
-    fn update_signer(env: &Env, signer: Signer) -> Result<(), Error> {
+    fn update_signer(env: &Env, signer: Signer) -> Result<(), SmartAccountError> {
         Self::require_auth_if_initialized(env);
         let key = signer.clone().into();
         let storage = Storage::persistent();
         let old_signer = storage
             .get::<SignerKey, Signer>(env, &key)
-            .ok_or(Error::SignerNotFound)?;
+            .ok_or(SmartAccountError::SignerNotFound)?;
 
         // Handle role transitions: admin count and policy lifecycle callbacks
         Self::handle_role_transition(env, &old_signer.role(), &signer.role())?;
@@ -139,17 +140,17 @@ impl SmartAccountInterface for SmartAccount {
         Ok(())
     }
 
-    fn revoke_signer(env: &Env, signer_key: SignerKey) -> Result<(), Error> {
+    fn revoke_signer(env: &Env, signer_key: SignerKey) -> Result<(), SmartAccountError> {
         Self::require_auth_if_initialized(env);
 
         let storage = Storage::persistent();
 
         let signer_to_revoke = storage
             .get::<SignerKey, Signer>(env, &signer_key)
-            .ok_or(Error::SignerNotFound)?;
+            .ok_or(SmartAccountError::SignerNotFound)?;
 
         if signer_to_revoke.role() == SignerRole::Admin {
-            return Err(Error::CannotRevokeAdminSigner);
+            return Err(SmartAccountError::CannotRevokeAdminSigner);
         }
 
         storage.delete::<SignerKey>(env, &signer_key)?;
@@ -164,17 +165,17 @@ impl SmartAccountInterface for SmartAccount {
         Ok(())
     }
 
-    fn get_signer(env: &Env, signer_key: SignerKey) -> Result<Signer, Error> {
+    fn get_signer(env: &Env, signer_key: SignerKey) -> Result<Signer, SmartAccountError> {
         Storage::persistent()
             .get::<SignerKey, Signer>(env, &signer_key)
-            .ok_or(Error::SignerNotFound)
+            .ok_or(SmartAccountError::SignerNotFound)
     }
 
-    fn has_signer(env: &Env, signer_key: SignerKey) -> Result<bool, Error> {
+    fn has_signer(env: &Env, signer_key: SignerKey) -> Result<bool, SmartAccountError> {
         Ok(Storage::persistent().has::<SignerKey>(env, &signer_key))
     }
 
-    fn install_plugin(env: &Env, plugin: Address) -> Result<(), Error> {
+    fn install_plugin(env: &Env, plugin: Address) -> Result<(), SmartAccountError> {
         Self::require_auth_if_initialized(env);
 
         // Store the plugin in the storage
@@ -183,7 +184,7 @@ impl SmartAccountInterface for SmartAccount {
             .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
             .unwrap();
         if existing_plugins.contains_key(plugin.clone()) {
-            return Err(Error::PluginAlreadyInstalled);
+            return Err(SmartAccountError::PluginAlreadyInstalled);
         }
         existing_plugins.set(plugin.clone(), ());
         storage.update::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY, &existing_plugins)?;
@@ -191,8 +192,8 @@ impl SmartAccountInterface for SmartAccount {
         // Call the plugin's on_install callback for initialization
         SmartAccountPluginClient::new(env, &plugin)
             .try_on_install(&env.current_contract_address())
-            .map_err(|_| Error::PluginInitializationFailed)?
-            .map_err(|_| Error::PluginInitializationFailed)?;
+            .map_err(|_| SmartAccountError::PluginInitializationFailed)?
+            .map_err(|_| SmartAccountError::PluginInitializationFailed)?;
 
         env.events().publish(
             (TOPIC_PLUGIN, VERB_INSTALLED),
@@ -202,7 +203,7 @@ impl SmartAccountInterface for SmartAccount {
         Ok(())
     }
 
-    fn uninstall_plugin(env: &Env, plugin: Address) -> Result<(), Error> {
+    fn uninstall_plugin(env: &Env, plugin: Address) -> Result<(), SmartAccountError> {
         Self::require_auth_if_initialized(env);
 
         let storage = Storage::instance();
@@ -211,7 +212,7 @@ impl SmartAccountInterface for SmartAccount {
             .unwrap();
 
         if !existing_plugins.contains_key(plugin.clone()) {
-            return Err(Error::PluginNotFound);
+            return Err(SmartAccountError::PluginNotFound);
         }
         existing_plugins.remove(plugin.clone());
         storage.update(env, &PLUGINS_KEY, &existing_plugins)?;
@@ -255,7 +256,7 @@ impl SmartAccount {
         env: &Env,
         old_role: &SignerRole,
         new_role: &SignerRole,
-    ) -> Result<(), Error> {
+    ) -> Result<(), SmartAccountError> {
         match (old_role, new_role) {
             // Admin → Standard: decrease admin count, activate policies
             (SignerRole::Admin, SignerRole::Standard(policies)) => {
@@ -278,36 +279,38 @@ impl SmartAccount {
     }
 
     /// Decrements admin count with validation
-    fn decrement_admin_count(env: &Env) -> Result<(), Error> {
+    fn decrement_admin_count(env: &Env) -> Result<(), SmartAccountError> {
         let storage = Storage::persistent();
         let count = storage
             .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
             .unwrap_or(0);
 
         if count <= 1 {
-            return Err(Error::CannotDowngradeLastAdmin);
+            return Err(SmartAccountError::CannotDowngradeLastAdmin);
         }
 
         let new_count = count
             .checked_sub(1)
-            .ok_or(Error::CannotDowngradeLastAdmin)?;
+            .ok_or(SmartAccountError::CannotDowngradeLastAdmin)?;
         storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
         Ok(())
     }
 
     /// Increments admin count with validation
-    fn increment_admin_count(env: &Env) -> Result<(), Error> {
+    fn increment_admin_count(env: &Env) -> Result<(), SmartAccountError> {
         let storage = Storage::persistent();
         let count = storage
             .get::<Symbol, u32>(env, &ADMIN_COUNT_KEY)
             .unwrap_or(0);
-        let new_count = count.checked_add(1).ok_or(Error::MaxSignersReached)?;
+        let new_count = count
+            .checked_add(1)
+            .ok_or(SmartAccountError::MaxSignersReached)?;
         storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
         Ok(())
     }
 
     /// Activates policies by calling their on_add callbacks
-    fn activate_policies(env: &Env, policies: &Vec<SignerPolicy>) -> Result<(), Error> {
+    fn activate_policies(env: &Env, policies: &Vec<SignerPolicy>) -> Result<(), SmartAccountError> {
         for policy in policies {
             policy.on_add(env)?;
         }
@@ -315,7 +318,10 @@ impl SmartAccount {
     }
 
     /// Deactivates policies by calling their on_revoke callbacks
-    fn deactivate_policies(env: &Env, policies: &Vec<SignerPolicy>) -> Result<(), Error> {
+    fn deactivate_policies(
+        env: &Env,
+        policies: &Vec<SignerPolicy>,
+    ) -> Result<(), SmartAccountError> {
         for policy in policies {
             policy.on_revoke(env)?;
         }
@@ -331,7 +337,7 @@ impl SmartAccount {
         env: &Env,
         old_policies: &Vec<SignerPolicy>,
         new_policies: &Vec<SignerPolicy>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), SmartAccountError> {
         // Early exit optimizations
         if old_policies.is_empty() && new_policies.is_empty() {
             return Ok(());
