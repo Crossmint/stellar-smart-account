@@ -62,8 +62,8 @@ impl Contract {
     pub fn hello_with_complex_types(
         env: Env,
         caller: Address,
-        input: ComplexType,
-        input_enum: ComplexTypeEnum,
+        #[allow(unused)] input: ComplexType,
+        #[allow(unused)] input_enum: ComplexTypeEnum,
     ) -> Vec<String> {
         caller.require_auth();
         vec![&env, String::from_str(&env, "hello")]
