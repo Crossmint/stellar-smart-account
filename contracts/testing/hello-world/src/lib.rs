@@ -1,5 +1,7 @@
 #![no_std]
-use soroban_sdk::{contract, contracterror, contractimpl, vec, Address, Env, String, Vec};
+use soroban_sdk::{
+    contract, contracterror, contractimpl, contracttype, vec, Address, Bytes, Env, String, Vec,
+};
 
 #[contract]
 pub struct Contract;
@@ -19,6 +21,20 @@ pub struct Contract;
 #[repr(u32)]
 pub enum Error {
     CustomContractError = 0,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ComplexType {
+    bytes: Bytes,
+    bytes_string: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ComplexTypeEnum {
+    ComplexType1(ComplexType),
+    ComplexType2(ComplexType),
 }
 
 #[contractimpl]
@@ -41,6 +57,16 @@ impl Contract {
             caller.to_string(),
             caller2.to_string(),
         ]
+    }
+
+    pub fn hello_with_complex_types(
+        env: Env,
+        caller: Address,
+        #[allow(unused)] input: ComplexType,
+        #[allow(unused)] input_enum: ComplexTypeEnum,
+    ) -> Vec<String> {
+        caller.require_auth();
+        vec![&env, String::from_str(&env, "hello")]
     }
 
     pub fn hello_reverts(_env: Env) -> Result<Vec<String>, Error> {
