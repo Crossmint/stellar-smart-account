@@ -1,6 +1,6 @@
 use soroban_sdk::{contracttype, Bytes, BytesN, Map};
 
-use crate::auth::signer::SignerKey;
+use smart_account_interfaces::SignerKey;
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]

@@ -1829,7 +1829,9 @@ dependencies = [
 name = "smart-account-interfaces"
 version = "0.1.0"
 dependencies = [
+ "initializable",
  "soroban-sdk",
+ "storage",
 ]
 
 [[package]]
