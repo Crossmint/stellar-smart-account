@@ -12,3 +12,5 @@ path = "src/lib.rs"
 
 [dependencies]
 soroban-sdk = "22.0.0"
+initializable = { workspace = true }
+storage = { workspace = true }

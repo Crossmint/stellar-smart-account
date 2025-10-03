@@ -1,4 +1,4 @@
-use crate::auth::signer::{Signer, SignerKey};
+use smart_account_interfaces::{Signer, SignerKey};
 use soroban_sdk::{contracttype, Address, String};
 
 #[contracttype]

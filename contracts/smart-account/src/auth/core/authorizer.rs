@@ -1,13 +1,13 @@
 /// Authorization service that verifies proofs and enforces role/policy checks.
-use crate::auth::permissions::{AuthorizationCheck, SignerRole};
+use crate::auth::permissions::AuthorizationCheck;
 use crate::auth::proof::SignatureProofs;
-use crate::auth::signer::{Signer, SignerKey};
 use crate::auth::signers::SignatureVerifier as _;
 use crate::config::{PLUGINS_KEY, TOPIC_PLUGIN, VERB_AUTH_FAILED};
 use crate::error::Error;
 use crate::events::PluginAuthFailedEvent;
 use crate::handle_nested_result_failure;
 use smart_account_interfaces::SmartAccountPluginClient;
+use smart_account_interfaces::{Signer, SignerKey, SignerRole};
 use soroban_sdk::{auth::Context, crypto::Hash, Env, Vec};
 use soroban_sdk::{Address, Map, String, Symbol};
 use storage::Storage;

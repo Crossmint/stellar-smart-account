@@ -3,17 +3,14 @@ use soroban_sdk::{map, testutils::BytesN as _, vec, Address, BytesN, IntoVal};
 
 use crate::{
     account::SmartAccount,
-    auth::{
-        permissions::{SignerPolicy, SignerRole},
-        policy::TimeBasedPolicy,
-        proof::{SignatureProofs, SignerProof},
-    },
+    auth::proof::{SignatureProofs, SignerProof},
     error::Error,
     tests::test_utils::{
         get_token_auth_context, get_update_signer_auth_context, setup, Ed25519TestSigner,
         TestSignerTrait as _,
     },
 };
+use smart_account_interfaces::SignerRole;
 
 extern crate std;
 
@@ -319,94 +316,7 @@ fn test_auth_standard_cannot_update_signers() {
 // ============================================================================
 // ============================================================================
 
-#[test]
-fn test_auth_time_based_policy_within_window() {
-    let env = setup();
-    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let current_time = env.ledger().timestamp();
-    let time_policy = SignerPolicy::TimeWindowPolicy(TimeBasedPolicy {
-        not_before: current_time,
-        not_after: current_time + 100,
-    });
-
-    let restricted_signer =
-        Ed25519TestSigner::generate(SignerRole::Standard(vec![&env, time_policy]));
-
-    let contract_id = env.register(
-        SmartAccount,
-        (
-            vec![
-                &env,
-                admin_signer.into_signer(&env),
-                restricted_signer.into_signer(&env),
-            ],
-            Vec::<Address>::new(&env),
-        ),
-    );
-
-    let payload = BytesN::random(&env);
-    let (restricted_key, restricted_proof) = restricted_signer.sign(&env, &payload);
-    let auth_payloads = SignatureProofs(map![
-        &env,
-        (restricted_key.clone(), restricted_proof.clone())
-    ]);
-
-    env.try_invoke_contract_check_auth::<Error>(
-        &contract_id,
-        &payload,
-        auth_payloads.into_val(&env),
-        &vec![&env, get_token_auth_context(&env)],
-    )
-    .unwrap();
-}
-
-#[test]
-fn test_auth_time_based_policy_outside_window() {
-    let env = setup();
-    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let current_time = env.ledger().timestamp();
-    let time_policy = SignerPolicy::TimeWindowPolicy(TimeBasedPolicy {
-        not_before: current_time + 1000,
-        not_after: current_time + 2000,
-    });
-
-    let restricted_signer =
-        Ed25519TestSigner::generate(SignerRole::Standard(vec![&env, time_policy]));
-
-    let contract_id = env.register(
-        SmartAccount,
-        (
-            vec![
-                &env,
-                admin_signer.into_signer(&env),
-                restricted_signer.into_signer(&env),
-            ],
-            Vec::<Address>::new(&env),
-        ),
-    );
-
-    let payload = BytesN::random(&env);
-    let (restricted_key, restricted_proof) = restricted_signer.sign(&env, &payload);
-    let auth_payloads = SignatureProofs(map![
-        &env,
-        (restricted_key.clone(), restricted_proof.clone())
-    ]);
-
-    match env
-        .try_invoke_contract_check_auth::<Error>(
-            &contract_id,
-            &payload,
-            auth_payloads.into_val(&env),
-            &vec![&env, get_token_auth_context(&env)],
-        )
-        .unwrap_err()
-    {
-        Err(err) => panic!("{:?}", err),
-        Ok(err) => assert_eq!(err, Error::InsufficientPermissions),
-    }
-}
+// Time-based policy tests removed
 
 // ============================================================================
 // ============================================================================

@@ -8,11 +8,9 @@ use soroban_sdk::auth::Context;
 use soroban_sdk::BytesN;
 use soroban_sdk::Env;
 
-use crate::auth::permissions::SignerRole;
 use crate::auth::proof::SignerProof;
-use crate::auth::signer::Signer;
-use crate::auth::signer::SignerKey;
-use crate::auth::signers::Ed25519Signer;
+use smart_account_interfaces::SignerRole;
+use smart_account_interfaces::{Ed25519Signer, Signer, SignerKey};
 
 use soroban_sdk::auth::ContractContext;
 use soroban_sdk::testutils::Address as _;
