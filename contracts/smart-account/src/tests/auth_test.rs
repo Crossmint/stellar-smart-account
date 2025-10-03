@@ -10,8 +10,7 @@ use crate::{
         TestSignerTrait as _,
     },
 };
-use smart_account_interfaces::{SignerPolicy, SignerRole};
-use soroban_sdk::testutils::Address as _;
+use smart_account_interfaces::SignerRole;
 
 extern crate std;
 
