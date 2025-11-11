@@ -9,6 +9,7 @@ members = [
   "contracts/storage",
   "contracts/testing/hello-world",
   "contracts/upgradeable",
+  "contracts/web-auth",
 ]
 
 [workspace.package]
@@ -23,8 +24,9 @@ storage = { path = "contracts/storage" }
 upgradeable = { path = "contracts/upgradeable" }
 deny-list-policy = { path = "contracts/deny-list-policy" }
 smart-account-interfaces = { path = "contracts/smart-account-interfaces" }
-plugin-policy-example = { path = "contracts/examples/plugin-policy-example" } 
-hello-world = { path = "contracts/testing/hello-world" } 
+plugin-policy-example = { path = "contracts/examples/plugin-policy-example" }
+hello-world = { path = "contracts/testing/hello-world" }
+web-auth = { path = "contracts/web-auth" }
 
 [profile.release]
 opt-level = "z"
