@@ -2493,6 +2493,8 @@ name = "web-auth"
 version = "0.0.0"
 dependencies = [
  "soroban-sdk",
+ "stellar-access-control",
+ "stellar-access-control-macros",
 ]
 
 [[package]]

@@ -1,24 +1,23 @@
 #![no_std]
-use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, vec, Address, Bytes, BytesN, Env, Symbol,
-    Val, Vec,
-};
-use stellar_access_control::{grant_role_no_auth, set_admin, AccessControl};
-use stellar_access_control_macros::only_role;
-use stellar_default_impl_macro::default_impl;
+use soroban_sdk::{contract, contracterror, contractimpl, Address, Env, Map, String, Symbol};
+use stellar_access_control::set_admin;
 
 #[contracterror]
 pub enum WebAuthError {
     MissingArgument = 1,
 }
 
+#[contract]
+pub struct WebAuthContract;
+
 #[contractimpl]
 impl WebAuthContract {
     pub fn __constructor(env: Env, admin: Address) -> () {
-        env.storage().instance().set(&DataKey::Admin, &admin);
+        set_admin(&env, &admin);
     }
 
     /// Verifies the client is authorized to authenticate with the server
+    /// as specified in SEP-0045
     ///
     /// Arguments:
     /// - account: The client account address
