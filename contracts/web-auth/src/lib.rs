@@ -12,7 +12,7 @@ pub struct WebAuthContract;
 
 #[contractimpl]
 impl WebAuthContract {
-    pub fn __constructor(env: Env, admin: Address) -> () {
+    pub fn __constructor(env: Env, admin: Address) {
         set_admin(&env, &admin);
     }
 
