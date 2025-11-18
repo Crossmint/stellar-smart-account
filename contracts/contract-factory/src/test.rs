@@ -118,11 +118,12 @@ fn test_get_deployed_address_without_deployment() {
     let client = create_factory_client(&e, &admin);
 
     let salt = create_mock_salt(&e, 1);
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let constructor_args: Vec<Val> = vec![&e];
 
-    // Should be able to get address even without deploying
-    let predicted_address = client.get_deployed_address(&salt);
+    let predicted_address = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
 
-    // Address should be valid
     assert_ne!(predicted_address, Address::generate(&e));
 }
 
@@ -134,12 +135,13 @@ fn test_get_deployed_address_consistency() {
     let client = create_factory_client(&e, &admin);
 
     let salt = create_mock_salt(&e, 1);
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let constructor_args: Vec<Val> = vec![&e];
 
-    // Get predicted address multiple times
-    let predicted_address1 = client.get_deployed_address(&salt);
-    let predicted_address2 = client.get_deployed_address(&salt);
+    let predicted_address1 = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
+    let predicted_address2 = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
 
-    // Addresses should be consistent
     assert_eq!(predicted_address1, predicted_address2);
 }
 
@@ -152,11 +154,13 @@ fn test_different_salts_produce_different_addresses() {
 
     let salt1 = create_mock_salt(&e, 1);
     let salt2 = create_mock_salt(&e, 2);
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let constructor_args: Vec<Val> = vec![&e];
 
-    let address1 = client.get_deployed_address(&salt1);
-    let address2 = client.get_deployed_address(&salt2);
+    let address1 = client.get_deployed_address(&salt1, &wasm_hash, &constructor_args);
+    let address2 = client.get_deployed_address(&salt2, &wasm_hash, &constructor_args);
 
-    // Different salts should produce different addresses
     assert_ne!(address1, address2);
 }
 
@@ -277,15 +281,14 @@ fn test_constructor_args_handling() {
     let _accounts = setup_roles(&e, &client, &admin);
     let salt = create_mock_salt(&e, 1);
 
-    // Create constructor args with some values (unused but kept for documentation)
-    let _arg1 = Address::generate(&e);
-    let _arg2 = 42u32;
-    let _constructor_args: Vec<Val> = vec![&e, _arg1.into_val(&e), _arg2.into_val(&e)];
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let arg1 = Address::generate(&e);
+    let arg2 = 42u32;
+    let constructor_args: Vec<Val> = vec![&e, arg1.into_val(&e), arg2.into_val(&e)];
 
-    // Should be able to get deployed address regardless of constructor args
-    let deployed_address = client.get_deployed_address(&salt);
+    let deployed_address = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
 
-    // Verify address is valid
     assert_ne!(deployed_address, Address::generate(&e));
 }
 
@@ -297,12 +300,13 @@ fn test_same_salt_produces_same_address() {
     let client = create_factory_client(&e, &admin);
 
     let salt = create_mock_salt(&e, 1);
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let constructor_args: Vec<Val> = vec![&e];
 
-    // Get address multiple times with same salt
-    let address1 = client.get_deployed_address(&salt);
-    let address2 = client.get_deployed_address(&salt);
+    let address1 = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
+    let address2 = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
 
-    // Should produce the same address
     assert_eq!(address1, address2);
 }
 
@@ -314,12 +318,13 @@ fn test_get_deployed_address_is_read_only() {
     let client = create_factory_client(&e, &admin);
 
     let salt = create_mock_salt(&e, 1);
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let constructor_args: Vec<Val> = vec![&e];
 
-    // Should be able to call get_deployed_address without any auth
-    let address1 = client.get_deployed_address(&salt);
-    let address2 = client.get_deployed_address(&salt);
+    let address1 = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
+    let address2 = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
 
-    // Should return the same address consistently
     assert_eq!(address1, address2);
 }
 
@@ -354,13 +359,11 @@ fn test_address_prediction_before_and_after_deployment() {
     let accounts = setup_roles(&e, &client, &admin);
     let salt = create_mock_salt(&e, 42);
 
-    let predicted_address = client.get_deployed_address(&salt);
-
     let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
     let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
-
-    // Step 3: Deploy the contract with the same salt
     let constructor_args: Vec<Val> = vec![&e];
+
+    let predicted_address = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
 
     e.set_auths(&[]);
     e.mock_all_auths_allowing_non_root_auth();
@@ -368,15 +371,15 @@ fn test_address_prediction_before_and_after_deployment() {
     let deployed_address = client.deploy(
         &accounts.deployer1,
         &ContractDeploymentArgs {
-            wasm_hash,
+            wasm_hash: wasm_hash.clone(),
             salt: salt.clone(),
-            constructor_args,
+            constructor_args: constructor_args.clone(),
         },
     );
 
     assert_eq!(predicted_address, deployed_address);
 
-    let predicted_address_after = client.get_deployed_address(&salt);
+    let predicted_address_after = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
     assert_eq!(predicted_address, predicted_address_after);
 }
 
@@ -393,21 +396,19 @@ fn test_deploy_idempotency() {
     let salt = create_mock_salt(&e, 1);
     let constructor_args: Vec<Val> = vec![&e];
 
-    let predicted_address = client.get_deployed_address(&salt);
+    let predicted_address = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
 
     let deployed_address1 = client.deploy(
         &accounts.deployer1,
         &ContractDeploymentArgs {
-            wasm_hash,
+            wasm_hash: wasm_hash.clone(),
             salt,
             constructor_args: constructor_args.clone(),
         },
     );
 
-    // Create a copy of salt for later use
     let salt_copy = create_mock_salt(&e, 1);
 
-    // Verify first deployment returns the predicted address
     assert_eq!(deployed_address1, predicted_address);
 
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -426,14 +427,13 @@ fn test_deploy_idempotency() {
         )
     }));
 
-    // Verify that second deployment failed (the error type Error(Storage, ExistingValue)
     assert!(
         result.is_err(),
         "Second deployment should fail - deploy function is not idempotent"
     );
 
-    // Verify that get_deployed_address still returns the same address (address prediction is idempotent)
-    let predicted_address_after = client.get_deployed_address(&salt_copy);
+    let predicted_address_after =
+        client.get_deployed_address(&salt_copy, &wasm_hash, &constructor_args);
     assert_eq!(predicted_address, predicted_address_after);
     assert_eq!(deployed_address1, predicted_address_after);
 }
