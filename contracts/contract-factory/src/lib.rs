@@ -105,12 +105,12 @@ impl ContractFactory {
             constructor_args,
         } = deployment_args;
 
-        let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
-
-        let tentative_contract_id = env
-            .deployer()
-            .with_current_contract(derived_salt.clone())
-            .deployed_address();
+        let tentative_contract_id = Self::get_deployed_address(
+            env,
+            salt.clone(),
+            wasm_hash.clone(),
+            constructor_args.clone(),
+        );
         let is_deployed = env
             .try_invoke_contract::<bool, soroban_sdk::Error>(
                 &tentative_contract_id,
@@ -122,6 +122,8 @@ impl ContractFactory {
         if is_deployed {
             return tentative_contract_id;
         }
+
+        let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
 
         let contract_id = env
             .deployer()
