@@ -48,6 +48,12 @@ impl Contract {
         vec![&env, String::from_str(&env, "Hello"), caller.to_string()]
     }
 
+    pub fn hello_duplicated_auth(env: Env, caller: Address) -> Vec<String> {
+        caller.require_auth();
+        caller.require_auth();
+        vec![&env, String::from_str(&env, "Hello"), caller.to_string()]
+    }
+
     pub fn hello_requires_two_auths(env: Env, caller: Address, caller2: Address) -> Vec<String> {
         caller.require_auth();
         caller2.require_auth();
