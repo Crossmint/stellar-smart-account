@@ -1,10 +1,11 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, vec, Address, Bytes, Env, String, Vec,
+    contract, contractclient, contracterror, contractimpl, contracttype, vec, Address, Bytes, Env,
+    String, Vec,
 };
 
 #[contract]
-pub struct Contract;
+pub struct HelloContract;
 
 // This is a sample contract. Replace this placeholder with your own contract logic.
 // A corresponding test example is available in `test.rs`.
@@ -37,8 +38,18 @@ pub enum ComplexTypeEnum {
     ComplexType2(ComplexType),
 }
 
+#[contractclient(name = "HelloContractInternalClient")]
+pub trait Client {
+    fn hello_requires_auth_extended(env: Env, caller: Address, id: String) -> Vec<String>;
+    fn hello_duplicated_auth(
+        env: Env,
+        caller: Address,
+        external_contract_id: Address,
+    ) -> Vec<String>;
+}
+
 #[contractimpl]
-impl Contract {
+impl HelloContract {
     pub fn hello(env: Env, to: String) -> Vec<String> {
         vec![&env, String::from_str(&env, "Hello"), to]
     }
@@ -48,9 +59,35 @@ impl Contract {
         vec![&env, String::from_str(&env, "Hello"), caller.to_string()]
     }
 
+    pub fn hello_requires_auth_extended(env: Env, caller: Address, id: String) -> Vec<String> {
+        caller.require_auth();
+        vec![
+            &env,
+            String::from_str(&env, "Hello"),
+            caller.to_string(),
+            id,
+        ]
+    }
+
     pub fn hello_duplicated_auth(env: Env, caller: Address) -> Vec<String> {
         caller.require_auth();
+        let caller_key = &caller.to_string();
+        if !env.storage().temporary().has(caller_key) {
+            env.storage().temporary().set(caller_key, &caller)
+        }
+        env.storage().temporary().extend_ttl(caller_key, 100, 100);
+        vec![&env, String::from_str(&env, "Hello")];
+        env.storage()
+            .temporary()
+            .get::<String, Address>(&caller.to_string())
+            .unwrap()
+            .require_auth();
+        vec![&env, String::from_str(&env, "Hello"), caller.to_string()]
+    }
+
+    pub fn internal_logic(env: Env, caller: Address, _external_id: Address) -> Vec<String> {
         caller.require_auth();
+
         vec![&env, String::from_str(&env, "Hello"), caller.to_string()]
     }
 
