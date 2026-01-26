@@ -4,7 +4,7 @@ use soroban_sdk::{
 };
 
 #[contract]
-pub struct Contract;
+pub struct HelloContract;
 
 // This is a sample contract. Replace this placeholder with your own contract logic.
 // A corresponding test example is available in `test.rs`.
@@ -38,13 +38,28 @@ pub enum ComplexTypeEnum {
 }
 
 #[contractimpl]
-impl Contract {
+impl HelloContract {
     pub fn hello(env: Env, to: String) -> Vec<String> {
         vec![&env, String::from_str(&env, "Hello"), to]
     }
 
     pub fn hello_requires_auth(env: Env, caller: Address) -> Vec<String> {
         caller.require_auth();
+        vec![&env, String::from_str(&env, "Hello"), caller.to_string()]
+    }
+
+    pub fn hello_duplicated_auth(env: Env, caller: Address) -> Vec<String> {
+        caller.require_auth();
+        let caller_key = &caller.to_string();
+        if !env.storage().temporary().has(caller_key) {
+            env.storage().temporary().set(caller_key, &caller)
+        }
+        env.storage().temporary().extend_ttl(caller_key, 100, 100);
+        env.storage()
+            .temporary()
+            .get::<String, Address>(&caller.to_string())
+            .unwrap()
+            .require_auth();
         vec![&env, String::from_str(&env, "Hello"), caller.to_string()]
     }
 
