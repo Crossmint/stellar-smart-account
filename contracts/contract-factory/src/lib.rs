@@ -1,7 +1,7 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, vec, Address, Bytes, BytesN, Env, Symbol,
-    Val, Vec,
+    contract, contractimpl, contracttype, symbol_short, vec, xdr::ToXdr, Address, Bytes, BytesN,
+    Env, Symbol, Val, Vec,
 };
 use stellar_access_control::{grant_role_no_auth, set_admin, AccessControl};
 use stellar_access_control_macros::only_role;
@@ -42,28 +42,40 @@ impl ContractFactory {
         grant_role_no_auth(env, &admin, &admin, &symbol_short!("deployer"));
     }
 
+    fn derive_salt(
+        env: &Env,
+        input_salt: BytesN<32>,
+        wasm_hash: &BytesN<32>,
+        constructor_args: &Vec<Val>,
+    ) -> BytesN<32> {
+        let mut bytes = Bytes::new(env);
+        bytes.append(&input_salt.into());
+        bytes.append(&wasm_hash.clone().into());
+
+        for arg in constructor_args.iter() {
+            let arg_bytes = arg.to_xdr(env);
+            bytes.append(&arg_bytes);
+        }
+
+        env.crypto().sha256(&bytes).into()
+    }
+
     /// Deploys the contract on behalf of the `ContractFactory` contract.
     ///
     /// This has to be authorized by an address with the `deployer` role.
     #[only_role(caller, "deployer")]
     pub fn deploy(env: &Env, caller: Address, deployment_args: ContractDeploymentArgs) -> Address {
-        // Deploy the contract using the uploaded Wasm with given hash on behalf
-        // of the current contract.
-        // Note, that not deploying on behalf of the admin provides more
-        // consistent address space for the deployer contracts - the deployer could
-        // change or it could be a completely separate contract with complex
-        // authorization rules, but all the contracts will still be deployed
-        // by the same `ContractFactory` contract address.
-
         let ContractDeploymentArgs {
             wasm_hash,
             salt,
             constructor_args,
         } = deployment_args;
 
+        let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
+
         let contract_id = env
             .deployer()
-            .with_current_contract(salt)
+            .with_current_contract(derived_salt)
             .deploy_v2(wasm_hash, constructor_args);
 
         env.events().publish(
@@ -93,7 +105,12 @@ impl ContractFactory {
             constructor_args,
         } = deployment_args;
 
-        let tentative_contract_id = Self::get_deployed_address(env, salt.clone());
+        let tentative_contract_id = Self::get_deployed_address(
+            env,
+            salt.clone(),
+            wasm_hash.clone(),
+            constructor_args.clone(),
+        );
         let is_deployed = env
             .try_invoke_contract::<bool, soroban_sdk::Error>(
                 &tentative_contract_id,
@@ -106,9 +123,11 @@ impl ContractFactory {
             return tentative_contract_id;
         }
 
+        let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
+
         let contract_id = env
             .deployer()
-            .with_current_contract(salt)
+            .with_current_contract(derived_salt)
             .deploy_v2(wasm_hash, constructor_args);
 
         env.events().publish(
@@ -136,17 +155,22 @@ impl ContractFactory {
     ) -> Address {
         let wasm_hash = env.deployer().upload_contract_wasm(wasm_bytes);
 
-        // Deploy the contract using the uploaded WASM hash on behalf
-        // of the current contract.
+        let derived_salt = Self::derive_salt(&env, salt, &wasm_hash, &constructor_args);
 
         env.deployer()
-            .with_address(env.current_contract_address(), salt)
+            .with_address(env.current_contract_address(), derived_salt)
             .deploy_v2(wasm_hash, constructor_args)
     }
 
-    pub fn get_deployed_address(env: &Env, salt: BytesN<32>) -> Address {
+    pub fn get_deployed_address(
+        env: &Env,
+        salt: BytesN<32>,
+        wasm_hash: BytesN<32>,
+        constructor_args: Vec<Val>,
+    ) -> Address {
+        let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
         env.deployer()
-            .with_current_contract(salt)
+            .with_current_contract(derived_salt)
             .deployed_address()
     }
 }
