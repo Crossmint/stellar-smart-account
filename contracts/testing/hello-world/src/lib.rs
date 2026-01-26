@@ -38,16 +38,6 @@ pub enum ComplexTypeEnum {
     ComplexType2(ComplexType),
 }
 
-#[contractclient(name = "HelloContractInternalClient")]
-pub trait Client {
-    fn hello_requires_auth_extended(env: Env, caller: Address, id: String) -> Vec<String>;
-    fn hello_duplicated_auth(
-        env: Env,
-        caller: Address,
-        external_contract_id: Address,
-    ) -> Vec<String>;
-}
-
 #[contractimpl]
 impl HelloContract {
     pub fn hello(env: Env, to: String) -> Vec<String> {
@@ -57,16 +47,6 @@ impl HelloContract {
     pub fn hello_requires_auth(env: Env, caller: Address) -> Vec<String> {
         caller.require_auth();
         vec![&env, String::from_str(&env, "Hello"), caller.to_string()]
-    }
-
-    pub fn hello_requires_auth_extended(env: Env, caller: Address, id: String) -> Vec<String> {
-        caller.require_auth();
-        vec![
-            &env,
-            String::from_str(&env, "Hello"),
-            caller.to_string(),
-            id,
-        ]
     }
 
     pub fn hello_duplicated_auth(env: Env, caller: Address) -> Vec<String> {
@@ -82,12 +62,6 @@ impl HelloContract {
             .get::<String, Address>(&caller.to_string())
             .unwrap()
             .require_auth();
-        vec![&env, String::from_str(&env, "Hello"), caller.to_string()]
-    }
-
-    pub fn internal_logic(env: Env, caller: Address, _external_id: Address) -> Vec<String> {
-        caller.require_auth();
-
         vec![&env, String::from_str(&env, "Hello"), caller.to_string()]
     }
 
