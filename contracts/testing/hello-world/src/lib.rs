@@ -1,7 +1,6 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, vec, Address, Bytes, Env,
-    String, Vec,
+    contract, contracterror, contractimpl, contracttype, vec, Address, Bytes, Env, String, Vec,
 };
 
 #[contract]
