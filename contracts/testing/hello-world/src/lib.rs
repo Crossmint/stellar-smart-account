@@ -55,7 +55,6 @@ impl HelloContract {
             env.storage().temporary().set(caller_key, &caller)
         }
         env.storage().temporary().extend_ttl(caller_key, 100, 100);
-        vec![&env, String::from_str(&env, "Hello")];
         env.storage()
             .temporary()
             .get::<String, Address>(&caller.to_string())
