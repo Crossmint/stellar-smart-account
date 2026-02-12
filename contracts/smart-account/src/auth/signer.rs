@@ -2,7 +2,7 @@ use crate::auth::permissions::AuthorizationCheck;
 use crate::auth::proof::SignerProof;
 use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
-use smart_account_interfaces::{Ed25519Signer, Secp256r1Signer, Signer};
+use smart_account_interfaces::{Ed25519Signer, MultisigSigner, Secp256r1Signer, Signer};
 use soroban_sdk::Vec;
 use soroban_sdk::{auth::Context, BytesN, Env};
 
@@ -16,6 +16,12 @@ impl SignatureVerifier for Signer {
             Signer::Secp256r1(signer, _) => Secp256r1Signer {
                 key_id: signer.key_id.clone(),
                 public_key: signer.public_key.clone(),
+            }
+            .verify(env, payload, proof),
+            Signer::Multisig(signer, _) => MultisigSigner {
+                id: signer.id.clone(),
+                members: signer.members.clone(),
+                threshold: signer.threshold,
             }
             .verify(env, payload, proof),
         }

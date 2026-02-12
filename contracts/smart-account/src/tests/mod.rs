@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod auth_test;
+mod multisig_test;
 mod plugin_test;
 mod policy_test;
 mod secp256r1_signer_test;

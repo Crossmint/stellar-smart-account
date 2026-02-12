@@ -26,6 +26,10 @@ pub enum SmartAccountError {
     ClientDataJsonIncorrectChallenge = 44,
     InvalidWebauthnClientDataJson = 45,
 
+    MultisigThresholdNotMet = 46,
+    MultisigInvalidThreshold = 47,
+    MultisigMemberNotFound = 48,
+
     InsufficientPermissions = 60,
     InsufficientPermissionsOnCreation = 61,
 
