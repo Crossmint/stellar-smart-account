@@ -1,5 +1,4 @@
-use soroban_sdk::Vec;
-use soroban_sdk::{map, testutils::BytesN as _, vec, Address, BytesN, IntoVal};
+use soroban_sdk::{map, testutils::BytesN as _, vec, Address, BytesN, IntoVal, Map, Vec};
 
 use crate::{
     account::SmartAccount,
@@ -14,6 +13,10 @@ use smart_account_interfaces::{
     Ed25519Signer, MultisigMember, MultisigSigner, SmartAccountInterface as _, Signer, SignerKey,
     SignerRole,
 };
+
+// ============================================================================
+// Helpers
+// ============================================================================
 
 fn make_multisig_signer(
     env: &soroban_sdk::Env,
@@ -35,7 +38,7 @@ fn make_multisig_proof(
     signers: &[&Ed25519TestSigner],
     payload: &BytesN<32>,
 ) -> SignerProof {
-    let mut member_proofs = soroban_sdk::Map::new(env);
+    let mut member_proofs = Map::new(env);
     for s in signers {
         let (key, proof) = s.sign(env, payload);
         member_proofs.set(key, proof);
@@ -43,156 +46,110 @@ fn make_multisig_proof(
     SignerProof::Multisig(member_proofs)
 }
 
+/// Register a smart account with an admin + a multisig signer, then try to
+/// authorize with the given member subset. Returns the `__check_auth` result.
+fn check_multisig_auth(
+    env: &soroban_sdk::Env,
+    contract_id: &Address,
+    multisig_id: &BytesN<32>,
+    signing_members: &[&Ed25519TestSigner],
+    contexts: &Vec<soroban_sdk::auth::Context>,
+) -> Result<(), Error> {
+    let payload = BytesN::random(env);
+    let proof = make_multisig_proof(env, signing_members, &payload);
+    let auth = SignatureProofs(map![env, (SignerKey::Multisig(multisig_id.clone()), proof)]);
+
+    env.try_invoke_contract_check_auth::<Error>(
+        contract_id,
+        &payload,
+        auth.into_val(env),
+        contexts,
+    )
+    .map(|_| ())
+    .map_err(|e| match e {
+        Ok(err) => err,
+        Err(e) => panic!("{:?}", e),
+    })
+}
+
 // ============================================================================
-// Happy path tests
+// Verification tests
 // ============================================================================
 
 #[test]
 fn test_multisig_2_of_3_happy_path() {
     let env = setup();
-
-    // Create an admin signer (required for account init)
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    // Create 3 members for the multisig
-    let member1 = Ed25519TestSigner::generate(SignerRole::Admin); // role ignored
-    let member2 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member3 = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let (multisig_signer, multisig_id) =
-        make_multisig_signer(&env, &[&member1, &member2, &member3], 2, SignerRole::Admin);
-
-    let contract_id = env.register(
-        SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env), multisig_signer],
-            Vec::<Address>::new(&env),
-        ),
+    let (m1, m2, m3) = (
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
     );
+    let (signer, id) = make_multisig_signer(&env, &[&m1, &m2, &m3], 2, SignerRole::Admin);
+    let cid = env.register(
+        SmartAccount,
+        (vec![&env, admin.into_signer(&env), signer], Vec::<Address>::new(&env)),
+    );
+    let ctx = vec![&env, get_token_auth_context(&env)];
 
-    let payload = BytesN::random(&env);
-    let multisig_key = SignerKey::Multisig(multisig_id);
-    let multisig_proof = make_multisig_proof(&env, &[&member1, &member2], &payload);
-
-    let auth_payloads = SignatureProofs(map![&env, (multisig_key, multisig_proof)]);
-
-    env.try_invoke_contract_check_auth::<Error>(
-        &contract_id,
-        &payload,
-        auth_payloads.into_val(&env),
-        &vec![&env, get_token_auth_context(&env)],
-    )
-    .unwrap();
+    // 2 of 3 sign — meets threshold
+    check_multisig_auth(&env, &cid, &id, &[&m1, &m2], &ctx).unwrap();
 }
 
 #[test]
 fn test_multisig_all_sign() {
     let env = setup();
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member1 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member2 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member3 = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let (multisig_signer, multisig_id) =
-        make_multisig_signer(&env, &[&member1, &member2, &member3], 2, SignerRole::Admin);
-
-    let contract_id = env.register(
-        SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env), multisig_signer],
-            Vec::<Address>::new(&env),
-        ),
+    let (m1, m2, m3) = (
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
     );
+    let (signer, id) = make_multisig_signer(&env, &[&m1, &m2, &m3], 2, SignerRole::Admin);
+    let cid = env.register(
+        SmartAccount,
+        (vec![&env, admin.into_signer(&env), signer], Vec::<Address>::new(&env)),
+    );
+    let ctx = vec![&env, get_token_auth_context(&env)];
 
-    let payload = BytesN::random(&env);
-    let multisig_key = SignerKey::Multisig(multisig_id);
-    let multisig_proof = make_multisig_proof(&env, &[&member1, &member2, &member3], &payload);
-
-    let auth_payloads = SignatureProofs(map![&env, (multisig_key, multisig_proof)]);
-
-    env.try_invoke_contract_check_auth::<Error>(
-        &contract_id,
-        &payload,
-        auth_payloads.into_val(&env),
-        &vec![&env, get_token_auth_context(&env)],
-    )
-    .unwrap();
+    // All 3 sign — exceeds threshold
+    check_multisig_auth(&env, &cid, &id, &[&m1, &m2, &m3], &ctx).unwrap();
 }
 
 #[test]
 fn test_multisig_1_of_1() {
     let env = setup();
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let (multisig_signer, multisig_id) =
-        make_multisig_signer(&env, &[&member], 1, SignerRole::Admin);
-
-    let contract_id = env.register(
+    let m = Ed25519TestSigner::generate(SignerRole::Admin);
+    let (signer, id) = make_multisig_signer(&env, &[&m], 1, SignerRole::Admin);
+    let cid = env.register(
         SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env), multisig_signer],
-            Vec::<Address>::new(&env),
-        ),
+        (vec![&env, admin.into_signer(&env), signer], Vec::<Address>::new(&env)),
     );
+    let ctx = vec![&env, get_token_auth_context(&env)];
 
-    let payload = BytesN::random(&env);
-    let multisig_key = SignerKey::Multisig(multisig_id);
-    let multisig_proof = make_multisig_proof(&env, &[&member], &payload);
-
-    let auth_payloads = SignatureProofs(map![&env, (multisig_key, multisig_proof)]);
-
-    env.try_invoke_contract_check_auth::<Error>(
-        &contract_id,
-        &payload,
-        auth_payloads.into_val(&env),
-        &vec![&env, get_token_auth_context(&env)],
-    )
-    .unwrap();
+    check_multisig_auth(&env, &cid, &id, &[&m], &ctx).unwrap();
 }
-
-// ============================================================================
-// Failure tests
-// ============================================================================
 
 #[test]
 fn test_multisig_threshold_not_met() {
     let env = setup();
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member1 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member2 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member3 = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let (multisig_signer, multisig_id) =
-        make_multisig_signer(&env, &[&member1, &member2, &member3], 2, SignerRole::Admin);
-
-    let contract_id = env.register(
-        SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env), multisig_signer],
-            Vec::<Address>::new(&env),
-        ),
+    let (m1, m2, m3) = (
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
     );
+    let (signer, id) = make_multisig_signer(&env, &[&m1, &m2, &m3], 2, SignerRole::Admin);
+    let cid = env.register(
+        SmartAccount,
+        (vec![&env, admin.into_signer(&env), signer], Vec::<Address>::new(&env)),
+    );
+    let ctx = vec![&env, get_token_auth_context(&env)];
 
-    let payload = BytesN::random(&env);
-    let multisig_key = SignerKey::Multisig(multisig_id);
-    // Only 1 of 3 signs, but threshold is 2
-    let multisig_proof = make_multisig_proof(&env, &[&member1], &payload);
-
-    let auth_payloads = SignatureProofs(map![&env, (multisig_key, multisig_proof)]);
-
-    match env
-        .try_invoke_contract_check_auth::<Error>(
-            &contract_id,
-            &payload,
-            auth_payloads.into_val(&env),
-            &vec![&env, get_token_auth_context(&env)],
-        )
-        .unwrap_err()
-    {
-        Err(err) => panic!("{:?}", err),
-        Ok(err) => assert_eq!(err, Error::MultisigThresholdNotMet),
-    }
+    // Only 1 of 3 signs — below threshold
+    let err = check_multisig_auth(&env, &cid, &id, &[&m1], &ctx).unwrap_err();
+    assert_eq!(err, Error::MultisigThresholdNotMet);
 }
 
 #[test]
@@ -200,40 +157,32 @@ fn test_multisig_threshold_not_met() {
 fn test_multisig_invalid_member_proof() {
     let env = setup();
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member1 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member2 = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let (multisig_signer, multisig_id) =
-        make_multisig_signer(&env, &[&member1, &member2], 2, SignerRole::Admin);
-
-    let contract_id = env.register(
+    let (m1, m2) = (
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
+    );
+    let (signer, id) = make_multisig_signer(&env, &[&m1, &m2], 2, SignerRole::Admin);
+    let cid = env.register(
         SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env), multisig_signer],
-            Vec::<Address>::new(&env),
-        ),
+        (vec![&env, admin.into_signer(&env), signer], Vec::<Address>::new(&env)),
     );
 
     let payload = BytesN::random(&env);
-    let multisig_key = SignerKey::Multisig(multisig_id);
+    let (key0, _) = m1.sign(&env, &payload);
+    let (key1, proof1) = m2.sign(&env, &payload);
+    let mut member_proofs = Map::new(&env);
+    member_proofs.set(key0, SignerProof::Ed25519(BytesN::random(&env))); // bad sig
+    member_proofs.set(key1, proof1);
 
-    // Create proof with member1's key but a random (invalid) signature
-    let (member1_key, _) = member1.sign(&env, &payload);
-    let (member2_key, member2_proof) = member2.sign(&env, &payload);
-    let invalid_proof = SignerProof::Ed25519(BytesN::random(&env));
-
-    let mut member_proofs = soroban_sdk::Map::new(&env);
-    member_proofs.set(member1_key, invalid_proof);
-    member_proofs.set(member2_key, member2_proof);
-    let multisig_proof = SignerProof::Multisig(member_proofs);
-
-    let auth_payloads = SignatureProofs(map![&env, (multisig_key, multisig_proof)]);
-
-    // Should panic because ed25519_verify panics on bad signature
+    let auth = SignatureProofs(map![
+        &env,
+        (SignerKey::Multisig(id), SignerProof::Multisig(member_proofs))
+    ]);
+    // Panics — ed25519_verify panics on bad signature
     env.try_invoke_contract_check_auth::<Error>(
-        &contract_id,
+        &cid,
         &payload,
-        auth_payloads.into_val(&env),
+        auth.into_val(&env),
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
@@ -243,40 +192,20 @@ fn test_multisig_invalid_member_proof() {
 fn test_multisig_unknown_member_key() {
     let env = setup();
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member1 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member2 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let non_member = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let (multisig_signer, multisig_id) =
-        make_multisig_signer(&env, &[&member1, &member2], 2, SignerRole::Admin);
-
-    let contract_id = env.register(
-        SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env), multisig_signer],
-            Vec::<Address>::new(&env),
-        ),
+    let (m1, m2) = (
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
     );
+    let non_member = Ed25519TestSigner::generate(SignerRole::Admin);
+    let (signer, id) = make_multisig_signer(&env, &[&m1, &m2], 2, SignerRole::Admin);
+    let cid = env.register(
+        SmartAccount,
+        (vec![&env, admin.into_signer(&env), signer], Vec::<Address>::new(&env)),
+    );
+    let ctx = vec![&env, get_token_auth_context(&env)];
 
-    let payload = BytesN::random(&env);
-    let multisig_key = SignerKey::Multisig(multisig_id);
-    // Include a non-member's proof
-    let multisig_proof = make_multisig_proof(&env, &[&member1, &non_member], &payload);
-
-    let auth_payloads = SignatureProofs(map![&env, (multisig_key, multisig_proof)]);
-
-    match env
-        .try_invoke_contract_check_auth::<Error>(
-            &contract_id,
-            &payload,
-            auth_payloads.into_val(&env),
-            &vec![&env, get_token_auth_context(&env)],
-        )
-        .unwrap_err()
-    {
-        Err(err) => panic!("{:?}", err),
-        Ok(err) => assert_eq!(err, Error::MultisigMemberNotFound),
-    }
+    let err = check_multisig_auth(&env, &cid, &id, &[&m1, &non_member], &ctx).unwrap_err();
+    assert_eq!(err, Error::MultisigMemberNotFound);
 }
 
 // ============================================================================
@@ -287,99 +216,48 @@ fn test_multisig_unknown_member_key() {
 fn test_multisig_admin_role() {
     let env = setup();
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member1 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member2 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
-
-    let (multisig_signer, multisig_id) =
-        make_multisig_signer(&env, &[&member1, &member2], 2, SignerRole::Admin);
-
-    let contract_id = env.register(
+    let (m1, m2) = (
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
+    );
+    let (signer, id) = make_multisig_signer(&env, &[&m1, &m2], 2, SignerRole::Admin);
+    let cid = env.register(
         SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env), multisig_signer],
-            Vec::<Address>::new(&env),
-        ),
+        (vec![&env, admin.into_signer(&env), signer], Vec::<Address>::new(&env)),
     );
 
-    let payload = BytesN::random(&env);
-    let multisig_key = SignerKey::Multisig(multisig_id);
-    let multisig_proof = make_multisig_proof(&env, &[&member1, &member2], &payload);
-
-    let auth_payloads = SignatureProofs(map![&env, (multisig_key, multisig_proof)]);
-
-    // Admin multisig can authorize admin operations (update_signer)
-    env.try_invoke_contract_check_auth::<Error>(
-        &contract_id,
-        &payload,
-        auth_payloads.into_val(&env),
-        &vec![
-            &env,
-            get_update_signer_auth_context(&env, &contract_id, new_signer.into_signer(&env)),
-        ],
-    )
-    .unwrap();
+    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let ctx = vec![&env, get_update_signer_auth_context(&env, &cid, new_signer.into_signer(&env))];
+    check_multisig_auth(&env, &cid, &id, &[&m1, &m2], &ctx).unwrap();
 }
 
 #[test]
 fn test_multisig_standard_role() {
     let env = setup();
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member1 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member2 = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let (multisig_signer, multisig_id) = make_multisig_signer(
-        &env,
-        &[&member1, &member2],
-        2,
-        SignerRole::Standard(vec![&env]),
+    let (m1, m2) = (
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
     );
-
-    let contract_id = env.register(
+    let (signer, id) =
+        make_multisig_signer(&env, &[&m1, &m2], 2, SignerRole::Standard(vec![&env]));
+    let cid = env.register(
         SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env), multisig_signer],
-            Vec::<Address>::new(&env),
-        ),
+        (vec![&env, admin.into_signer(&env), signer], Vec::<Address>::new(&env)),
     );
 
-    let payload = BytesN::random(&env);
-    let multisig_key = SignerKey::Multisig(multisig_id.clone());
-    let multisig_proof = make_multisig_proof(&env, &[&member1, &member2], &payload);
+    // Can authorize token transfers
+    let token_ctx = vec![&env, get_token_auth_context(&env)];
+    check_multisig_auth(&env, &cid, &id, &[&m1, &m2], &token_ctx).unwrap();
 
-    // Standard multisig can authorize token transfers
-    let auth_payloads = SignatureProofs(map![&env, (multisig_key, multisig_proof)]);
-
-    env.try_invoke_contract_check_auth::<Error>(
-        &contract_id,
-        &payload,
-        auth_payloads.into_val(&env),
-        &vec![&env, get_token_auth_context(&env)],
-    )
-    .unwrap();
-
-    // But cannot authorize admin operations
-    let payload2 = BytesN::random(&env);
-    let multisig_key2 = SignerKey::Multisig(multisig_id);
-    let multisig_proof2 = make_multisig_proof(&env, &[&member1, &member2], &payload2);
+    // Cannot authorize admin operations
     let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
-    let auth_payloads2 = SignatureProofs(map![&env, (multisig_key2, multisig_proof2)]);
-
-    match env
-        .try_invoke_contract_check_auth::<Error>(
-            &contract_id,
-            &payload2,
-            auth_payloads2.into_val(&env),
-            &vec![
-                &env,
-                get_update_signer_auth_context(&env, &contract_id, new_signer.into_signer(&env)),
-            ],
-        )
-        .unwrap_err()
-    {
-        Err(err) => panic!("{:?}", err),
-        Ok(err) => assert_eq!(err, Error::InsufficientPermissions),
-    }
+    let admin_ctx = vec![
+        &env,
+        get_update_signer_auth_context(&env, &cid, new_signer.into_signer(&env)),
+    ];
+    let err = check_multisig_auth(&env, &cid, &id, &[&m1, &m2], &admin_ctx).unwrap_err();
+    assert_eq!(err, Error::InsufficientPermissions);
 }
 
 // ============================================================================
@@ -391,16 +269,11 @@ fn test_multisig_standard_role() {
 fn test_multisig_invalid_threshold_zero() {
     let env = setup();
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let (multisig_signer, _) = make_multisig_signer(&env, &[&member], 0, SignerRole::Admin);
-
+    let m = Ed25519TestSigner::generate(SignerRole::Admin);
+    let (signer, _) = make_multisig_signer(&env, &[&m], 0, SignerRole::Admin);
     env.register(
         SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env), multisig_signer],
-            Vec::<Address>::new(&env),
-        ),
+        (vec![&env, admin.into_signer(&env), signer], Vec::<Address>::new(&env)),
     );
 }
 
@@ -409,18 +282,14 @@ fn test_multisig_invalid_threshold_zero() {
 fn test_multisig_invalid_threshold_exceeds_members() {
     let env = setup();
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member1 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member2 = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let (multisig_signer, _) =
-        make_multisig_signer(&env, &[&member1, &member2], 3, SignerRole::Admin);
-
+    let (m1, m2) = (
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
+    );
+    let (signer, _) = make_multisig_signer(&env, &[&m1, &m2], 3, SignerRole::Admin);
     env.register(
         SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env), multisig_signer],
-            Vec::<Address>::new(&env),
-        ),
+        (vec![&env, admin.into_signer(&env), signer], Vec::<Address>::new(&env)),
     );
 }
 
@@ -434,76 +303,41 @@ fn test_add_and_revoke_multisig_signer() {
     env.mock_all_auths();
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member1 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member2 = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let contract_id = env.register(
+    let cid = env.register(
         SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env)],
-            Vec::<Address>::new(&env),
-        ),
+        (vec![&env, admin.into_signer(&env)], Vec::<Address>::new(&env)),
     );
 
-    let (multisig_signer, multisig_id) = make_multisig_signer(
-        &env,
-        &[&member1, &member2],
-        2,
-        SignerRole::Standard(vec![&env]),
+    let (m1, m2) = (
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
     );
-    let multisig_key = SignerKey::Multisig(multisig_id);
+    let (signer, id) =
+        make_multisig_signer(&env, &[&m1, &m2], 2, SignerRole::Standard(vec![&env]));
+    let key = SignerKey::Multisig(id);
 
-    // Add multisig signer
-    env.as_contract(&contract_id, || {
-        SmartAccount::add_signer(&env, multisig_signer).unwrap();
-    });
-
-    // Verify it exists
-    env.as_contract(&contract_id, || {
-        assert!(SmartAccount::has_signer(&env, multisig_key.clone()).unwrap());
-    });
-
-    // Revoke it
-    env.as_contract(&contract_id, || {
-        SmartAccount::revoke_signer(&env, multisig_key.clone()).unwrap();
-    });
-
-    // Verify it's gone
-    env.as_contract(&contract_id, || {
-        assert!(!SmartAccount::has_signer(&env, multisig_key.clone()).unwrap());
+    env.as_contract(&cid, || {
+        SmartAccount::add_signer(&env, signer).unwrap();
+        assert!(SmartAccount::has_signer(&env, key.clone()).unwrap());
+        SmartAccount::revoke_signer(&env, key.clone()).unwrap();
+        assert!(!SmartAccount::has_signer(&env, key.clone()).unwrap());
     });
 }
 
 #[test]
 fn test_constructor_with_multisig_admin() {
     let env = setup();
-    let member1 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let member2 = Ed25519TestSigner::generate(SignerRole::Admin);
-
-    let (multisig_signer, multisig_id) =
-        make_multisig_signer(&env, &[&member1, &member2], 2, SignerRole::Admin);
-
-    // Deploy with only a multisig admin — no standalone admin
-    let contract_id = env.register(
+    let (m1, m2) = (
+        Ed25519TestSigner::generate(SignerRole::Admin),
+        Ed25519TestSigner::generate(SignerRole::Admin),
+    );
+    let (signer, id) = make_multisig_signer(&env, &[&m1, &m2], 2, SignerRole::Admin);
+    let cid = env.register(
         SmartAccount,
-        (
-            vec![&env, multisig_signer],
-            Vec::<Address>::new(&env),
-        ),
+        (vec![&env, signer], Vec::<Address>::new(&env)),
     );
 
-    // Verify multisig can authorize
-    let payload = BytesN::random(&env);
-    let multisig_key = SignerKey::Multisig(multisig_id);
-    let multisig_proof = make_multisig_proof(&env, &[&member1, &member2], &payload);
-
-    let auth_payloads = SignatureProofs(map![&env, (multisig_key, multisig_proof)]);
-
-    env.try_invoke_contract_check_auth::<Error>(
-        &contract_id,
-        &payload,
-        auth_payloads.into_val(&env),
-        &vec![&env, get_token_auth_context(&env)],
-    )
-    .unwrap();
+    // Multisig as sole admin can authorize
+    let ctx = vec![&env, get_token_auth_context(&env)];
+    check_multisig_auth(&env, &cid, &id, &[&m1, &m2], &ctx).unwrap();
 }
