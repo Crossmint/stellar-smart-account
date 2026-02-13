@@ -96,7 +96,7 @@ use smart_account_interfaces::Secp256r1Signer;
 
 /// Normalize an ECDSA signature to low-S form as required by Soroban.
 fn normalize_signature(sig: &P256Signature) -> P256Signature {
-    sig.normalize_s().unwrap_or_else(|| sig.clone())
+    sig.normalize_s().unwrap_or_else(|| *sig)
 }
 
 use std::sync::atomic::{AtomicU32, Ordering};
