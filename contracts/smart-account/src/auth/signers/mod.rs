@@ -1,6 +1,7 @@
 mod ed25519;
 mod multisig;
 pub mod secp256r1;
+pub mod webauthn;
 
 use crate::auth::proof::SignerProof;
 use crate::error::Error;
