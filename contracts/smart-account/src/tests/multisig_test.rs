@@ -325,6 +325,23 @@ fn test_multisig_invalid_threshold_exceeds_members() {
     );
 }
 
+#[test]
+#[should_panic(expected = "Error(Contract, #49)")]
+fn test_multisig_invalid_duplicate_members() {
+    let env = setup();
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin);
+    let m1 = Ed25519TestSigner::generate(SignerRole::Admin);
+    // Duplicate the same member in the multisig members list
+    let (signer, _) = make_multisig_signer(&env, &[&m1, &m1], 2, SignerRole::Admin);
+    env.register(
+        SmartAccount,
+        (
+            vec![&env, admin.into_signer(&env), signer],
+            Vec::<Address>::new(&env),
+        ),
+    );
+}
+
 // ============================================================================
 // Lifecycle tests
 // ============================================================================

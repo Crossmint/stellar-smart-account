@@ -29,6 +29,7 @@ pub enum SmartAccountError {
     MultisigThresholdNotMet = 46,
     MultisigInvalidThreshold = 47,
     MultisigMemberNotFound = 48,
+    MultisigDuplicatedMember = 49,
 
     InsufficientPermissions = 60,
     InsufficientPermissionsOnCreation = 61,

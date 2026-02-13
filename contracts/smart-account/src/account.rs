@@ -332,7 +332,7 @@ impl SmartAccount {
         for member in multisig.members.iter() {
             let key: SignerKey = member.into();
             if seen_keys.contains_key(key.clone()) {
-                return Err(SmartAccountError::MultisigInvalidThreshold);
+                return Err(SmartAccountError::MultisigDuplicatedMember);
             }
             seen_keys.set(key, true);
         }
