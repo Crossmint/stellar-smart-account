@@ -87,6 +87,10 @@ impl HelloContract {
     pub fn hello_reverts(_env: Env) -> Result<Vec<String>, Error> {
         Err(Error::CustomContractError)
     }
+
+    pub fn is_deployed(_env: Env) -> bool {
+        true
+    }
 }
 
 mod test;

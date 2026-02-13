@@ -99,6 +99,40 @@ impl ContractFactory {
         caller: Address,
         deployment_args: ContractDeploymentArgs,
     ) -> Address {
+        Self::deploy_idempotent_inner(env, deployment_args)
+    }
+
+    /// Idempotently deploys a contract and then executes the given calls.
+    ///
+    /// If the contract is already deployed, skips deployment and proceeds
+    /// with the calls. If any call fails, the entire transaction reverts.
+    ///
+    /// This has to be authorized by an address with the `deployer` role.
+    #[only_role(caller, "deployer")]
+    pub fn deploy_and_call(
+        env: &Env,
+        caller: Address,
+        deployment_args: ContractDeploymentArgs,
+        calls: Vec<ContractCall>,
+    ) -> Address {
+        let contract_id = Self::deploy_idempotent_inner(env, deployment_args);
+
+        for call in calls.iter() {
+            let ContractCall {
+                contract_id: target,
+                func,
+                args,
+            } = call;
+            env.invoke_contract::<Val>(&target, &func, args);
+        }
+
+        contract_id
+    }
+
+    fn deploy_idempotent_inner(
+        env: &Env,
+        deployment_args: ContractDeploymentArgs,
+    ) -> Address {
         let ContractDeploymentArgs {
             wasm_hash,
             salt,
