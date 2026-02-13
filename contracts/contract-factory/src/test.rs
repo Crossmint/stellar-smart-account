@@ -3,11 +3,11 @@
 extern crate std;
 
 use soroban_sdk::{
-    symbol_short, testutils::Address as _, vec, Address, BytesN, Env, IntoVal, Val, Vec,
+    symbol_short, testutils::Address as _, vec, Address, BytesN, Env, IntoVal, Symbol, Val, Vec,
 };
 
-use crate::test_constants::SMART_ACCOUNT_WASM;
-use crate::{ContractDeploymentArgs, ContractFactory, ContractFactoryClient};
+use crate::test_constants::{HELLO_WORLD_WASM, SMART_ACCOUNT_WASM};
+use crate::{ContractCall, ContractDeploymentArgs, ContractFactory, ContractFactoryClient};
 
 fn create_factory_client<'a>(e: &Env, admin: &Address) -> ContractFactoryClient<'a> {
     let address = e.register(ContractFactory, (admin,));
@@ -456,4 +456,220 @@ fn test_upload_and_deploy_function_exists() {
 
     // Verify that deployment actually worked by checking the address is valid
     assert!(!deployed_address.to_string().is_empty());
+}
+
+// ============================================================================
+// deploy_and_call tests
+// ============================================================================
+
+#[test]
+fn test_deploy_and_call_empty_calls() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+    let accounts = setup_roles(&e, &client, &admin);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let salt = create_mock_salt(&e, 1);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    // deploy_and_call with empty calls should behave like deploy_idempotent
+    let deployed_address = client.deploy_and_call(
+        &accounts.deployer1,
+        &ContractDeploymentArgs {
+            wasm_hash: wasm_hash.clone(),
+            salt: salt.clone(),
+            constructor_args: constructor_args.clone(),
+        },
+        &vec![&e],
+    );
+
+    assert!(!deployed_address.to_string().is_empty());
+
+    // Verify it matches predicted address
+    let predicted = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
+    assert_eq!(deployed_address, predicted);
+}
+
+#[test]
+fn test_deploy_and_call_predicted_address_matches() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+    let accounts = setup_roles(&e, &client, &admin);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let salt = create_mock_salt(&e, 10);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    let predicted_address = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
+
+    let deployed_address = client.deploy_and_call(
+        &accounts.deployer1,
+        &ContractDeploymentArgs {
+            wasm_hash,
+            salt,
+            constructor_args,
+        },
+        &vec![&e],
+    );
+
+    assert_eq!(predicted_address, deployed_address);
+}
+
+#[test]
+fn test_deploy_and_call_idempotent_second_call() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+    let accounts = setup_roles(&e, &client, &admin);
+
+    // Use HelloWorld WASM which has `is_deployed` for the idempotency check
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, HELLO_WORLD_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let salt = create_mock_salt(&e, 1);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    // First call deploys
+    let deployed_address1 = client.deploy_and_call(
+        &accounts.deployer1,
+        &ContractDeploymentArgs {
+            wasm_hash: wasm_hash.clone(),
+            salt: salt.clone(),
+            constructor_args: constructor_args.clone(),
+        },
+        &vec![&e],
+    );
+
+    // Second call with same args should return the same address (idempotent)
+    let deployed_address2 = client.deploy_and_call(
+        &accounts.deployer1,
+        &ContractDeploymentArgs {
+            wasm_hash,
+            salt,
+            constructor_args,
+        },
+        &vec![&e],
+    );
+
+    assert_eq!(deployed_address1, deployed_address2);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1210)")]
+fn test_deploy_and_call_requires_deployer_role() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+    let accounts = setup_roles(&e, &client, &admin);
+
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, SMART_ACCOUNT_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let salt = create_mock_salt(&e, 1);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    // Outsider should not be able to deploy_and_call (lacks deployer role)
+    client.deploy_and_call(
+        &accounts.outsider,
+        &ContractDeploymentArgs {
+            wasm_hash,
+            salt,
+            constructor_args,
+        },
+        &vec![&e],
+    );
+}
+
+#[test]
+fn test_deploy_and_call_with_deployed_contract_auth() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+    let accounts = setup_roles(&e, &client, &admin);
+
+    // Deploy HelloContract via factory — it has `hello_requires_auth` and `is_deployed`
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, HELLO_WORLD_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let salt = create_mock_salt(&e, 50);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    // Pre-compute the deployed address
+    let predicted_address = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
+
+    // Build a call to `hello_requires_auth` on the deployed contract itself.
+    // hello_requires_auth calls `caller.require_auth()` — passing the deployed
+    // contract's own address as caller means the deployed contract must authorize.
+    let call = ContractCall {
+        contract_id: predicted_address.clone(),
+        func: Symbol::new(&e, "hello_requires_auth"),
+        args: vec![&e, predicted_address.clone().into_val(&e)],
+    };
+
+    e.set_auths(&[]);
+    e.mock_all_auths_allowing_non_root_auth();
+
+    let deployed_address = client.deploy_and_call(
+        &accounts.deployer1,
+        &ContractDeploymentArgs {
+            wasm_hash,
+            salt,
+            constructor_args,
+        },
+        &vec![&e, call],
+    );
+
+    assert_eq!(deployed_address, predicted_address);
+}
+
+#[test]
+fn test_deploy_and_call_with_external_signer_auth() {
+    let e = Env::default();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let client = create_factory_client(&e, &admin);
+    let accounts = setup_roles(&e, &client, &admin);
+
+    // Deploy HelloContract via factory
+    let wasm_bytes = soroban_sdk::Bytes::from_slice(&e, HELLO_WORLD_WASM);
+    let wasm_hash = e.deployer().upload_contract_wasm(wasm_bytes);
+    let salt = create_mock_salt(&e, 60);
+    let constructor_args: Vec<Val> = vec![&e];
+
+    // Pre-compute the deployed address
+    let predicted_address = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
+
+    // An external signer (not the deployed contract) will need to authorize
+    let external_signer = Address::generate(&e);
+
+    // Build a call to `hello_requires_auth` on the deployed contract
+    // with an external signer as the caller argument.
+    // hello_requires_auth calls `caller.require_auth()` on the external signer.
+    let call = ContractCall {
+        contract_id: predicted_address.clone(),
+        func: Symbol::new(&e, "hello_requires_auth"),
+        args: vec![&e, external_signer.into_val(&e)],
+    };
+
+    e.set_auths(&[]);
+    e.mock_all_auths_allowing_non_root_auth();
+
+    // deploy_and_call should deploy the contract AND call hello_requires_auth
+    let deployed_address = client.deploy_and_call(
+        &accounts.deployer1,
+        &ContractDeploymentArgs {
+            wasm_hash,
+            salt,
+            constructor_args,
+        },
+        &vec![&e, call],
+    );
+
+    assert_eq!(deployed_address, predicted_address);
 }
