@@ -89,7 +89,9 @@ impl TestSignerTrait for Ed25519TestSigner {
 // Secp256r1 (raw)
 // ============================================================================
 
-use p256::ecdsa::{signature::hazmat::PrehashSigner, Signature as P256Signature, SigningKey, VerifyingKey};
+use p256::ecdsa::{
+    signature::hazmat::PrehashSigner, Signature as P256Signature, SigningKey, VerifyingKey,
+};
 use smart_account_interfaces::Secp256r1Signer;
 
 /// Normalize an ECDSA signature to low-S form as required by Soroban.

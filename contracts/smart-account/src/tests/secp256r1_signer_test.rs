@@ -5,9 +5,7 @@ use crate::{
     auth::proof::{SignatureProofs, SignerProof},
     auth::signers::SignatureVerifier,
     error::Error,
-    tests::test_utils::{
-        get_token_auth_context, setup, Secp256r1TestSigner, TestSignerTrait as _,
-    },
+    tests::test_utils::{get_token_auth_context, setup, Secp256r1TestSigner, TestSignerTrait as _},
 };
 use smart_account_interfaces::SignerRole;
 

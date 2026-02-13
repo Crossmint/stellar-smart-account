@@ -16,11 +16,8 @@ impl SignatureVerifier for Secp256r1Signer {
                 // This will panic if the signature is invalid.
                 // The signature_payload is a Hash<32> from __check_auth,
                 // guaranteed to be a secure cryptographic hash.
-                env.crypto().secp256r1_verify(
-                    &self.public_key,
-                    signature_payload,
-                    signature,
-                );
+                env.crypto()
+                    .secp256r1_verify(&self.public_key, signature_payload, signature);
 
                 Ok(())
             }
