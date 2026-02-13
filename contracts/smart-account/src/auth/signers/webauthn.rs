@@ -3,7 +3,7 @@ use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
 use base64ct::{Base64UrlUnpadded, Encoding};
 use smart_account_interfaces::WebauthnSigner;
-use soroban_sdk::{BytesN, Env};
+use soroban_sdk::{crypto::Hash, Env};
 
 #[derive(serde::Deserialize)]
 struct ClientDataJson<'a> {
@@ -14,7 +14,7 @@ impl SignatureVerifier for WebauthnSigner {
     fn verify(
         &self,
         env: &Env,
-        signature_payload: &BytesN<32>,
+        signature_payload: &Hash<32>,
         proof: &SignerProof,
     ) -> Result<(), Error> {
         match proof {
@@ -47,7 +47,7 @@ impl SignatureVerifier for WebauthnSigner {
 
                 let mut buf = [0u8; 64];
                 let expected_challenge =
-                    Base64UrlUnpadded::encode(&signature_payload.to_array(), &mut buf)
+                    Base64UrlUnpadded::encode(&signature_payload.to_bytes().to_array(), &mut buf)
                         .map_err(|_| Error::InvalidWebauthnClientDataJson)?;
                 if client_data_json.challenge.as_bytes() != expected_challenge.as_bytes() {
                     return Err(Error::ClientDataJsonIncorrectChallenge);

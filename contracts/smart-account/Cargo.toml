@@ -10,7 +10,7 @@ crate-type = ["lib", "cdylib"]
 doctest = false
 
 [dependencies]
-soroban-sdk = { workspace = true, features = ["hazmat"] }
+soroban-sdk = { workspace = true }
 initializable = { workspace = true }
 storage = { workspace = true }
 upgradeable = { workspace = true }

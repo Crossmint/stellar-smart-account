@@ -6,10 +6,10 @@ use smart_account_interfaces::{
     Ed25519Signer, MultisigSigner, Secp256r1Signer, Signer, WebauthnSigner,
 };
 use soroban_sdk::Vec;
-use soroban_sdk::{auth::Context, BytesN, Env};
+use soroban_sdk::{auth::Context, crypto::Hash, Env};
 
 impl SignatureVerifier for Signer {
-    fn verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
+    fn verify(&self, env: &Env, payload: &Hash<32>, proof: &SignerProof) -> Result<(), Error> {
         match self {
             Signer::Ed25519(signer, _) => Ed25519Signer {
                 public_key: signer.public_key.clone(),

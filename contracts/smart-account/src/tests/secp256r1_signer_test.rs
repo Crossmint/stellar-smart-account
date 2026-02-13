@@ -1,134 +1,82 @@
-// Third-party crate imports
-use p256::ecdsa::{signature::hazmat::PrehashSigner, Signature, SigningKey, VerifyingKey};
-use soroban_sdk::{map, vec, Address, BytesN, Env, IntoVal, Vec as SorobanVec};
+use soroban_sdk::{map, testutils::BytesN as _, vec, Address, Bytes, BytesN, IntoVal, Vec};
 
-// Internal crate imports
-use crate::account::SmartAccount;
-use crate::auth::proof::{SignatureProofs, SignerProof};
-use crate::auth::signers::SignatureVerifier;
-use crate::error::Error;
-use crate::tests::test_utils::get_token_auth_context;
+use crate::{
+    account::SmartAccount,
+    auth::proof::{SignatureProofs, SignerProof},
+    auth::signers::SignatureVerifier,
+    error::Error,
+    tests::test_utils::{
+        get_token_auth_context, setup, Secp256r1TestSigner, TestSignerTrait as _,
+    },
+};
 use smart_account_interfaces::SignerRole;
-use smart_account_interfaces::{Secp256r1Signer, Signer, SignerKey};
-
-struct Secp256r1TestData {
-    signer: Secp256r1Signer,
-    signature_payload: BytesN<32>,
-    valid_proof: SignerProof,
-}
-
-fn create_secp256r1_test_data(env: &Env) -> Secp256r1TestData {
-    // Create deterministic keypair
-    let sk_bytes = [1u8; 32];
-    let signing_key = SigningKey::from_bytes(&sk_bytes.into()).expect("signing key");
-    let verifying_key = VerifyingKey::from(&signing_key);
-
-    // Convert to Soroban format
-    let public_key_encoded = verifying_key.to_encoded_point(false);
-    let mut pk_bytes = [0u8; 65];
-    pk_bytes.copy_from_slice(public_key_encoded.as_bytes());
-
-    let signer = Secp256r1Signer::new(BytesN::from_array(env, &pk_bytes));
-
-    // Create payload
-    let signature_payload = BytesN::from_array(env, &[0xAB; 32]);
-
-    // Sign the payload as a pre-hashed message (no additional hashing).
-    // Soroban's secp256r1_verify treats the 32-byte input as a message digest directly.
-    let signature: Signature = signing_key
-        .sign_prehash(&signature_payload.to_array())
-        .expect("signing");
-
-    let valid_proof = SignerProof::Secp256r1(BytesN::from_array(
-        env,
-        signature.to_bytes().as_slice().try_into().unwrap(),
-    ));
-
-    Secp256r1TestData {
-        signer,
-        signature_payload,
-        valid_proof,
-    }
-}
 
 #[test]
-fn test_secp256r1_raw_valid_signature_passes() {
-    let env = Env::default();
-    let test_data = create_secp256r1_test_data(&env);
+fn test_secp256r1_valid_signature() {
+    let env = setup();
+    let signer = Secp256r1TestSigner::generate(SignerRole::Admin);
 
-    test_data
-        .signer
-        .verify(&env, &test_data.signature_payload, &test_data.valid_proof)
+    // Produce a Hash<32> the same way __check_auth receives it
+    let payload_hash = env.crypto().sha256(&Bytes::from_array(&env, &[0xAB; 32]));
+    let (_, proof) = signer.sign(&env, &payload_hash.to_bytes());
+
+    smart_account_interfaces::Secp256r1Signer::new(signer.public_key(&env))
+        .verify(&env, &payload_hash, &proof)
         .unwrap();
 }
 
 #[test]
 #[should_panic]
-fn test_secp256r1_raw_invalid_signature_panics() {
-    let env = Env::default();
-    let test_data = create_secp256r1_test_data(&env);
+fn test_secp256r1_invalid_signature_panics() {
+    let env = setup();
+    let signer = Secp256r1TestSigner::generate(SignerRole::Admin);
+    let payload_hash = env.crypto().sha256(&Bytes::from_array(&env, &[0xAB; 32]));
 
-    if let SignerProof::Secp256r1(ref valid_sig) = test_data.valid_proof {
-        let mut bad_sig_bytes = valid_sig.to_array().to_vec();
-        bad_sig_bytes[0] ^= 0x01; // Corrupt the signature
+    let invalid_proof = SignerProof::Secp256r1(BytesN::random(&env));
 
-        let invalid_proof = SignerProof::Secp256r1(BytesN::from_array(
-            &env,
-            bad_sig_bytes.as_slice().try_into().unwrap(),
-        ));
-
-        // Should panic at crypto verification step
-        let _ = test_data
-            .signer
-            .verify(&env, &test_data.signature_payload, &invalid_proof);
-    } else {
-        panic!("Expected Secp256r1 proof");
-    }
+    let _ = smart_account_interfaces::Secp256r1Signer::new(signer.public_key(&env)).verify(
+        &env,
+        &payload_hash,
+        &invalid_proof,
+    );
 }
 
 #[test]
-fn test_secp256r1_raw_wrong_proof_type_rejected() {
-    let env = Env::default();
-    let test_data = create_secp256r1_test_data(&env);
+fn test_secp256r1_wrong_proof_type_rejected() {
+    let env = setup();
+    let signer = Secp256r1TestSigner::generate(SignerRole::Admin);
+    let payload_hash = env.crypto().sha256(&Bytes::from_array(&env, &[0xAB; 32]));
 
-    // Try with an Ed25519 proof type
-    let wrong_proof = SignerProof::Ed25519(BytesN::from_array(&env, &[0u8; 64]));
-    let result = test_data
-        .signer
-        .verify(&env, &test_data.signature_payload, &wrong_proof);
+    let wrong_proof = SignerProof::Ed25519(BytesN::random(&env));
+    let result = smart_account_interfaces::Secp256r1Signer::new(signer.public_key(&env)).verify(
+        &env,
+        &payload_hash,
+        &wrong_proof,
+    );
     assert!(matches!(result, Err(Error::InvalidProofType)));
 }
 
 #[test]
-fn test_secp256r1_raw_end_to_end_smart_account_auth() {
-    let env = Env::default();
-    let test_data = create_secp256r1_test_data(&env);
-
-    // Register smart account with the secp256r1 signer
-    let signer = Signer::Secp256r1(test_data.signer.clone(), SignerRole::Admin);
+fn test_secp256r1_end_to_end_auth() {
+    let env = setup();
+    let test_signer = Secp256r1TestSigner::generate(SignerRole::Admin);
     let contract_id = env.register(
         SmartAccount,
-        (vec![&env, signer], SorobanVec::<Address>::new(&env)),
+        (
+            vec![&env, test_signer.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
     );
 
-    // Use the same payload and proof
-    let signer_key = SignerKey::Secp256r1(test_data.signer.public_key.clone());
-    let auth_payloads = SignatureProofs(map![&env, (signer_key, test_data.valid_proof)]);
+    let payload = BytesN::random(&env);
+    let (signer_key, proof) = test_signer.sign(&env, &payload);
+    let auth_payloads = SignatureProofs(map![&env, (signer_key, proof)]);
 
-    // Test end-to-end authentication
-    let result = env.try_invoke_contract_check_auth::<Error>(
+    env.try_invoke_contract_check_auth::<Error>(
         &contract_id,
-        &test_data.signature_payload,
+        &payload,
         auth_payloads.into_val(&env),
         &vec![&env, get_token_auth_context(&env)],
-    );
-
-    match result {
-        Ok(()) => {
-            // Success - test passed
-        }
-        Err(e) => {
-            panic!("Authentication failed: {:?}", e);
-        }
-    }
+    )
+    .unwrap();
 }
