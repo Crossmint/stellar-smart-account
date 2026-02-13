@@ -102,7 +102,7 @@ impl SmartAccountInterface for SmartAccount {
         Self::require_auth_if_initialized(env);
 
         if let Signer::Multisig(ref multisig, _) = signer {
-            Self::validate_multisig(multisig)?;
+            Self::validate_multisig(env, multisig)?;
         }
 
         let key = signer.clone().into();
@@ -128,7 +128,7 @@ impl SmartAccountInterface for SmartAccount {
         Self::require_auth_if_initialized(env);
 
         if let Signer::Multisig(ref multisig, _) = signer {
-            Self::validate_multisig(multisig)?;
+            Self::validate_multisig(env, multisig)?;
         }
 
         let key = signer.clone().into();
@@ -320,12 +320,21 @@ impl SmartAccount {
     }
 
     /// Validates multisig signer configuration
-    fn validate_multisig(multisig: &MultisigSigner) -> Result<(), SmartAccountError> {
+    fn validate_multisig(env: &Env, multisig: &MultisigSigner) -> Result<(), SmartAccountError> {
         if multisig.members.is_empty() || multisig.threshold == 0 {
             return Err(SmartAccountError::MultisigInvalidThreshold);
         }
         if multisig.threshold > multisig.members.len() {
             return Err(SmartAccountError::MultisigInvalidThreshold);
+        }
+        // Check for duplicate members by converting each to a SignerKey
+        let mut seen_keys: Map<SignerKey, bool> = Map::new(env);
+        for member in multisig.members.iter() {
+            let key: SignerKey = member.into();
+            if seen_keys.contains_key(key.clone()) {
+                return Err(SmartAccountError::MultisigDuplicatedMember);
+            }
+            seen_keys.set(key, true);
         }
         Ok(())
     }
