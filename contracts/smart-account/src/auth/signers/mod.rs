@@ -1,4 +1,5 @@
 mod ed25519;
+mod multisig;
 pub mod secp256r1;
 
 use crate::auth::proof::SignerProof;

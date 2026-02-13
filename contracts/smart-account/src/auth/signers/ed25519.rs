@@ -17,7 +17,7 @@ impl SignatureVerifier for Ed25519Signer {
                 // Reaching this point means the signature is valid
                 Ok(())
             }
-            SignerProof::Secp256r1(_) => Err(Error::InvalidProofType),
+            _ => Err(Error::InvalidProofType),
         }
     }
 }

@@ -15,6 +15,7 @@ pub struct Secp256r1Signature {
 pub enum SignerProof {
     Ed25519(BytesN<64>),
     Secp256r1(Secp256r1Signature),
+    Multisig(Map<SignerKey, SignerProof>),
 }
 
 #[contracttype]

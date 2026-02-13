@@ -15,7 +15,7 @@ use crate::plugin::SmartAccountPluginClient;
 use initializable::{only_not_initialized, Initializable};
 use smart_account_interfaces::SmartAccountError;
 pub use smart_account_interfaces::SmartAccountInterface;
-use smart_account_interfaces::{Signer, SignerKey, SignerPolicy, SignerRole};
+use smart_account_interfaces::{MultisigSigner, Signer, SignerKey, SignerPolicy, SignerRole};
 use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
@@ -100,6 +100,11 @@ impl SmartAccountInterface for SmartAccount {
 
     fn add_signer(env: &Env, signer: Signer) -> Result<(), SmartAccountError> {
         Self::require_auth_if_initialized(env);
+
+        if let Signer::Multisig(ref multisig, _) = signer {
+            Self::validate_multisig(env, multisig)?;
+        }
+
         let key = signer.clone().into();
         let storage = Storage::persistent();
         storage.store::<SignerKey, Signer>(env, &key, &signer)?;
@@ -121,6 +126,11 @@ impl SmartAccountInterface for SmartAccount {
 
     fn update_signer(env: &Env, signer: Signer) -> Result<(), SmartAccountError> {
         Self::require_auth_if_initialized(env);
+
+        if let Signer::Multisig(ref multisig, _) = signer {
+            Self::validate_multisig(env, multisig)?;
+        }
+
         let key = signer.clone().into();
         let storage = Storage::persistent();
         let old_signer = storage
@@ -306,6 +316,26 @@ impl SmartAccount {
             .checked_add(1)
             .ok_or(SmartAccountError::MaxSignersReached)?;
         storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
+        Ok(())
+    }
+
+    /// Validates multisig signer configuration
+    fn validate_multisig(env: &Env, multisig: &MultisigSigner) -> Result<(), SmartAccountError> {
+        if multisig.members.is_empty() || multisig.threshold == 0 {
+            return Err(SmartAccountError::MultisigInvalidThreshold);
+        }
+        if multisig.threshold > multisig.members.len() {
+            return Err(SmartAccountError::MultisigInvalidThreshold);
+        }
+        // Check for duplicate members by converting each to a SignerKey
+        let mut seen_keys: Map<SignerKey, bool> = Map::new(env);
+        for member in multisig.members.iter() {
+            let key: SignerKey = member.into();
+            if seen_keys.contains_key(key.clone()) {
+                return Err(SmartAccountError::MultisigDuplicatedMember);
+            }
+            seen_keys.set(key, true);
+        }
         Ok(())
     }
 

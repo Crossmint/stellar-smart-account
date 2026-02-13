@@ -24,6 +24,7 @@ pub struct ExternalPolicy {
 pub enum SignerKey {
     Ed25519(BytesN<32>),
     Secp256r1(Bytes),
+    Multisig(BytesN<32>),
 }
 
 #[contracttype]
@@ -41,9 +42,25 @@ pub struct Secp256r1Signer {
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
+pub enum MultisigMember {
+    Ed25519(Ed25519Signer),
+    Secp256r1(Secp256r1Signer),
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct MultisigSigner {
+    pub id: BytesN<32>,
+    pub members: Vec<MultisigMember>,
+    pub threshold: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Signer {
     Ed25519(Ed25519Signer, SignerRole),
     Secp256r1(Secp256r1Signer, SignerRole),
+    Multisig(MultisigSigner, SignerRole),
 }
 
 impl Ed25519Signer {
@@ -58,11 +75,22 @@ impl Secp256r1Signer {
     }
 }
 
+impl MultisigSigner {
+    pub fn new(id: BytesN<32>, members: Vec<MultisigMember>, threshold: u32) -> Self {
+        Self {
+            id,
+            members,
+            threshold,
+        }
+    }
+}
+
 impl Signer {
     pub fn role(&self) -> SignerRole {
         match self {
             Signer::Ed25519(_, role) => role.clone(),
             Signer::Secp256r1(_, role) => role.clone(),
+            Signer::Multisig(_, role) => role.clone(),
         }
     }
 }
@@ -79,11 +107,27 @@ impl From<Secp256r1Signer> for SignerKey {
     }
 }
 
+impl From<MultisigMember> for SignerKey {
+    fn from(member: MultisigMember) -> Self {
+        match member {
+            MultisigMember::Ed25519(signer) => signer.into(),
+            MultisigMember::Secp256r1(signer) => signer.into(),
+        }
+    }
+}
+
+impl From<MultisigSigner> for SignerKey {
+    fn from(signer: MultisigSigner) -> Self {
+        SignerKey::Multisig(signer.id.clone())
+    }
+}
+
 impl From<Signer> for SignerKey {
     fn from(signer: Signer) -> Self {
         match signer {
             Signer::Ed25519(signer, _) => signer.into(),
             Signer::Secp256r1(signer, _) => signer.into(),
+            Signer::Multisig(signer, _) => signer.into(),
         }
     }
 }
