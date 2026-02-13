@@ -35,7 +35,7 @@ impl Authorizer {
             let signer = storage
                 .get::<SignerKey, Signer>(env, &signer_key)
                 .ok_or(Error::SignerNotFound)?;
-            signer.verify(env, &signature_payload.to_bytes(), &proof)?;
+            signer.verify(env, &signature_payload, &proof)?;
 
             match signer.role() {
                 SignerRole::Admin => admin_signers.push_back(signer),

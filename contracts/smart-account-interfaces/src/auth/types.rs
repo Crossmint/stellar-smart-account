@@ -23,7 +23,8 @@ pub struct ExternalPolicy {
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerKey {
     Ed25519(BytesN<32>),
-    Secp256r1(Bytes),
+    Secp256r1(BytesN<65>),
+    Webauthn(Bytes),
     Multisig(BytesN<32>),
 }
 
@@ -36,6 +37,12 @@ pub struct Ed25519Signer {
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Secp256r1Signer {
+    pub public_key: BytesN<65>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct WebauthnSigner {
     pub key_id: Bytes,
     pub public_key: BytesN<65>,
 }
@@ -45,6 +52,7 @@ pub struct Secp256r1Signer {
 pub enum MultisigMember {
     Ed25519(Ed25519Signer),
     Secp256r1(Secp256r1Signer),
+    Webauthn(WebauthnSigner),
 }
 
 #[contracttype]
@@ -60,6 +68,7 @@ pub struct MultisigSigner {
 pub enum Signer {
     Ed25519(Ed25519Signer, SignerRole),
     Secp256r1(Secp256r1Signer, SignerRole),
+    Webauthn(WebauthnSigner, SignerRole),
     Multisig(MultisigSigner, SignerRole),
 }
 
@@ -70,6 +79,12 @@ impl Ed25519Signer {
 }
 
 impl Secp256r1Signer {
+    pub fn new(public_key: BytesN<65>) -> Self {
+        Self { public_key }
+    }
+}
+
+impl WebauthnSigner {
     pub fn new(key_id: Bytes, public_key: BytesN<65>) -> Self {
         Self { key_id, public_key }
     }
@@ -90,6 +105,7 @@ impl Signer {
         match self {
             Signer::Ed25519(_, role) => role.clone(),
             Signer::Secp256r1(_, role) => role.clone(),
+            Signer::Webauthn(_, role) => role.clone(),
             Signer::Multisig(_, role) => role.clone(),
         }
     }
@@ -103,7 +119,13 @@ impl From<Ed25519Signer> for SignerKey {
 
 impl From<Secp256r1Signer> for SignerKey {
     fn from(signer: Secp256r1Signer) -> Self {
-        SignerKey::Secp256r1(signer.key_id.clone())
+        SignerKey::Secp256r1(signer.public_key.clone())
+    }
+}
+
+impl From<WebauthnSigner> for SignerKey {
+    fn from(signer: WebauthnSigner) -> Self {
+        SignerKey::Webauthn(signer.key_id.clone())
     }
 }
 
@@ -112,6 +134,7 @@ impl From<MultisigMember> for SignerKey {
         match member {
             MultisigMember::Ed25519(signer) => signer.into(),
             MultisigMember::Secp256r1(signer) => signer.into(),
+            MultisigMember::Webauthn(signer) => signer.into(),
         }
     }
 }
@@ -127,6 +150,7 @@ impl From<Signer> for SignerKey {
         match signer {
             Signer::Ed25519(signer, _) => signer.into(),
             Signer::Secp256r1(signer, _) => signer.into(),
+            Signer::Webauthn(signer, _) => signer.into(),
             Signer::Multisig(signer, _) => signer.into(),
         }
     }

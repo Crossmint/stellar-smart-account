@@ -2,19 +2,20 @@ use crate::auth::proof::SignerProof;
 use crate::auth::signers::SignatureVerifier;
 use crate::error::Error;
 use smart_account_interfaces::{MultisigMember, MultisigSigner, SignerKey};
-use soroban_sdk::{BytesN, Env};
+use soroban_sdk::{crypto::Hash, Env};
 
 impl SignatureVerifier for MultisigMember {
-    fn verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
+    fn verify(&self, env: &Env, payload: &Hash<32>, proof: &SignerProof) -> Result<(), Error> {
         match self {
             MultisigMember::Ed25519(signer) => signer.verify(env, payload, proof),
             MultisigMember::Secp256r1(signer) => signer.verify(env, payload, proof),
+            MultisigMember::Webauthn(signer) => signer.verify(env, payload, proof),
         }
     }
 }
 
 impl SignatureVerifier for MultisigSigner {
-    fn verify(&self, env: &Env, payload: &BytesN<32>, proof: &SignerProof) -> Result<(), Error> {
+    fn verify(&self, env: &Env, payload: &Hash<32>, proof: &SignerProof) -> Result<(), Error> {
         match proof {
             SignerProof::Multisig(member_proofs) => {
                 let mut verified_count: u32 = 0;

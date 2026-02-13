@@ -4,7 +4,7 @@ use smart_account_interfaces::SignerKey;
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
-pub struct Secp256r1Signature {
+pub struct WebauthnSignature {
     pub authenticator_data: Bytes,
     pub client_data_json: Bytes,
     pub signature: BytesN<64>,
@@ -14,7 +14,8 @@ pub struct Secp256r1Signature {
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerProof {
     Ed25519(BytesN<64>),
-    Secp256r1(Secp256r1Signature),
+    Secp256r1(BytesN<64>),
+    Webauthn(WebauthnSignature),
     Multisig(Map<SignerKey, SignerProof>),
 }
 
