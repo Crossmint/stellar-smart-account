@@ -601,8 +601,7 @@ fn test_deploy_and_call_with_deployed_contract_auth() {
     let constructor_args: Vec<Val> = vec![&e];
 
     // Pre-compute the deployed address
-    let predicted_address =
-        client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
+    let predicted_address = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
 
     // Build a call to `hello_requires_auth` on the deployed contract itself.
     // hello_requires_auth calls `caller.require_auth()` — passing the deployed
@@ -644,8 +643,7 @@ fn test_deploy_and_call_with_external_signer_auth() {
     let constructor_args: Vec<Val> = vec![&e];
 
     // Pre-compute the deployed address
-    let predicted_address =
-        client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
+    let predicted_address = client.get_deployed_address(&salt, &wasm_hash, &constructor_args);
 
     // An external signer (not the deployed contract) will need to authorize
     let external_signer = Address::generate(&e);

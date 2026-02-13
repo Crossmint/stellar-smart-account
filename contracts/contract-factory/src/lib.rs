@@ -129,10 +129,7 @@ impl ContractFactory {
         contract_id
     }
 
-    fn deploy_idempotent_inner(
-        env: &Env,
-        deployment_args: ContractDeploymentArgs,
-    ) -> Address {
+    fn deploy_idempotent_inner(env: &Env, deployment_args: ContractDeploymentArgs) -> Address {
         let ContractDeploymentArgs {
             wasm_hash,
             salt,
