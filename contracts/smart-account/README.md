@@ -600,10 +600,10 @@ sequenceDiagram
 
 ### Integration with Factory Contract
 
-The `CrossmintContractFactory` handles initial deployment but does not manage upgrades:
-- **Initial Deployment**: Factory deploys contracts with role-based access control
+The `ContractFactory` handles initial deployment but does not manage upgrades:
+- **Initial Deployment**: Factory provides permissionless deployment of smart account contracts
 - **Upgrade Management**: Individual Smart Account contracts handle their own upgrades
-- **Permission Inheritance**: Admin roles established during deployment control upgrade access
+- **Self-Governance**: Each deployed smart account enforces its own security through its signers
 
 This separation ensures that each Smart Account maintains autonomous control over its upgrade process while benefiting from the factory's standardized deployment patterns.
 
