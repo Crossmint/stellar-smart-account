@@ -378,9 +378,6 @@ name = "contract-factory"
 version = "0.0.0"
 dependencies = [
  "soroban-sdk",
- "stellar-access-control",
- "stellar-access-control-macros",
- "stellar-default-impl-macro",
 ]
 
 [[package]]
@@ -2078,16 +2075,6 @@ version = "0.3.0"
 source = "git+https://github.com/OpenZeppelin/stellar-contracts?tag=v0.3.0#659fcabdc0e4712254dfebe4f45efd54f49826e9"
 dependencies = [
  "soroban-sdk",
-]
-
-[[package]]
-name = "stellar-default-impl-macro"
-version = "0.3.0"
-source = "git+https://github.com/OpenZeppelin/stellar-contracts?tag=v0.3.0#659fcabdc0e4712254dfebe4f45efd54f49826e9"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.106",
 ]
 
 [[package]]
