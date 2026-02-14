@@ -80,10 +80,7 @@ impl ContractFactory {
 
     /// Deploys a contract on behalf of the `ContractFactory` contract.
     /// If the contract is already deployed at the deterministic address, returns it.
-    pub fn deploy_idempotent(
-        env: &Env,
-        deployment_args: ContractDeploymentArgs,
-    ) -> Address {
+    pub fn deploy_idempotent(env: &Env, deployment_args: ContractDeploymentArgs) -> Address {
         let ContractDeploymentArgs {
             wasm_hash,
             salt,
