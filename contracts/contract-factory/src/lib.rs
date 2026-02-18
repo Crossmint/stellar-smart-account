@@ -6,6 +6,10 @@ use soroban_sdk::{
 
 const DEPLOYED_CONTRACT: Symbol = symbol_short!("DEPLOYED");
 
+const DAY_IN_LEDGERS: u32 = 17_280;
+const INSTANCE_TTL_THRESHOLD: u32 = 7 * DAY_IN_LEDGERS;
+const INSTANCE_EXTEND_TO: u32 = 30 * DAY_IN_LEDGERS;
+
 #[contract]
 pub struct ContractFactory;
 
@@ -25,6 +29,12 @@ pub struct ContractDeployedEvent {
 
 #[contractimpl]
 impl ContractFactory {
+    fn extend_instance_ttl(env: &Env) {
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_EXTEND_TO);
+    }
+
     fn derive_salt(
         env: &Env,
         input_salt: BytesN<32>,
@@ -68,6 +78,7 @@ impl ContractFactory {
 
     /// Deploys a contract on behalf of the `ContractFactory` contract.
     pub fn deploy(env: &Env, deployment_args: ContractDeploymentArgs) -> Address {
+        Self::extend_instance_ttl(env);
         let ContractDeploymentArgs {
             wasm_hash,
             salt,
@@ -81,6 +92,7 @@ impl ContractFactory {
     /// Deploys a contract on behalf of the `ContractFactory` contract.
     /// If the contract is already deployed at the deterministic address, returns it.
     pub fn deploy_idempotent(env: &Env, deployment_args: ContractDeploymentArgs) -> Address {
+        Self::extend_instance_ttl(env);
         let ContractDeploymentArgs {
             wasm_hash,
             salt,
@@ -116,6 +128,7 @@ impl ContractFactory {
         salt: BytesN<32>,
         constructor_args: Vec<Val>,
     ) -> Address {
+        Self::extend_instance_ttl(env);
         let wasm_hash = env.deployer().upload_contract_wasm(wasm_bytes);
         let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
         Self::deploy_and_emit(env, derived_salt, wasm_hash, constructor_args)
@@ -127,6 +140,7 @@ impl ContractFactory {
         wasm_hash: BytesN<32>,
         constructor_args: Vec<Val>,
     ) -> Address {
+        Self::extend_instance_ttl(env);
         let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
         env.deployer()
             .with_current_contract(derived_salt)

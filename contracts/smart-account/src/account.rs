@@ -2,8 +2,9 @@ use crate::auth::core::authorizer::Authorizer;
 use crate::auth::permissions::PolicyCallback;
 use crate::auth::proof::SignatureProofs;
 use crate::config::{
-    ADMIN_COUNT_KEY, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED,
-    VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
+    ADMIN_COUNT_KEY, INSTANCE_EXTEND_TO, INSTANCE_TTL_THRESHOLD, PLUGINS_KEY, TOPIC_PLUGIN,
+    TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED, VERB_REVOKED, VERB_UNINSTALLED,
+    VERB_UNINSTALL_FAILED, VERB_UPDATED,
 };
 use crate::error::Error;
 use crate::events::{
@@ -67,6 +68,7 @@ impl SmartAccount {
 impl SmartAccountInterface for SmartAccount {
     fn __constructor(env: Env, signers: Vec<Signer>, plugins: Vec<Address>) {
         only_not_initialized!(&env);
+        Self::extend_instance_ttl(&env);
 
         // Check that there is at least one admin signer to prevent the contract from being locked out.
         if !signers.iter().any(|s| s.role() == SignerRole::Admin) {
@@ -261,6 +263,12 @@ impl SmartAccountInterface for SmartAccount {
 // ============================================================================
 
 impl SmartAccount {
+    fn extend_instance_ttl(env: &Env) {
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_EXTEND_TO);
+    }
+
     /// Handles role transitions including admin count management and policy lifecycle callbacks
     fn handle_role_transition(
         env: &Env,
@@ -474,6 +482,7 @@ impl CustomAccountInterface for SmartAccount {
         auth_payloads: SignatureProofs,
         auth_contexts: Vec<Context>,
     ) -> Result<(), Error> {
+        Self::extend_instance_ttl(&env);
         Authorizer::check(&env, signature_payload, &auth_payloads, &auth_contexts)?;
         Authorizer::call_plugins_on_auth(&env, &auth_contexts)?;
         Ok(())
