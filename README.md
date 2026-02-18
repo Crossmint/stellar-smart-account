@@ -10,7 +10,7 @@ A comprehensive smart contract system for Stellar/Soroban that provides enterpri
 ## 🌟 Features
 
 - **🔐 Multi-Signature Account**: Advanced smart account with customizable authentication
-- **🏭 Contract Factory**: Secure deployment system with role-based access control  
+- **🏭 Contract Factory**: Permissionless deployment system with deterministic addresses
 - **🎯 Role-Based Permissions**: Admin and Standard signer roles with optional policies
 - **📋 Policy System**: Time-based, contract allow/deny lists, external delegation, and extensible policies
 - **🔌 Plugin System**: Extensible architecture with install/uninstall lifecycle and authorization hooks
@@ -52,11 +52,11 @@ The core smart account provides:
 
 ### Contract Factory
 
-Secure deployment system featuring:
+Permissionless deployment system featuring:
 
-- **Role-Based Deployment**: Only authorized deployers can create contracts
+- **Open Deployment**: Anyone can deploy smart account contracts
 - **Deterministic Addresses**: Predictable contract addresses using salt values
-- **Access Control Integration**: Built on OpenZeppelin Stellar contracts
+- **Idempotent Deploys**: Safe re-deployment attempts return existing addresses
 
 ## 🚀 Quick Start
 

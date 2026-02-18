@@ -2,7 +2,9 @@
 use crate::auth::permissions::AuthorizationCheck;
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signers::SignatureVerifier as _;
-use crate::config::{PLUGINS_KEY, TOPIC_PLUGIN, VERB_AUTH_FAILED};
+use crate::config::{
+    PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD, PLUGINS_KEY, TOPIC_PLUGIN, VERB_AUTH_FAILED,
+};
 use crate::error::Error;
 use crate::events::PluginAuthFailedEvent;
 use crate::handle_nested_result_failure;
@@ -35,6 +37,11 @@ impl Authorizer {
             let signer = storage
                 .get::<SignerKey, Signer>(env, &signer_key)
                 .ok_or(Error::SignerNotFound)?;
+            env.storage().persistent().extend_ttl(
+                &signer_key,
+                PERSISTENT_TTL_THRESHOLD,
+                PERSISTENT_EXTEND_TO,
+            );
             signer.verify(env, &signature_payload, &proof)?;
 
             match signer.role() {
