@@ -1,5 +1,46 @@
 use soroban_sdk::{contracttype, Address, Bytes, BytesN, Vec};
 
+// ============================================================================
+// Token Transfer Policy types
+// ============================================================================
+
+/// A built-in policy that restricts a Standard signer to only transferring
+/// a specific SAC token, with cumulative spending limits and optional features.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct TokenTransferPolicy {
+    /// Unique identifier for this policy instance, used to scope the spending tracker.
+    pub policy_id: BytesN<32>,
+    /// The SAC token contract address this signer is allowed to call `transfer` on.
+    pub token: Address,
+    /// Maximum cumulative amount (in token's smallest unit) allowed per window.
+    pub limit: i128,
+    /// Number of seconds after which the spent amount resets. 0 = no reset (lifetime limit).
+    pub reset_window_secs: u64,
+    /// Allowed recipient addresses. Empty = any recipient is allowed.
+    pub allowed_recipients: Vec<Address>,
+    /// Unix timestamp after which this policy expires. 0 = no expiration.
+    pub expiration: u64,
+}
+
+/// Tracks cumulative spending for a TokenTransferPolicy instance.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct SpendingTracker {
+    /// Total amount spent in the current window.
+    pub spent: i128,
+    /// Timestamp of the start of the current spending window.
+    pub window_start: u64,
+}
+
+/// Storage key for spending tracker entries.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub enum SpendTrackerKey {
+    /// Keyed by policy_id for unique per-signer-policy scoping.
+    TokenSpend(BytesN<32>),
+}
+
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerRole {
@@ -11,6 +52,7 @@ pub enum SignerRole {
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerPolicy {
     ExternalValidatorPolicy(ExternalPolicy),
+    TokenTransferPolicy(TokenTransferPolicy),
 }
 
 #[contracttype]

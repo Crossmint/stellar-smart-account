@@ -22,6 +22,7 @@ impl AuthorizationCheck for SignerPolicy {
     fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
         match self {
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.is_authorized(env, contexts),
+            SignerPolicy::TokenTransferPolicy(policy) => policy.is_authorized(env, contexts),
         }
     }
 }
@@ -30,11 +31,13 @@ impl PolicyCallback for SignerPolicy {
     fn on_add(&self, env: &Env) -> Result<(), SmartAccountError> {
         match self {
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_add(env),
+            SignerPolicy::TokenTransferPolicy(policy) => policy.on_add(env),
         }
     }
     fn on_revoke(&self, env: &Env) -> Result<(), SmartAccountError> {
         match self {
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_revoke(env),
+            SignerPolicy::TokenTransferPolicy(policy) => policy.on_revoke(env),
         }
     }
 }
