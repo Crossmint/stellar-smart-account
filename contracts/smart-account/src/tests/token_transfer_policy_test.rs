@@ -40,7 +40,7 @@ fn setup_account_with_policy(
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(env);
     let signer_policy = SignerPolicy::TokenTransferPolicy(policy.clone());
     let standard_signer =
-        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![env, signer_policy])));
+        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![env, signer_policy]), 0));
     let contract_id = env.register(
         SmartAccount,
         (
@@ -448,7 +448,7 @@ fn test_on_revoke_cleans_up_tracker() {
     let signer_policy = SignerPolicy::TokenTransferPolicy(policy.clone());
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
     let standard_signer =
-        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, signer_policy])));
+        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, signer_policy]), 0));
     let standard_signer_val = standard_signer.into_signer(&env);
 
     let contract_id = env.register(
@@ -573,7 +573,7 @@ fn setup_account_with_policies(
     policies: Vec<SignerPolicy>,
 ) -> (Address, Ed25519TestSigner) {
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(env);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(Some(policies)));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(Some(policies), 0));
     let contract_id = env.register(
         SmartAccount,
         (
@@ -664,7 +664,7 @@ fn test_multi_policy_uncovered_token_denied() {
 fn test_standard_none_signer_can_do_non_admin_operations() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
     let contract_id = env.register(
         SmartAccount,
         (
@@ -686,7 +686,7 @@ fn test_standard_some_empty_vec_rejected() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
     // Some(empty_vec) should be rejected during add_signer
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env])));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env]), 0));
     env.register(
         SmartAccount,
         (

@@ -72,8 +72,8 @@ fn test_signer_with_external_policy() {
     });
 
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
-    let test_signer = Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, policy])))
-        .into_signer(&env);
+    let test_signer =
+        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, policy]), 0)).into_signer(&env);
     env.register(
         SmartAccount,
         (
@@ -92,8 +92,8 @@ fn test_add_signer_with_external_polic_calls_on_add() {
     });
 
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
-    let test_signer = Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, policy])))
-        .into_signer(&env);
+    let test_signer =
+        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, policy]), 0)).into_signer(&env);
     env.register(
         SmartAccount,
         (
@@ -113,8 +113,8 @@ fn test_revoke_signer_with_external_polic_calls_on_revoke() {
     });
 
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
-    let test_signer = Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, policy])))
-        .into_signer(&env);
+    let test_signer =
+        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, policy]), 0)).into_signer(&env);
     let account_id = env.register(
         SmartAccount,
         (
@@ -150,12 +150,11 @@ fn test_update_signer_with_external_polic_lifecycle() {
 
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
     let test_signer_1 =
-        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, policy_1])))
-            .into_signer(&env);
+        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, policy_1]), 0)).into_signer(&env);
     if let Signer::Ed25519(core_signer, _) = test_signer_1.clone() {
         let test_signer_2 = Signer::Ed25519(
             Ed25519Signer::new(core_signer.public_key),
-            SignerRole::Standard(Some(vec![&env, policy_2])),
+            SignerRole::Standard(Some(vec![&env, policy_2]), 0),
         );
 
         let account_id = env.register(
@@ -190,8 +189,7 @@ fn test_update_signer_with_external_polic_lifecycle_with_same_policy() {
 
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
     let test_signer_1 =
-        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, policy_1])))
-            .into_signer(&env);
+        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, policy_1]), 0)).into_signer(&env);
 
     let account_id = env.register(
         SmartAccount,

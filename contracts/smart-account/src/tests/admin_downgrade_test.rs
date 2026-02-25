@@ -4,11 +4,10 @@ use soroban_sdk::{vec, Address, Vec};
 
 use crate::{
     account::SmartAccount,
-    auth::permissions::SignerRole,
-    interface::SmartAccountInterface,
-    tests::test_utils::{setup, Ed25519TestSigner, TestSignerTrait as _},
     error::Error,
+    tests::test_utils::{setup, Ed25519TestSigner, TestSignerTrait as _},
 };
+use smart_account_interfaces::{SignerRole, SmartAccountInterface as _};
 
 #[test]
 fn test_cannot_downgrade_last_admin() {
@@ -17,17 +16,19 @@ fn test_cannot_downgrade_last_admin() {
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
     let contract_id = env.register(
         SmartAccount,
-        (vec![&env, admin_signer.into_signer(&env)], Vec::<Address>::new(&env)),
+        (
+            vec![&env, admin_signer.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
     );
 
-    let downgraded = Ed25519TestSigner::from_public_key(
-        admin_signer.public_key(&env),
-        SignerRole::Standard(None),
-    )
-    .into_signer(&env);
+    let downgraded =
+        Ed25519TestSigner(admin_signer.0, SignerRole::Standard(None, 0)).into_signer(&env);
 
     env.mock_all_auths();
-    let res = env.as_contract(&contract_id, || SmartAccount::update_signer(&env, downgraded));
+    let res = env.as_contract(&contract_id, || {
+        SmartAccount::update_signer(&env, downgraded)
+    });
     assert_eq!(res.unwrap_err(), Error::CannotDowngradeLastAdmin);
 }
 
@@ -46,13 +47,12 @@ fn test_can_downgrade_admin_if_another_admin_exists() {
         ),
     );
 
-    let downgraded = Ed25519TestSigner::from_public_key(
-        admin2.public_key(&env),
-        SignerRole::Standard(None),
-    )
-    .into_signer(&env);
+    let downgraded =
+        Ed25519TestSigner(admin2.0, SignerRole::Standard(None, 0)).into_signer(&env);
 
     env.mock_all_auths();
-    let res = env.as_contract(&contract_id, || SmartAccount::update_signer(&env, downgraded));
+    let res = env.as_contract(&contract_id, || {
+        SmartAccount::update_signer(&env, downgraded)
+    });
     assert!(res.is_ok());
 }
