@@ -165,7 +165,9 @@ fn test_add_signer_with_past_expiration_rejected() {
     let expired = Ed25519TestSigner::generate(SignerRole::Standard(None,500));
 
     env.mock_all_auths();
-    let res = env.as_contract(&cid, || SmartAccount::add_signer(&env, expired.into_signer(&env)));
+    let res = env.as_contract(&cid, || {
+        SmartAccount::add_signer(&env, expired.into_signer(&env))
+    });
     assert_eq!(res.unwrap_err(), Error::SignerExpired);
 }
 
@@ -187,8 +189,9 @@ fn test_add_signer_with_current_timestamp_as_expiration_rejected() {
     let at_boundary = Ed25519TestSigner::generate(SignerRole::Standard(None,1000));
 
     env.mock_all_auths();
-    let res =
-        env.as_contract(&cid, || SmartAccount::add_signer(&env, at_boundary.into_signer(&env)));
+    let res = env.as_contract(&cid, || {
+        SmartAccount::add_signer(&env, at_boundary.into_signer(&env))
+    });
     assert_eq!(res.unwrap_err(), Error::SignerExpired);
 }
 
@@ -209,7 +212,9 @@ fn test_add_signer_with_future_expiration_succeeds() {
     let future = Ed25519TestSigner::generate(SignerRole::Standard(None,2000));
 
     env.mock_all_auths();
-    let res = env.as_contract(&cid, || SmartAccount::add_signer(&env, future.into_signer(&env)));
+    let res = env.as_contract(&cid, || {
+        SmartAccount::add_signer(&env, future.into_signer(&env))
+    });
     assert!(res.is_ok());
 }
 
@@ -300,7 +305,9 @@ fn test_revoke_expired_signer_succeeds() {
     // Admin can still revoke an expired signer
     let signer_key = SignerKey::Ed25519(expiring.public_key(&env));
     env.mock_all_auths();
-    let res = env.as_contract(&cid, || SmartAccount::revoke_signer(&env, signer_key.clone()));
+    let res = env.as_contract(&cid, || {
+        SmartAccount::revoke_signer(&env, signer_key.clone())
+    });
     assert!(res.is_ok());
 
     // Verify signer no longer exists
