@@ -17,7 +17,7 @@ extern crate std;
 fn test_revoke_admin_signer_prevented() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None));
 
     let contract_id = env.register(
         SmartAccount,
@@ -49,7 +49,7 @@ fn test_revoke_admin_signer_prevented() {
 fn test_revoke_standard_signer_allowed() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None));
 
     let contract_id = env.register(
         SmartAccount,
@@ -131,7 +131,7 @@ fn test_admin_count_underflow_protection() {
     );
 
     // Downgrade first admin to standard (should work)
-    let admin1_standard = Ed25519TestSigner(admin1.0, SignerRole::Standard(vec![&env]));
+    let admin1_standard = Ed25519TestSigner(admin1.0, SignerRole::Standard(None));
 
     env.mock_all_auths();
     let result = env.as_contract(&contract_id, || {
@@ -144,7 +144,7 @@ fn test_admin_count_underflow_protection() {
     );
 
     // Try to downgrade the last admin (should fail)
-    let admin2_standard = Ed25519TestSigner(admin2.0, SignerRole::Standard(vec![&env]));
+    let admin2_standard = Ed25519TestSigner(admin2.0, SignerRole::Standard(None));
 
     let result2 = env.as_contract(&contract_id, || {
         SmartAccount::update_signer(&env, admin2_standard.into_signer(&env))
@@ -161,7 +161,7 @@ fn test_admin_count_underflow_protection() {
 fn test_has_signer_returns_true_when_signer_exists() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None));
 
     let contract_id = env.register(
         SmartAccount,
@@ -197,7 +197,7 @@ fn test_has_signer_returns_true_when_signer_exists() {
 fn test_has_signer_returns_false_when_signer_does_not_exist() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let non_existent_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let non_existent_signer = Ed25519TestSigner::generate(SignerRole::Standard(None));
 
     let contract_id = env.register(
         SmartAccount,
@@ -222,7 +222,7 @@ fn test_has_signer_returns_false_when_signer_does_not_exist() {
 fn test_get_signer_returns_signer_when_exists() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None));
 
     let contract_id = env.register(
         SmartAccount,
@@ -260,7 +260,7 @@ fn test_get_signer_returns_signer_when_exists() {
 fn test_get_signer_returns_error_when_signer_does_not_exist() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let non_existent_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let non_existent_signer = Ed25519TestSigner::generate(SignerRole::Standard(None));
 
     let contract_id = env.register(
         SmartAccount,

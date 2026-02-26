@@ -66,10 +66,16 @@ impl AuthorizationCheck for SignerRole {
                 if needs_admin_approval {
                     false
                 } else {
-                    // If not an admin operation, check all policies (if any)
-                    policies
-                        .iter()
-                        .all(|policy| policy.is_authorized(env, contexts))
+                    match policies {
+                        // No policies = no restrictions (beyond admin check)
+                        None => true,
+                        // At least one policy must authorize the full transaction
+                        Some(policies) => {
+                            policies
+                                .iter()
+                                .any(|policy| policy.is_authorized(env, contexts))
+                        }
+                    }
                 }
             }
         }

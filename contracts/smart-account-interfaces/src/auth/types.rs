@@ -45,7 +45,7 @@ pub enum SpendTrackerKey {
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerRole {
     Admin,
-    Standard(Vec<SignerPolicy>),
+    Standard(Option<Vec<SignerPolicy>>),
 }
 
 #[contracttype]

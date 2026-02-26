@@ -22,7 +22,7 @@ fn test_cannot_downgrade_last_admin() {
 
     let downgraded = Ed25519TestSigner::from_public_key(
         admin_signer.public_key(&env),
-        SignerRole::Standard(vec![&env]),
+        SignerRole::Standard(None),
     )
     .into_signer(&env);
 
@@ -48,7 +48,7 @@ fn test_can_downgrade_admin_if_another_admin_exists() {
 
     let downgraded = Ed25519TestSigner::from_public_key(
         admin2.public_key(&env),
-        SignerRole::Standard(vec![&env]),
+        SignerRole::Standard(None),
     )
     .into_signer(&env);
 

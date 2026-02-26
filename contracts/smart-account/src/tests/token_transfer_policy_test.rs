@@ -40,7 +40,7 @@ fn setup_account_with_policy(
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(env);
     let signer_policy = SignerPolicy::TokenTransferPolicy(policy.clone());
     let standard_signer =
-        Ed25519TestSigner::generate(SignerRole::Standard(vec![env, signer_policy]));
+        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![env, signer_policy])));
     let contract_id = env.register(
         SmartAccount,
         (
@@ -448,7 +448,7 @@ fn test_on_revoke_cleans_up_tracker() {
     let signer_policy = SignerPolicy::TokenTransferPolicy(policy.clone());
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
     let standard_signer =
-        Ed25519TestSigner::generate(SignerRole::Standard(vec![&env, signer_policy]));
+        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, signer_policy])));
     let standard_signer_val = standard_signer.into_signer(&env);
 
     let contract_id = env.register(
@@ -562,4 +562,136 @@ fn test_integration_full_check_auth_flow() {
     let contexts = vec![&env, make_transfer_context(&env, &token, &allowed, 100)];
     let err = check_auth(&env, &contract_id, &signer, &contexts).unwrap_err();
     assert_eq!(err, Error::InsufficientPermissions);
+}
+
+// ============================================================================
+// Multi-policy tests (.any() semantics)
+// ============================================================================
+
+fn setup_account_with_policies(
+    env: &Env,
+    policies: Vec<SignerPolicy>,
+) -> (Address, Ed25519TestSigner) {
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(env);
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(Some(policies)));
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![env, admin_signer, standard_signer.into_signer(env)],
+            Vec::<Address>::new(env),
+        ),
+    );
+    (contract_id, standard_signer)
+}
+
+#[test]
+fn test_multi_policy_usdc_transfer_passes() {
+    let env = setup();
+    let usdc = Address::generate(&env);
+    let eur = Address::generate(&env);
+
+    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, 1000));
+    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, 500));
+
+    let policies = vec![&env, usdc_policy, eur_policy];
+    let (contract_id, signer) = setup_account_with_policies(&env, policies);
+
+    // USDC transfer within limit — should pass via USDC policy
+    let to = Address::generate(&env);
+    let contexts = vec![&env, make_transfer_context(&env, &usdc, &to, 800)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+}
+
+#[test]
+fn test_multi_policy_eur_transfer_passes() {
+    let env = setup();
+    let usdc = Address::generate(&env);
+    let eur = Address::generate(&env);
+
+    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, 1000));
+    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, 500));
+
+    let policies = vec![&env, usdc_policy, eur_policy];
+    let (contract_id, signer) = setup_account_with_policies(&env, policies);
+
+    // EUR transfer within limit — should pass via EUR policy
+    let to = Address::generate(&env);
+    let contexts = vec![&env, make_transfer_context(&env, &eur, &to, 300)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+}
+
+#[test]
+fn test_multi_policy_exceeds_one_limit_other_passes() {
+    let env = setup();
+    let usdc = Address::generate(&env);
+    let eur = Address::generate(&env);
+
+    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, 1000));
+    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, 500));
+
+    let policies = vec![&env, usdc_policy, eur_policy];
+    let (contract_id, signer) = setup_account_with_policies(&env, policies);
+
+    // EUR transfer exceeding EUR limit — but USDC policy is irrelevant.
+    // Neither policy authorizes 600 EUR (EUR limit is 500).
+    let to = Address::generate(&env);
+    let contexts = vec![&env, make_transfer_context(&env, &eur, &to, 600)];
+    let err = check_auth(&env, &contract_id, &signer, &contexts).unwrap_err();
+    assert_eq!(err, Error::InsufficientPermissions);
+}
+
+#[test]
+fn test_multi_policy_uncovered_token_denied() {
+    let env = setup();
+    let usdc = Address::generate(&env);
+    let eur = Address::generate(&env);
+    let gbp = Address::generate(&env); // Not covered by any policy
+
+    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, 1000));
+    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, 500));
+
+    let policies = vec![&env, usdc_policy, eur_policy];
+    let (contract_id, signer) = setup_account_with_policies(&env, policies);
+
+    // GBP transfer — no policy covers GBP, so neither authorizes
+    let to = Address::generate(&env);
+    let contexts = vec![&env, make_transfer_context(&env, &gbp, &to, 100)];
+    let err = check_auth(&env, &contract_id, &signer, &contexts).unwrap_err();
+    assert_eq!(err, Error::InsufficientPermissions);
+}
+
+#[test]
+fn test_standard_none_signer_can_do_non_admin_operations() {
+    let env = setup();
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None));
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin_signer, standard_signer.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    // Standard(None) signer should be able to authorize token transfers
+    let token = Address::generate(&env);
+    let to = Address::generate(&env);
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 100)];
+    check_auth(&env, &contract_id, &standard_signer, &contexts).unwrap();
+}
+
+#[test]
+#[should_panic(expected = "#80")]
+fn test_standard_some_empty_vec_rejected() {
+    let env = setup();
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
+    // Some(empty_vec) should be rejected during add_signer
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env])));
+    env.register(
+        SmartAccount,
+        (
+            vec![&env, admin_signer, standard_signer.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
 }

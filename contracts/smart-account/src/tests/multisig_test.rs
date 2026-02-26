@@ -247,7 +247,7 @@ fn test_multisig_admin_role() {
         ),
     );
 
-    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(None));
     let ctx = vec![
         &env,
         get_update_signer_auth_context(&env, &cid, new_signer.into_signer(&env)),
@@ -263,7 +263,7 @@ fn test_multisig_standard_role() {
         Ed25519TestSigner::generate(SignerRole::Admin),
         Ed25519TestSigner::generate(SignerRole::Admin),
     );
-    let (signer, id) = make_multisig_signer(&env, &[&m1, &m2], 2, SignerRole::Standard(vec![&env]));
+    let (signer, id) = make_multisig_signer(&env, &[&m1, &m2], 2, SignerRole::Standard(None));
     let cid = env.register(
         SmartAccount,
         (
@@ -277,7 +277,7 @@ fn test_multisig_standard_role() {
     check_multisig_auth(&env, &cid, &id, &[&m1, &m2], &token_ctx).unwrap();
 
     // Cannot authorize admin operations
-    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(None));
     let admin_ctx = vec![
         &env,
         get_update_signer_auth_context(&env, &cid, new_signer.into_signer(&env)),
@@ -364,7 +364,7 @@ fn test_add_and_revoke_multisig_signer() {
         Ed25519TestSigner::generate(SignerRole::Admin),
         Ed25519TestSigner::generate(SignerRole::Admin),
     );
-    let (signer, id) = make_multisig_signer(&env, &[&m1, &m2], 2, SignerRole::Standard(vec![&env]));
+    let (signer, id) = make_multisig_signer(&env, &[&m1, &m2], 2, SignerRole::Standard(None));
     let key = SignerKey::Multisig(id);
 
     env.as_contract(&cid, || {
