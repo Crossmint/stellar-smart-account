@@ -43,7 +43,7 @@ impl AuthorizationCheck for TokenTransferPolicy {
                     }
 
                     // transfer(from, to, amount): args[0]=from, args[1]=to, args[2]=amount
-                    if args.len() < 3 {
+                    if args.len() != 3 {
                         return false;
                     }
 
