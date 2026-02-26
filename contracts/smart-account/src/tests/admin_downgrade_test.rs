@@ -47,8 +47,7 @@ fn test_can_downgrade_admin_if_another_admin_exists() {
         ),
     );
 
-    let downgraded =
-        Ed25519TestSigner(admin2.0, SignerRole::Standard(None, 0)).into_signer(&env);
+    let downgraded = Ed25519TestSigner(admin2.0, SignerRole::Standard(None, 0)).into_signer(&env);
 
     env.mock_all_auths();
     let res = env.as_contract(&contract_id, || {

@@ -57,7 +57,7 @@ fn test_expiring_signer_authorized_before_expiration() {
     env.ledger().with_mut(|li| li.timestamp = 100);
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None,200));
+    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None, 200));
 
     let cid = env.register(
         SmartAccount,
@@ -79,7 +79,7 @@ fn test_expiring_signer_authorized_at_expiration_boundary() {
     env.ledger().with_mut(|li| li.timestamp = 100);
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None,200));
+    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None, 200));
 
     let cid = env.register(
         SmartAccount,
@@ -102,7 +102,7 @@ fn test_expiring_signer_rejected_after_expiration() {
     env.ledger().with_mut(|li| li.timestamp = 100);
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None,200));
+    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None, 200));
 
     let cid = env.register(
         SmartAccount,
@@ -126,7 +126,7 @@ fn test_non_expiring_standard_signer_works_at_any_timestamp() {
     env.ledger().with_mut(|li| li.timestamp = 100);
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard = Ed25519TestSigner::generate(SignerRole::Standard(None,0));
+    let standard = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
 
     let cid = env.register(
         SmartAccount,
@@ -162,7 +162,7 @@ fn test_add_signer_with_past_expiration_rejected() {
     );
 
     // Try adding a signer that has already expired
-    let expired = Ed25519TestSigner::generate(SignerRole::Standard(None,500));
+    let expired = Ed25519TestSigner::generate(SignerRole::Standard(None, 500));
 
     env.mock_all_auths();
     let res = env.as_contract(&cid, || {
@@ -186,7 +186,7 @@ fn test_add_signer_with_current_timestamp_as_expiration_rejected() {
     );
 
     // Expiration == current timestamp should be rejected (validate_signer_expiration uses <=)
-    let at_boundary = Ed25519TestSigner::generate(SignerRole::Standard(None,1000));
+    let at_boundary = Ed25519TestSigner::generate(SignerRole::Standard(None, 1000));
 
     env.mock_all_auths();
     let res = env.as_contract(&cid, || {
@@ -209,7 +209,7 @@ fn test_add_signer_with_future_expiration_succeeds() {
         ),
     );
 
-    let future = Ed25519TestSigner::generate(SignerRole::Standard(None,2000));
+    let future = Ed25519TestSigner::generate(SignerRole::Standard(None, 2000));
 
     env.mock_all_auths();
     let res = env.as_contract(&cid, || {
@@ -224,7 +224,7 @@ fn test_update_signer_extend_expiration() {
     env.ledger().with_mut(|li| li.timestamp = 100);
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None,200));
+    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None, 200));
 
     let cid = env.register(
         SmartAccount,
@@ -242,7 +242,7 @@ fn test_update_signer_extend_expiration() {
     assert_eq!(err, Error::SignerExpired);
 
     // Admin extends the expiration via update_signer
-    let extended = with_role(&expiring, SignerRole::Standard(None,500));
+    let extended = with_role(&expiring, SignerRole::Standard(None, 500));
     env.mock_all_auths();
     env.as_contract(&cid, || {
         SmartAccount::update_signer(&env, extended.into_signer(&env))
@@ -259,7 +259,7 @@ fn test_update_signer_remove_expiration() {
     env.ledger().with_mut(|li| li.timestamp = 100);
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None,200));
+    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None, 200));
 
     let cid = env.register(
         SmartAccount,
@@ -270,7 +270,7 @@ fn test_update_signer_remove_expiration() {
     );
 
     // Remove expiration (set to 0)
-    let no_expiry = with_role(&expiring, SignerRole::Standard(None,0));
+    let no_expiry = with_role(&expiring, SignerRole::Standard(None, 0));
     env.mock_all_auths();
     env.as_contract(&cid, || {
         SmartAccount::update_signer(&env, no_expiry.into_signer(&env))
@@ -289,7 +289,7 @@ fn test_revoke_expired_signer_succeeds() {
     env.ledger().with_mut(|li| li.timestamp = 100);
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None,200));
+    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None, 200));
 
     let cid = env.register(
         SmartAccount,
@@ -321,7 +321,7 @@ fn test_get_signer_returns_expired_signer() {
     env.ledger().with_mut(|li| li.timestamp = 100);
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None,200));
+    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None, 200));
 
     let cid = env.register(
         SmartAccount,
@@ -350,7 +350,7 @@ fn test_constructor_with_expiring_signer() {
     env.ledger().with_mut(|li| li.timestamp = 100);
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None,200));
+    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None, 200));
 
     let cid = env.register(
         SmartAccount,
@@ -373,7 +373,7 @@ fn test_constructor_rejects_already_expired_signer() {
     env.ledger().with_mut(|li| li.timestamp = 1000);
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let expired = Ed25519TestSigner::generate(SignerRole::Standard(None,500));
+    let expired = Ed25519TestSigner::generate(SignerRole::Standard(None, 500));
 
     // Should panic because the signer is already expired at construction time
     env.register(
@@ -395,8 +395,8 @@ fn test_expired_signer_does_not_block_other_signers() {
     env.ledger().with_mut(|li| li.timestamp = 100);
 
     let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None,200));
-    let permanent = Ed25519TestSigner::generate(SignerRole::Standard(None,0));
+    let expiring = Ed25519TestSigner::generate(SignerRole::Standard(None, 200));
+    let permanent = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
 
     let cid = env.register(
         SmartAccount,
