@@ -9,7 +9,8 @@ pub use account::{SmartAccountClient, SmartAccountInterface};
 pub use auth::policy::interface::{SmartAccountPolicy, SmartAccountPolicyClient};
 pub use auth::types::{
     Ed25519Signer, ExternalPolicy, MultisigMember, MultisigSigner, Secp256r1Signer, Signer,
-    SignerKey, SignerPolicy, SignerRole, WebauthnSigner,
+    SignerKey, SignerPolicy, SignerRole, SpendTrackerKey, SpendingTracker, TokenTransferPolicy,
+    WebauthnSigner,
 };
 pub use error::SmartAccountError;
 pub use plugin::{SmartAccountPlugin, SmartAccountPluginClient};

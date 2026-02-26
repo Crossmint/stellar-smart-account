@@ -6,4 +6,5 @@ mod policy_test;
 mod secp256r1_signer_test;
 mod signer_management_test;
 mod test_utils;
+mod token_transfer_policy_test;
 mod webauthn_signer_test;
