@@ -6,6 +6,7 @@ pub mod config;
 pub mod constants;
 pub mod error;
 pub mod events;
+pub mod migration;
 pub mod plugin;
 pub mod utils;
 

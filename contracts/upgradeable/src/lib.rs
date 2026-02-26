@@ -76,6 +76,47 @@ macro_rules! impl_upgradeable {
     };
 }
 
+/// Macro to implement upgradeable-with-migration for a contract type.
+/// This generates a `#[contractimpl]` block with both `upgrade` and `migrate` functions,
+/// enabling two-phase upgrades: WASM swap followed by data migration.
+///
+/// The implementing contract must also implement:
+/// - `SmartAccountUpgradeableAuth` for authorization
+/// - `SmartAccountUpgradeableMigratableInternal` for `_migrate()` logic
+///
+/// # Usage
+/// ```rust
+/// upgradeable::impl_upgradeable_migratable!(MyContract, MigrationDataType);
+/// ```
+#[macro_export]
+macro_rules! impl_upgradeable_migratable {
+    ($contract_type:ident, $migration_data_type:ty) => {
+        #[soroban_sdk::contractimpl]
+        impl $contract_type {
+            pub fn upgrade(e: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
+                Self::_require_auth_upgrade(e);
+                $crate::enable_migration(e);
+                e.events().publish(
+                    (soroban_sdk::Symbol::new(e, "UPGRADE_STARTED"),),
+                    e.current_contract_address(),
+                );
+                e.deployer().update_current_contract_wasm(new_wasm_hash);
+            }
+
+            pub fn migrate(e: &soroban_sdk::Env, migration_data: $migration_data_type) {
+                Self::_require_auth_upgrade(e);
+                $crate::ensure_can_complete_migration(e);
+                Self::_migrate(e, &migration_data);
+                $crate::complete_migration(e);
+                e.events().publish(
+                    (soroban_sdk::Symbol::new(e, "UPGRADE_COMPLETED"),),
+                    e.current_contract_address(),
+                );
+            }
+        }
+    };
+}
+
 pub fn ensure_can_complete_migration(e: &Env) {
     if !can_complete_migration(e) {
         panic_with_error!(e, Error::MigrationNotAllowed)

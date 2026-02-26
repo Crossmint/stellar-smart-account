@@ -1,0 +1,15 @@
+[package]
+name = "upgrade-wallet"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "CLI tool for upgrading a v1 Smart Account wallet to v2 via Stellar RPC"
+
+[[bin]]
+name = "upgrade-wallet"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "env"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
