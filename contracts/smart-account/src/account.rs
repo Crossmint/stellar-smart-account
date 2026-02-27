@@ -166,7 +166,7 @@ impl SmartAccountInterface for SmartAccount {
         // Handle role-specific initialization
         match signer.role() {
             SignerRole::Standard(policies, _) => {
-                Self::activate_policies(env, &policies)?;
+                Self::activate_policies(env, &key, &policies)?;
             }
             SignerRole::Admin => {
                 Self::increment_admin_count(env)?;
@@ -200,7 +200,7 @@ impl SmartAccountInterface for SmartAccount {
             .ok_or(SmartAccountError::SignerNotFound)?;
 
         // Handle role transitions: admin count and policy lifecycle callbacks
-        Self::handle_role_transition(env, &old_signer.role(), &signer.role())?;
+        Self::handle_role_transition(env, &key, &old_signer.role(), &signer.role())?;
 
         // Update the signer in storage
         storage.update::<SignerKey, Signer>(env, &key, &signer)?;
@@ -228,7 +228,7 @@ impl SmartAccountInterface for SmartAccount {
         storage.delete::<SignerKey>(env, &signer_key)?;
         // Deactivate policies if this is a Standard signer
         if let SignerRole::Standard(policies, _) = signer_to_revoke.role() {
-            Self::deactivate_policies(env, &policies)?;
+            Self::deactivate_policies(env, &signer_key, &policies)?;
         }
         env.events().publish(
             (TOPIC_SIGNER, VERB_REVOKED),
@@ -332,6 +332,7 @@ impl SmartAccount {
     /// Handles role transitions including admin count management and policy lifecycle callbacks
     fn handle_role_transition(
         env: &Env,
+        signer_key: &SignerKey,
         old_role: &SignerRole,
         new_role: &SignerRole,
     ) -> Result<(), SmartAccountError> {
@@ -339,16 +340,16 @@ impl SmartAccount {
             // Admin → Standard: decrease admin count, activate policies
             (SignerRole::Admin, SignerRole::Standard(policies, _)) => {
                 Self::decrement_admin_count(env)?;
-                Self::activate_policies(env, policies)?;
+                Self::activate_policies(env, signer_key, policies)?;
             }
             // Standard → Admin: increase admin count, deactivate policies
             (SignerRole::Standard(policies, _), SignerRole::Admin) => {
                 Self::increment_admin_count(env)?;
-                Self::deactivate_policies(env, policies)?;
+                Self::deactivate_policies(env, signer_key, policies)?;
             }
             // Standard → Standard: handle policy set changes
             (SignerRole::Standard(old_policies, _), SignerRole::Standard(new_policies, _)) => {
-                Self::handle_policy_set_changes(env, old_policies, new_policies)?;
+                Self::handle_policy_set_changes(env, signer_key, old_policies, new_policies)?;
             }
             // Admin → Admin: no changes needed
             (SignerRole::Admin, SignerRole::Admin) => {}
@@ -420,11 +421,12 @@ impl SmartAccount {
     /// Activates policies by calling their on_add callbacks
     fn activate_policies(
         env: &Env,
+        signer_key: &SignerKey,
         policies: &Option<Vec<SignerPolicy>>,
     ) -> Result<(), SmartAccountError> {
         if let Some(policies) = policies {
             for policy in policies {
-                policy.on_add(env)?;
+                policy.on_add(env, signer_key)?;
             }
         }
         Ok(())
@@ -433,11 +435,12 @@ impl SmartAccount {
     /// Deactivates policies by calling their on_revoke callbacks
     fn deactivate_policies(
         env: &Env,
+        signer_key: &SignerKey,
         policies: &Option<Vec<SignerPolicy>>,
     ) -> Result<(), SmartAccountError> {
         if let Some(policies) = policies {
             for policy in policies {
-                policy.on_revoke(env)?;
+                policy.on_revoke(env, signer_key)?;
             }
         }
         Ok(())
@@ -450,6 +453,7 @@ impl SmartAccount {
     /// - Policies in both sets: no callbacks (unchanged)
     fn handle_policy_set_changes(
         env: &Env,
+        signer_key: &SignerKey,
         old_policies: &Option<Vec<SignerPolicy>>,
         new_policies: &Option<Vec<SignerPolicy>>,
     ) -> Result<(), SmartAccountError> {
@@ -465,7 +469,7 @@ impl SmartAccount {
         if old.is_empty() {
             // All new policies need to be added
             for policy in new.iter() {
-                policy.on_add(env)?;
+                policy.on_add(env, signer_key)?;
             }
             return Ok(());
         }
@@ -473,7 +477,7 @@ impl SmartAccount {
         if new.is_empty() {
             // All old policies need to be revoked
             for policy in old.iter() {
-                policy.on_revoke(env)?;
+                policy.on_revoke(env, signer_key)?;
             }
             return Ok(());
         }
@@ -492,7 +496,7 @@ impl SmartAccount {
                 new_policy_set.set(old_policy, false);
             } else {
                 // Policy only in old set, revoke it
-                old_policy.on_revoke(env)?;
+                old_policy.on_revoke(env, signer_key)?;
             }
         }
 
@@ -500,7 +504,7 @@ impl SmartAccount {
         for policy in new.iter() {
             // If still marked as true, it's a new policy that needs to be added
             if new_policy_set.get(policy.clone()).unwrap_or(false) {
-                policy.on_add(env)?;
+                policy.on_add(env, signer_key)?;
             }
         }
 
