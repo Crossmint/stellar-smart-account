@@ -4,40 +4,44 @@ use soroban_sdk::{
 };
 
 use smart_account_interfaces::SmartAccountError;
-use smart_account_interfaces::{SignerPolicy, SignerRole};
+use smart_account_interfaces::{SignerKey, SignerPolicy, SignerRole};
 
 pub trait AuthorizationCheck {
-    fn is_authorized(&self, env: &Env, context: &Vec<Context>) -> bool;
+    fn is_authorized(&self, env: &Env, signer_key: &SignerKey, context: &Vec<Context>) -> bool;
 }
 
 pub trait PolicyCallback {
-    fn on_add(&self, env: &Env) -> Result<(), SmartAccountError>;
-    fn on_revoke(&self, env: &Env) -> Result<(), SmartAccountError>;
+    fn on_add(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError>;
+    fn on_revoke(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError>;
 }
 
 // Main policy enum moved to interfaces crate
 
 // Delegate to the specific policy implementation
 impl AuthorizationCheck for SignerPolicy {
-    fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
+    fn is_authorized(&self, env: &Env, signer_key: &SignerKey, contexts: &Vec<Context>) -> bool {
         match self {
-            SignerPolicy::ExternalValidatorPolicy(policy) => policy.is_authorized(env, contexts),
-            SignerPolicy::TokenTransferPolicy(policy) => policy.is_authorized(env, contexts),
+            SignerPolicy::ExternalValidatorPolicy(policy) => {
+                policy.is_authorized(env, signer_key, contexts)
+            }
+            SignerPolicy::TokenTransferPolicy(policy) => {
+                policy.is_authorized(env, signer_key, contexts)
+            }
         }
     }
 }
 
 impl PolicyCallback for SignerPolicy {
-    fn on_add(&self, env: &Env) -> Result<(), SmartAccountError> {
+    fn on_add(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {
         match self {
-            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_add(env),
-            SignerPolicy::TokenTransferPolicy(policy) => policy.on_add(env),
+            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_add(env, signer_key),
+            SignerPolicy::TokenTransferPolicy(policy) => policy.on_add(env, signer_key),
         }
     }
-    fn on_revoke(&self, env: &Env) -> Result<(), SmartAccountError> {
+    fn on_revoke(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {
         match self {
-            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_revoke(env),
-            SignerPolicy::TokenTransferPolicy(policy) => policy.on_revoke(env),
+            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_revoke(env, signer_key),
+            SignerPolicy::TokenTransferPolicy(policy) => policy.on_revoke(env, signer_key),
         }
     }
 }
@@ -50,7 +54,7 @@ impl PolicyCallback for SignerPolicy {
 // If it's a standard signer, it's authorized if the operation is not a administration operation.
 // If it's a restricted signer, it's authorized if all the policies are authorized.
 impl AuthorizationCheck for SignerRole {
-    fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
+    fn is_authorized(&self, env: &Env, signer_key: &SignerKey, contexts: &Vec<Context>) -> bool {
         let needs_admin_approval = contexts.iter().any(|context| match context {
             Context::Contract(context) => {
                 let ContractContext { contract, .. } = context;
@@ -76,7 +80,7 @@ impl AuthorizationCheck for SignerRole {
                         // At least one policy must authorize the full transaction
                         Some(policies) => policies
                             .iter()
-                            .any(|policy| policy.is_authorized(env, contexts)),
+                            .any(|policy| policy.is_authorized(env, signer_key, contexts)),
                     }
                 }
             }

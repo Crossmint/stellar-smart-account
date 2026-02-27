@@ -57,13 +57,15 @@ impl Authorizer {
         }
 
         for signer in admin_signers.iter() {
-            if signer.is_authorized(env, auth_contexts) {
+            let key: SignerKey = signer.clone().into();
+            if signer.is_authorized(env, &key, auth_contexts) {
                 return Ok(());
             }
         }
 
         for signer in standard_signers.iter() {
-            if signer.is_authorized(env, auth_contexts) {
+            let key: SignerKey = signer.clone().into();
+            if signer.is_authorized(env, &key, auth_contexts) {
                 return Ok(());
             }
         }

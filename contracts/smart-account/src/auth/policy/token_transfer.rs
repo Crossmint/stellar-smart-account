@@ -8,11 +8,11 @@ use crate::{
     config::{PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD},
 };
 use smart_account_interfaces::{
-    SmartAccountError, SpendTrackerKey, SpendingTracker, TokenTransferPolicy,
+    SignerKey, SmartAccountError, SpendTrackerKey, SpendingTracker, TokenTransferPolicy,
 };
 
 impl AuthorizationCheck for TokenTransferPolicy {
-    fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
+    fn is_authorized(&self, env: &Env, signer_key: &SignerKey, contexts: &Vec<Context>) -> bool {
         let now = env.ledger().timestamp();
 
         // 1. Check expiration
@@ -76,7 +76,7 @@ impl AuthorizationCheck for TokenTransferPolicy {
         }
 
         // 3. Load spending tracker
-        let tracker_key = SpendTrackerKey::TokenSpend(self.policy_id.clone());
+        let tracker_key = SpendTrackerKey::TokenSpend(self.policy_id.clone(), signer_key.clone());
         let mut tracker: SpendingTracker =
             env.storage()
                 .persistent()
@@ -114,7 +114,7 @@ impl AuthorizationCheck for TokenTransferPolicy {
 }
 
 impl PolicyCallback for TokenTransferPolicy {
-    fn on_add(&self, env: &Env) -> Result<(), SmartAccountError> {
+    fn on_add(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {
         // Validate policy parameters
         if self.limit <= 0 {
             return Err(SmartAccountError::InvalidPolicy);
@@ -126,7 +126,7 @@ impl PolicyCallback for TokenTransferPolicy {
         }
 
         // Initialize spending tracker
-        let tracker_key = SpendTrackerKey::TokenSpend(self.policy_id.clone());
+        let tracker_key = SpendTrackerKey::TokenSpend(self.policy_id.clone(), signer_key.clone());
         let tracker = SpendingTracker {
             spent: 0,
             window_start: env.ledger().timestamp(),
@@ -141,9 +141,9 @@ impl PolicyCallback for TokenTransferPolicy {
         Ok(())
     }
 
-    fn on_revoke(&self, env: &Env) -> Result<(), SmartAccountError> {
+    fn on_revoke(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {
         // Clean up spending tracker from storage
-        let tracker_key = SpendTrackerKey::TokenSpend(self.policy_id.clone());
+        let tracker_key = SpendTrackerKey::TokenSpend(self.policy_id.clone(), signer_key.clone());
         if env.storage().persistent().has(&tracker_key) {
             env.storage().persistent().remove(&tracker_key);
         }

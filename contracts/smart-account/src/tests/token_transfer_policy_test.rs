@@ -7,7 +7,8 @@ use crate::auth::proof::SignatureProofs;
 use crate::error::Error;
 use crate::tests::test_utils::{setup, Ed25519TestSigner, TestSignerTrait as _};
 use smart_account_interfaces::{
-    SignerPolicy, SignerRole, SmartAccountInterface as _, SpendTrackerKey, TokenTransferPolicy,
+    SignerKey, SignerPolicy, SignerRole, SmartAccountInterface as _, SpendTrackerKey,
+    TokenTransferPolicy,
 };
 
 // ============================================================================
@@ -427,10 +428,11 @@ fn test_on_add_initializes_tracker() {
     let env = setup();
     let token = Address::generate(&env);
     let policy = make_policy(&env, &token, 1000);
-    let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone());
 
     // Register account with the policy (triggers on_add)
-    let (contract_id, _) = setup_account_with_policy(&env, &policy);
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+    let signer_key = SignerKey::Ed25519(signer.public_key(&env));
+    let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key);
 
     // Verify tracker was created in persistent storage
     env.as_contract(&contract_id, || {
@@ -443,13 +445,14 @@ fn test_on_revoke_cleans_up_tracker() {
     let env = setup();
     let token = Address::generate(&env);
     let policy = make_policy(&env, &token, 1000);
-    let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone());
 
     let signer_policy = SignerPolicy::TokenTransferPolicy(policy.clone());
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
     let standard_signer =
         Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, signer_policy]), 0));
     let standard_signer_val = standard_signer.into_signer(&env);
+    let signer_key = SignerKey::from(standard_signer_val.clone());
+    let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key);
 
     let contract_id = env.register(
         SmartAccount,

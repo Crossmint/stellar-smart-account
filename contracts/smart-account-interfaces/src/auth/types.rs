@@ -37,8 +37,8 @@ pub struct SpendingTracker {
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum SpendTrackerKey {
-    /// Keyed by policy_id for unique per-signer-policy scoping.
-    TokenSpend(BytesN<32>),
+    /// Keyed by (policy_id, signer_key) for unique per-signer-policy scoping.
+    TokenSpend(BytesN<32>, SignerKey),
 }
 
 #[contracttype]
