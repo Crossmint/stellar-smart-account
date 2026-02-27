@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use soroban_sdk::{vec, Address, Vec};
 
 use crate::{
