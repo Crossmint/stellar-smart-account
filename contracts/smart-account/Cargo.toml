@@ -11,6 +11,7 @@ doctest = false
 
 [dependencies]
 soroban-sdk = { workspace = true }
+stellar-governance = { workspace = true }
 initializable = { workspace = true }
 storage = { workspace = true }
 upgradeable = { workspace = true }

@@ -2,7 +2,7 @@
 use smart_account_interfaces::{SmartAccountPlugin, SmartAccountPolicy};
 use soroban_sdk::{
     auth::{Context, ContractContext},
-    contract, contractimpl, contracttype, symbol_short, Address, Env, Symbol, TryFromVal, Vec,
+    contract, contractevent, contractimpl, symbol_short, Address, Env, Symbol, TryFromVal, Vec,
 };
 
 const AUTH_COUNTER_KEY: Symbol = symbol_short!("COUNTER");
@@ -10,17 +10,25 @@ const AUTH_COUNTER_KEY: Symbol = symbol_short!("COUNTER");
 #[contract]
 pub struct PluginPolicyContract;
 
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[contractevent(topics = ["AUTH"])]
 pub struct AuthEvent {
+    #[topic]
     pub source: Address,
     pub context_count: u32,
     pub counter: u32,
 }
 
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[contractevent(topics = ["POL_AUTH"])]
+pub struct PolicyAuthEvent {
+    #[topic]
+    pub source: Address,
+    pub context_count: u32,
+    pub counter: u32,
+}
+
+#[contractevent(topics = ["DENY"])]
 pub struct TransferDeniedEvent {
+    #[topic]
     pub source: Address,
     pub amount: i128,
     pub limit: i128,
@@ -46,15 +54,12 @@ impl SmartAccountPlugin for PluginPolicyContract {
             .instance()
             .set(&AUTH_COUNTER_KEY, &new_counter);
 
-        // Emit an event
-        env.events().publish(
-            (symbol_short!("AUTH"), &source),
-            AuthEvent {
-                source: source.clone(),
-                context_count: contexts.len(),
-                counter: new_counter,
-            },
-        );
+        AuthEvent {
+            source: source.clone(),
+            context_count: contexts.len(),
+            counter: new_counter,
+        }
+        .publish(env);
     }
 }
 
@@ -77,15 +82,12 @@ impl SmartAccountPolicy for PluginPolicyContract {
             .instance()
             .set(&AUTH_COUNTER_KEY, &new_counter);
 
-        // Emit an event with the current counter
-        env.events().publish(
-            (symbol_short!("POL_AUTH"), &source),
-            AuthEvent {
-                source: source.clone(),
-                context_count: contexts.len(),
-                counter: new_counter,
-            },
-        );
+        PolicyAuthEvent {
+            source: source.clone(),
+            context_count: contexts.len(),
+            counter: new_counter,
+        }
+        .publish(env);
 
         const TRANSFER_LIMIT: i128 = 100;
 
@@ -98,14 +100,12 @@ impl SmartAccountPolicy for PluginPolicyContract {
                 if fn_name == symbol_short!("transfer") && args.len() >= 3 {
                     if let Ok(amount) = i128::try_from_val(env, &args.get(2).unwrap()) {
                         if amount > TRANSFER_LIMIT {
-                            env.events().publish(
-                                (symbol_short!("DENY"), &source),
-                                TransferDeniedEvent {
-                                    source: source.clone(),
-                                    amount,
-                                    limit: TRANSFER_LIMIT,
-                                },
-                            );
+                            TransferDeniedEvent {
+                                source: source.clone(),
+                                amount,
+                                limit: TRANSFER_LIMIT,
+                            }
+                            .publish(env);
                             return false;
                         }
                     }

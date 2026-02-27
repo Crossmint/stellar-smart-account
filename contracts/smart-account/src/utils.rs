@@ -28,10 +28,7 @@
 /// Emitting events on failure:
 /// ```rust
 /// handle_nested_result_failure!(plugin_result, {
-///     env.events().publish(
-///         (TOPIC_PLUGIN, VERB_FAILED),
-///         PluginFailedEvent { plugin: plugin.clone() },
-///     );
+///     PluginFailedEvent { plugin: plugin.clone() }.publish(env);
 /// });
 /// ```
 #[macro_export]

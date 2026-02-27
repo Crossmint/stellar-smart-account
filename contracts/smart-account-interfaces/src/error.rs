@@ -44,6 +44,12 @@ pub enum SmartAccountError {
     PluginInitializationFailed = 102,
     PluginOnAuthFailed = 103,
 
+    RecoveryOperationNotFound = 120,
+    InvalidRecoveryDelay = 121,
+    RecoveryPreventDeletionViolation = 122,
+    RecoveryOperationNotReady = 123,
+    RecoverySignerRequired = 124,
+
     MigrationVersionMismatch = 1101,
 
     NotFound = 1000,

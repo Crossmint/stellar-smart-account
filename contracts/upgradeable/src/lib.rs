@@ -1,8 +1,19 @@
 #![no_std]
 
 use soroban_sdk::{
-    contracterror, panic_with_error, symbol_short, BytesN, Env, FromVal, Symbol, Val,
+    contractevent, contracterror, panic_with_error, symbol_short, Address, BytesN, Env, FromVal,
+    Symbol, Val,
 };
+
+#[contractevent(topics = ["upgrade_started"], data_format = "single-value")]
+pub struct UpgradeStartedEvent {
+    pub contract_address: Address,
+}
+
+#[contractevent(topics = ["upgrade_completed"], data_format = "single-value")]
+pub struct UpgradeCompletedEvent {
+    pub contract_address: Address,
+}
 
 #[contracterror(export = false)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -27,10 +38,10 @@ pub trait SmartAccountUpgradeableMigratable:
     fn upgrade(e: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
         Self::_require_auth_upgrade(e);
         enable_migration(e);
-        e.events().publish(
-            (Symbol::new(e, "UPGRADE_STARTED"),),
-            e.current_contract_address(),
-        );
+        UpgradeStartedEvent {
+            contract_address: e.current_contract_address(),
+        }
+        .publish(e);
         e.deployer().update_current_contract_wasm(new_wasm_hash);
     }
 
@@ -39,10 +50,10 @@ pub trait SmartAccountUpgradeableMigratable:
         ensure_can_complete_migration(e);
         Self::_migrate(e, &migration_data);
         complete_migration(e);
-        e.events().publish(
-            (Symbol::new(e, "UPGRADE_COMPLETED"),),
-            e.current_contract_address(),
-        );
+        UpgradeCompletedEvent {
+            contract_address: e.current_contract_address(),
+        }
+        .publish(e);
     }
 }
 
@@ -96,10 +107,10 @@ macro_rules! impl_upgradeable_migratable {
             pub fn upgrade(e: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
                 Self::_require_auth_upgrade(e);
                 $crate::enable_migration(e);
-                e.events().publish(
-                    (soroban_sdk::Symbol::new(e, "UPGRADE_STARTED"),),
-                    e.current_contract_address(),
-                );
+                $crate::UpgradeStartedEvent {
+                    contract_address: e.current_contract_address(),
+                }
+                .publish(e);
                 e.deployer().update_current_contract_wasm(new_wasm_hash);
             }
 
@@ -108,10 +119,10 @@ macro_rules! impl_upgradeable_migratable {
                 $crate::ensure_can_complete_migration(e);
                 Self::_migrate(e, &migration_data);
                 $crate::complete_migration(e);
-                e.events().publish(
-                    (soroban_sdk::Symbol::new(e, "UPGRADE_COMPLETED"),),
-                    e.current_contract_address(),
-                );
+                $crate::UpgradeCompletedEvent {
+                    contract_address: e.current_contract_address(),
+                }
+                .publish(e);
             }
         }
     };

@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contracterror, symbol_short, Env, Symbol};
+use soroban_sdk::{contractevent, contracterror, symbol_short, Address, Env, Symbol};
 
 #[contracterror(export = false)]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -11,6 +11,11 @@ pub enum Error {
 }
 
 const INITIALIZED: Symbol = symbol_short!("INIT");
+
+#[contractevent(topics = ["INITIALIZED"], data_format = "single-value")]
+pub struct InitializedEvent {
+    pub contract_address: Address,
+}
 
 /// Macro to ensure a function only runs if the contract is initialized
 /// Usage: only_initialized!(env);
@@ -69,10 +74,10 @@ pub trait Initializable {
             return Err(Error::AlreadyInitialized);
         }
         Self::set_initialization_value(env, true);
-        env.events().publish(
-            (Symbol::new(env, "INITIALIZED"),),
-            env.current_contract_address(),
-        );
+        InitializedEvent {
+            contract_address: env.current_contract_address(),
+        }
+        .publish(env);
         Ok(())
     }
 

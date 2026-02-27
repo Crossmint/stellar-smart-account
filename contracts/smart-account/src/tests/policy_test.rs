@@ -4,7 +4,8 @@ pub use smart_account_interfaces::SmartAccountInterface;
 use soroban_sdk::auth::Context;
 use soroban_sdk::testutils::Events;
 use soroban_sdk::{
-    contract, contractimpl, symbol_short, vec, Address, Env, Symbol, TryFromVal, Vec,
+    contract, contractevent, contractimpl, symbol_short, vec, Address, Env, Symbol, TryFromVal,
+    Vec,
 };
 
 use crate::account::SmartAccount;
@@ -15,29 +16,46 @@ use smart_account_interfaces::{ExternalPolicy, Signer, SignerKey, SignerPolicy, 
 #[contract]
 pub struct DummyExternalPolicy;
 
+#[contractevent(topics = ["ON_ADD"], data_format = "single-value")]
+pub struct OnAddEvent {
+    pub contract_address: Address,
+}
+
+#[contractevent(topics = ["ON_REVOKE"], data_format = "single-value")]
+pub struct OnRevokeEvent {
+    pub contract_address: Address,
+}
+
+#[contractevent(topics = ["IS_AUTHZD"], data_format = "single-value")]
+pub struct IsAuthorizedEvent {
+    pub contract_address: Address,
+}
+
 #[contractimpl]
 impl DummyExternalPolicy {
     pub fn on_add(env: &Env, source: Address) -> Result<(), Error> {
         source.require_auth();
-        env.events()
-            .publish((symbol_short!("ON_ADD"),), env.current_contract_address());
+        OnAddEvent {
+            contract_address: env.current_contract_address(),
+        }
+        .publish(env);
         Ok(())
     }
 
     pub fn on_revoke(env: &Env, source: Address) -> Result<(), Error> {
         source.require_auth();
-        env.events().publish(
-            (symbol_short!("ON_REVOKE"),),
-            env.current_contract_address(),
-        );
+        OnRevokeEvent {
+            contract_address: env.current_contract_address(),
+        }
+        .publish(env);
         Ok(())
     }
 
     pub fn is_authorized(env: &Env, source: Address, _contexts: Vec<Context>) -> bool {
-        env.events().publish(
-            (symbol_short!("IS_AUTHZD"),),
-            env.current_contract_address(),
-        );
+        IsAuthorizedEvent {
+            contract_address: env.current_contract_address(),
+        }
+        .publish(env);
         source.require_auth();
         true
     }
