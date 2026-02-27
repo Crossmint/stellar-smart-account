@@ -91,4 +91,3 @@ pub struct RecoveryExecutedEvent {
 pub struct RecoveryCancelledEvent {
     pub operation_id: BytesN<32>,
 }
-

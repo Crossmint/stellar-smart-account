@@ -39,16 +39,10 @@ pub trait SmartAccountInterface {
 
     /// Executes a previously scheduled recovery operation after the delay has passed.
     /// Callable by any signer — the timelock enforces the delay.
-    fn execute_recovery(
-        env: &Env,
-        operation_id: BytesN<32>,
-    ) -> Result<(), SmartAccountError>;
+    fn execute_recovery(env: &Env, operation_id: BytesN<32>) -> Result<(), SmartAccountError>;
 
     /// Cancels a pending recovery operation. Only callable by admin signers.
-    fn cancel_recovery(
-        env: &Env,
-        operation_id: BytesN<32>,
-    ) -> Result<(), SmartAccountError>;
+    fn cancel_recovery(env: &Env, operation_id: BytesN<32>) -> Result<(), SmartAccountError>;
 
     /// Queries the data of a pending recovery operation.
     fn get_recovery_op(

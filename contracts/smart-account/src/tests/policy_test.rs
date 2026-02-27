@@ -4,8 +4,7 @@ pub use smart_account_interfaces::SmartAccountInterface;
 use soroban_sdk::auth::Context;
 use soroban_sdk::testutils::Events;
 use soroban_sdk::{
-    contract, contractevent, contractimpl, symbol_short, vec, Address, Env, Symbol, TryFromVal,
-    Vec,
+    contract, contractevent, contractimpl, symbol_short, vec, Address, Env, Symbol, TryFromVal, Vec,
 };
 
 use crate::account::SmartAccount;

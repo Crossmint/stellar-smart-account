@@ -11,9 +11,7 @@ use crate::{
     account::SmartAccount,
     auth::proof::SignatureProofs,
     error::Error,
-    tests::test_utils::{
-        get_token_auth_context, setup, Ed25519TestSigner, TestSignerTrait as _,
-    },
+    tests::test_utils::{get_token_auth_context, setup, Ed25519TestSigner, TestSignerTrait as _},
 };
 use smart_account_interfaces::{
     RecoveryOperation, SignerKey, SignerRole, SmartAccountError, SmartAccountInterface as _,
@@ -152,7 +150,10 @@ fn test_recovery_schedule_and_execute_add_signer() {
     let lookup = env.as_contract(&contract_id, || {
         SmartAccount::get_recovery_op(&env, operation_id)
     });
-    assert_eq!(lookup.unwrap_err(), SmartAccountError::RecoveryOperationNotFound);
+    assert_eq!(
+        lookup.unwrap_err(),
+        SmartAccountError::RecoveryOperationNotFound
+    );
 }
 
 #[test]
@@ -243,7 +244,10 @@ fn test_recovery_prevent_deletion_blocks_update() {
         SmartAccount::schedule_recovery(&env, recovery_key, operation, salt)
     });
 
-    assert_eq!(result.unwrap_err(), SmartAccountError::RecoveryPreventDeletionViolation);
+    assert_eq!(
+        result.unwrap_err(),
+        SmartAccountError::RecoveryPreventDeletionViolation
+    );
 }
 
 #[test]
@@ -278,7 +282,10 @@ fn test_recovery_prevent_deletion_blocks_revoke() {
         SmartAccount::schedule_recovery(&env, recovery_key, operation, salt)
     });
 
-    assert_eq!(result.unwrap_err(), SmartAccountError::RecoveryPreventDeletionViolation);
+    assert_eq!(
+        result.unwrap_err(),
+        SmartAccountError::RecoveryPreventDeletionViolation
+    );
 }
 
 #[test]
@@ -352,7 +359,10 @@ fn test_cancel_recovery() {
     let lookup = env.as_contract(&contract_id, || {
         SmartAccount::get_recovery_op(&env, operation_id.clone())
     });
-    assert_eq!(lookup.unwrap_err(), SmartAccountError::RecoveryOperationNotFound);
+    assert_eq!(
+        lookup.unwrap_err(),
+        SmartAccountError::RecoveryOperationNotFound
+    );
 
     // Cannot execute a cancelled operation
     env.ledger().with_mut(|li| li.timestamp = 1301);
@@ -378,7 +388,10 @@ fn test_cancel_nonexistent_recovery() {
         SmartAccount::cancel_recovery(&env, fake_id)
     });
 
-    assert_eq!(result.unwrap_err(), SmartAccountError::RecoveryOperationNotFound);
+    assert_eq!(
+        result.unwrap_err(),
+        SmartAccountError::RecoveryOperationNotFound
+    );
 }
 
 // ============================================================================
@@ -410,7 +423,10 @@ fn test_schedule_with_non_recovery_signer() {
         SmartAccount::schedule_recovery(&env, admin_key, operation, salt)
     });
 
-    assert_eq!(result.unwrap_err(), SmartAccountError::RecoverySignerRequired);
+    assert_eq!(
+        result.unwrap_err(),
+        SmartAccountError::RecoverySignerRequired
+    );
 }
 
 #[test]
@@ -456,7 +472,10 @@ fn test_execute_nonexistent_recovery() {
         SmartAccount::execute_recovery(&env, fake_id)
     });
 
-    assert_eq!(result.unwrap_err(), SmartAccountError::RecoveryOperationNotFound);
+    assert_eq!(
+        result.unwrap_err(),
+        SmartAccountError::RecoveryOperationNotFound
+    );
 }
 
 // ============================================================================

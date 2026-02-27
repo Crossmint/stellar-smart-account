@@ -11,7 +11,6 @@ use crate::events::{
     RecoveryCancelledEvent, RecoveryExecutedEvent, RecoveryScheduledEvent, SignerAddedEvent,
     SignerRevokedEvent, SignerUpdatedEvent,
 };
-use upgradeable::{UpgradeCompletedEvent, UpgradeStartedEvent};
 use crate::handle_nested_result_failure;
 use crate::migration::{run_migration, MigrationData};
 use crate::plugin::SmartAccountPluginClient;
@@ -34,6 +33,7 @@ use upgradeable::{
     SmartAccountUpgradeableAuth, SmartAccountUpgradeableMigratable,
     SmartAccountUpgradeableMigratableInternal,
 };
+use upgradeable::{UpgradeCompletedEvent, UpgradeStartedEvent};
 
 /// SmartAccount is a multi-signature account contract that provides enhanced security
 /// through role-based access control, policy-based authorization, and an extensible plugin system.
@@ -316,8 +316,11 @@ impl SmartAccountInterface for SmartAccount {
             scheduled_at: env.ledger().timestamp(),
             salt,
         };
-        Storage::persistent()
-            .store::<RecoveryStorageKey, PendingRecoveryOpData>(env, &storage_key, &data)?;
+        Storage::persistent().store::<RecoveryStorageKey, PendingRecoveryOpData>(
+            env,
+            &storage_key,
+            &data,
+        )?;
 
         env.storage().persistent().extend_ttl(
             &storage_key,
@@ -337,10 +340,7 @@ impl SmartAccountInterface for SmartAccount {
         Ok(operation_id)
     }
 
-    fn execute_recovery(
-        env: &Env,
-        operation_id: BytesN<32>,
-    ) -> Result<(), SmartAccountError> {
+    fn execute_recovery(env: &Env, operation_id: BytesN<32>) -> Result<(), SmartAccountError> {
         Self::require_auth_if_initialized(env);
 
         // Look up the pending recovery data
@@ -380,10 +380,7 @@ impl SmartAccountInterface for SmartAccount {
         Ok(())
     }
 
-    fn cancel_recovery(
-        env: &Env,
-        operation_id: BytesN<32>,
-    ) -> Result<(), SmartAccountError> {
+    fn cancel_recovery(env: &Env, operation_id: BytesN<32>) -> Result<(), SmartAccountError> {
         // Only admins can cancel (enforced by __check_auth since this is an admin op)
         Self::require_auth_if_initialized(env);
 
@@ -780,10 +777,7 @@ impl SmartAccount {
     /// Rebuilds an OZ Operation from stored PendingRecoveryOpData for hash validation.
     /// Uses the salt stored in PendingRecoveryOpData to reconstruct the exact same
     /// Operation struct that was used during scheduling.
-    fn rebuild_oz_operation(
-        env: &Env,
-        data: &PendingRecoveryOpData,
-    ) -> timelock::Operation {
+    fn rebuild_oz_operation(env: &Env, data: &PendingRecoveryOpData) -> timelock::Operation {
         Self::build_oz_operation(env, &data.operation, &data.salt)
     }
 }
