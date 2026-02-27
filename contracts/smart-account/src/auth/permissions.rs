@@ -22,6 +22,7 @@ impl AuthorizationCheck for SignerPolicy {
     fn is_authorized(&self, env: &Env, contexts: &Vec<Context>) -> bool {
         match self {
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.is_authorized(env, contexts),
+            SignerPolicy::TokenTransferPolicy(policy) => policy.is_authorized(env, contexts),
         }
     }
 }
@@ -30,11 +31,13 @@ impl PolicyCallback for SignerPolicy {
     fn on_add(&self, env: &Env) -> Result<(), SmartAccountError> {
         match self {
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_add(env),
+            SignerPolicy::TokenTransferPolicy(policy) => policy.on_add(env),
         }
     }
     fn on_revoke(&self, env: &Env) -> Result<(), SmartAccountError> {
         match self {
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_revoke(env),
+            SignerPolicy::TokenTransferPolicy(policy) => policy.on_revoke(env),
         }
     }
 }
@@ -58,15 +61,23 @@ impl AuthorizationCheck for SignerRole {
 
         match self {
             SignerRole::Admin => true,
-            SignerRole::Standard(policies) => {
+            SignerRole::Standard(policies, expiration) => {
+                // Check signer expiration (defense-in-depth; authorizer checks first)
+                if *expiration > 0 && env.ledger().timestamp() > *expiration {
+                    return false;
+                }
                 // Standard signers cannot perform admin operations
                 if needs_admin_approval {
                     false
                 } else {
-                    // If not an admin operation, check all policies (if any)
-                    policies
-                        .iter()
-                        .all(|policy| policy.is_authorized(env, contexts))
+                    match policies {
+                        // No policies = no restrictions (beyond admin check)
+                        None => true,
+                        // At least one policy must authorize the full transaction
+                        Some(policies) => policies
+                            .iter()
+                            .any(|policy| policy.is_authorized(env, contexts)),
+                    }
                 }
             }
         }

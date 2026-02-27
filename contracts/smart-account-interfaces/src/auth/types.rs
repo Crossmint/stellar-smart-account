@@ -1,16 +1,60 @@
-use soroban_sdk::{contracttype, Address, Bytes, BytesN, Vec};
+use soroban_sdk::{contracttype, Address, Bytes, BytesN, Env, Vec};
+
+// ============================================================================
+// Token Transfer Policy types
+// ============================================================================
+
+/// A built-in policy that restricts a Standard signer to only transferring
+/// a specific SAC token, with cumulative spending limits and optional features.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct TokenTransferPolicy {
+    /// Unique identifier for this policy instance, used to scope the spending tracker.
+    pub policy_id: BytesN<32>,
+    /// The SAC token contract address this signer is allowed to call `transfer` on.
+    pub token: Address,
+    /// Maximum cumulative amount (in token's smallest unit) allowed per window.
+    pub limit: i128,
+    /// Number of seconds after which the spent amount resets. 0 = no reset (lifetime limit).
+    pub reset_window_secs: u64,
+    /// Allowed recipient addresses. Empty = any recipient is allowed.
+    pub allowed_recipients: Vec<Address>,
+    /// Unix timestamp after which this policy expires. 0 = no expiration.
+    pub expiration: u64,
+}
+
+/// Tracks cumulative spending for a TokenTransferPolicy instance.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct SpendingTracker {
+    /// Total amount spent in the current window.
+    pub spent: i128,
+    /// Timestamp of the start of the current spending window.
+    pub window_start: u64,
+}
+
+/// Storage key for spending tracker entries.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub enum SpendTrackerKey {
+    /// Keyed by policy_id for unique per-signer-policy scoping.
+    TokenSpend(BytesN<32>),
+}
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerRole {
     Admin,
-    Standard(Vec<SignerPolicy>),
+    /// Standard signer with optional policies and an optional expiration timestamp.
+    /// The `u64` is a Unix timestamp after which the signer expires. 0 = no expiration.
+    Standard(Option<Vec<SignerPolicy>>, u64),
 }
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerPolicy {
     ExternalValidatorPolicy(ExternalPolicy),
+    TokenTransferPolicy(TokenTransferPolicy),
 }
 
 #[contracttype]
@@ -108,6 +152,21 @@ impl Signer {
             Signer::Webauthn(_, role) => role.clone(),
             Signer::Multisig(_, role) => role.clone(),
         }
+    }
+
+    /// Returns the expiration timestamp (0 = no expiration).
+    /// Admin signers always return 0.
+    pub fn expiration(&self) -> u64 {
+        match self.role() {
+            SignerRole::Standard(_, expiration) => expiration,
+            SignerRole::Admin => 0,
+        }
+    }
+
+    /// Checks whether this signer has expired based on the current ledger timestamp.
+    pub fn is_expired(&self, env: &Env) -> bool {
+        let exp = self.expiration();
+        exp > 0 && env.ledger().timestamp() > exp
     }
 }
 

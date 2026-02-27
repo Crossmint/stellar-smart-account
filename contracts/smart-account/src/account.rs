@@ -150,6 +150,14 @@ impl SmartAccountInterface for SmartAccount {
         if let Signer::Multisig(ref multisig, _) = signer {
             Self::validate_multisig(env, multisig)?;
         }
+        Self::validate_signer_expiration(env, &signer)?;
+
+        // Validate: Some(empty_vec) is not allowed — use None for no policies
+        if let SignerRole::Standard(Some(ref policies), _) = signer.role() {
+            if policies.is_empty() {
+                return Err(SmartAccountError::InvalidPolicy);
+            }
+        }
 
         let key = signer.clone().into();
         let storage = Storage::persistent();
@@ -157,7 +165,7 @@ impl SmartAccountInterface for SmartAccount {
 
         // Handle role-specific initialization
         match signer.role() {
-            SignerRole::Standard(policies) => {
+            SignerRole::Standard(policies, _) => {
                 Self::activate_policies(env, &policies)?;
             }
             SignerRole::Admin => {
@@ -175,6 +183,14 @@ impl SmartAccountInterface for SmartAccount {
 
         if let Signer::Multisig(ref multisig, _) = signer {
             Self::validate_multisig(env, multisig)?;
+        }
+        Self::validate_signer_expiration(env, &signer)?;
+
+        // Validate: Some(empty_vec) is not allowed — use None for no policies
+        if let SignerRole::Standard(Some(ref policies), _) = signer.role() {
+            if policies.is_empty() {
+                return Err(SmartAccountError::InvalidPolicy);
+            }
         }
 
         let key = signer.clone().into();
@@ -211,7 +227,7 @@ impl SmartAccountInterface for SmartAccount {
 
         storage.delete::<SignerKey>(env, &signer_key)?;
         // Deactivate policies if this is a Standard signer
-        if let SignerRole::Standard(policies) = signer_to_revoke.role() {
+        if let SignerRole::Standard(policies, _) = signer_to_revoke.role() {
             Self::deactivate_policies(env, &policies)?;
         }
         env.events().publish(
@@ -321,17 +337,17 @@ impl SmartAccount {
     ) -> Result<(), SmartAccountError> {
         match (old_role, new_role) {
             // Admin → Standard: decrease admin count, activate policies
-            (SignerRole::Admin, SignerRole::Standard(policies)) => {
+            (SignerRole::Admin, SignerRole::Standard(policies, _)) => {
                 Self::decrement_admin_count(env)?;
                 Self::activate_policies(env, policies)?;
             }
             // Standard → Admin: increase admin count, deactivate policies
-            (SignerRole::Standard(policies), SignerRole::Admin) => {
+            (SignerRole::Standard(policies, _), SignerRole::Admin) => {
                 Self::increment_admin_count(env)?;
                 Self::deactivate_policies(env, policies)?;
             }
             // Standard → Standard: handle policy set changes
-            (SignerRole::Standard(old_policies), SignerRole::Standard(new_policies)) => {
+            (SignerRole::Standard(old_policies, _), SignerRole::Standard(new_policies, _)) => {
                 Self::handle_policy_set_changes(env, old_policies, new_policies)?;
             }
             // Admin → Admin: no changes needed
@@ -371,6 +387,16 @@ impl SmartAccount {
         Ok(())
     }
 
+    /// Validates that a signer's expiration (if set) is in the future.
+    fn validate_signer_expiration(env: &Env, signer: &Signer) -> Result<(), SmartAccountError> {
+        if let SignerRole::Standard(_, expiration) = signer.role() {
+            if expiration > 0 && expiration <= env.ledger().timestamp() {
+                return Err(SmartAccountError::SignerExpired);
+            }
+        }
+        Ok(())
+    }
+
     /// Validates multisig signer configuration
     fn validate_multisig(env: &Env, multisig: &MultisigSigner) -> Result<(), SmartAccountError> {
         if multisig.members.is_empty() || multisig.threshold == 0 {
@@ -392,9 +418,14 @@ impl SmartAccount {
     }
 
     /// Activates policies by calling their on_add callbacks
-    fn activate_policies(env: &Env, policies: &Vec<SignerPolicy>) -> Result<(), SmartAccountError> {
-        for policy in policies {
-            policy.on_add(env)?;
+    fn activate_policies(
+        env: &Env,
+        policies: &Option<Vec<SignerPolicy>>,
+    ) -> Result<(), SmartAccountError> {
+        if let Some(policies) = policies {
+            for policy in policies {
+                policy.on_add(env)?;
+            }
         }
         Ok(())
     }
@@ -402,10 +433,12 @@ impl SmartAccount {
     /// Deactivates policies by calling their on_revoke callbacks
     fn deactivate_policies(
         env: &Env,
-        policies: &Vec<SignerPolicy>,
+        policies: &Option<Vec<SignerPolicy>>,
     ) -> Result<(), SmartAccountError> {
-        for policy in policies {
-            policy.on_revoke(env)?;
+        if let Some(policies) = policies {
+            for policy in policies {
+                policy.on_revoke(env)?;
+            }
         }
         Ok(())
     }
@@ -417,25 +450,29 @@ impl SmartAccount {
     /// - Policies in both sets: no callbacks (unchanged)
     fn handle_policy_set_changes(
         env: &Env,
-        old_policies: &Vec<SignerPolicy>,
-        new_policies: &Vec<SignerPolicy>,
+        old_policies: &Option<Vec<SignerPolicy>>,
+        new_policies: &Option<Vec<SignerPolicy>>,
     ) -> Result<(), SmartAccountError> {
+        let empty = Vec::new(env);
+        let old = old_policies.as_ref().unwrap_or(&empty);
+        let new = new_policies.as_ref().unwrap_or(&empty);
+
         // Early exit optimizations
-        if old_policies.is_empty() && new_policies.is_empty() {
+        if old.is_empty() && new.is_empty() {
             return Ok(());
         }
 
-        if old_policies.is_empty() {
+        if old.is_empty() {
             // All new policies need to be added
-            for policy in new_policies {
+            for policy in new.iter() {
                 policy.on_add(env)?;
             }
             return Ok(());
         }
 
-        if new_policies.is_empty() {
+        if new.is_empty() {
             // All old policies need to be revoked
-            for policy in old_policies {
+            for policy in old.iter() {
                 policy.on_revoke(env)?;
             }
             return Ok(());
@@ -445,12 +482,12 @@ impl SmartAccount {
         let mut new_policy_set = Map::new(env);
 
         // Build set of new policies
-        for policy in new_policies {
+        for policy in new.iter() {
             new_policy_set.set(policy, true);
         }
 
         // Process old policies - find ones to revoke
-        for old_policy in old_policies {
+        for old_policy in old.iter() {
             if new_policy_set.contains_key(old_policy.clone()) {
                 new_policy_set.set(old_policy, false);
             } else {
@@ -460,7 +497,7 @@ impl SmartAccount {
         }
 
         // Process new policies - find ones to add
-        for policy in new_policies {
+        for policy in new.iter() {
             // If still marked as true, it's a new policy that needs to be added
             if new_policy_set.get(policy.clone()).unwrap_or(false) {
                 policy.on_add(env)?;

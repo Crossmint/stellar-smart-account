@@ -126,7 +126,7 @@ fn test_auth_ed25519_no_signatures() {
 #[should_panic]
 fn test_deploy_without_sufficient_permissions() {
     let env = setup();
-    let test_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let test_signer = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
     env.register(
         SmartAccount,
         (
@@ -143,7 +143,7 @@ fn test_deploy_without_sufficient_permissions() {
 fn test_auth_multi_signature_admin_and_standard() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
 
     let contract_id = env.register(
         SmartAccount,
@@ -180,7 +180,7 @@ fn test_auth_multi_signature_admin_and_standard() {
 fn test_auth_multi_signature_only_admin_needed() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
 
     let contract_id = env.register(
         SmartAccount,
@@ -212,7 +212,7 @@ fn test_auth_multi_signature_only_admin_needed() {
 fn test_auth_multi_signature_only_standard_needed() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
 
     let contract_id = env.register(
         SmartAccount,
@@ -247,7 +247,7 @@ fn test_auth_multi_signature_only_standard_needed() {
 fn test_auth_admin_can_update_signers() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
 
     let contract_id = env.register(
         SmartAccount,
@@ -277,8 +277,8 @@ fn test_auth_admin_can_update_signers() {
 fn test_auth_standard_cannot_update_signers() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
-    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
+    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
 
     let contract_id = env.register(
         SmartAccount,
@@ -325,7 +325,7 @@ fn test_auth_standard_cannot_update_signers() {
 fn test_auth_mixed_valid_invalid_signatures() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
 
     let contract_id = env.register(
         SmartAccount,
@@ -365,8 +365,8 @@ fn test_auth_mixed_valid_invalid_signatures() {
 fn test_auth_multiple_contexts_partial_authorization() {
     let env = setup();
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
-    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
-    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
+    let new_signer = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
 
     let contract_id = env.register(
         SmartAccount,
@@ -454,7 +454,7 @@ fn test_constructor_duplicate_signers() {
 fn test_constructor_different_signers_success() {
     let env = setup();
     let test_signer1 = Ed25519TestSigner::generate(SignerRole::Admin);
-    let test_signer2 = Ed25519TestSigner::generate(SignerRole::Standard(vec![&env]));
+    let test_signer2 = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
     let signer1 = test_signer1.into_signer(&env);
     let signer2 = test_signer2.into_signer(&env);
     env.register(

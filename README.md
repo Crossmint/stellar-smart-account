@@ -118,7 +118,7 @@ let time_policy = TimeWindowPolicy {
 
 let ai_signer = Signer::Ed25519(
     Ed25519Signer::new(ai_agent_pubkey),
-    SignerRole::Standard(vec![SignerPolicy::TimeWindowPolicy(time_policy)])
+    SignerRole::Standard(Some(vec![SignerPolicy::TimeWindowPolicy(time_policy)]))
 );
 ```
 
@@ -132,7 +132,7 @@ let external_policy = ExternalPolicy {
 
 let restricted_signer = Signer::Ed25519(
     Ed25519Signer::new(signer_pubkey),
-    SignerRole::Standard(vec![SignerPolicy::ExternalValidatorPolicy(external_policy)])
+    SignerRole::Standard(Some(vec![SignerPolicy::ExternalValidatorPolicy(external_policy)]))
 );
 ```
 

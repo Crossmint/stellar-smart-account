@@ -37,6 +37,12 @@ impl Authorizer {
             let signer = storage
                 .get::<SignerKey, Signer>(env, &signer_key)
                 .ok_or(Error::SignerNotFound)?;
+
+            // Reject expired signers early, before expensive signature verification
+            if signer.is_expired(env) {
+                return Err(Error::SignerExpired);
+            }
+
             env.storage().persistent().extend_ttl(
                 &signer_key,
                 PERSISTENT_TTL_THRESHOLD,
@@ -46,7 +52,7 @@ impl Authorizer {
 
             match signer.role() {
                 SignerRole::Admin => admin_signers.push_back(signer),
-                SignerRole::Standard(_) => standard_signers.push_back(signer),
+                SignerRole::Standard(_, _) => standard_signers.push_back(signer),
             }
         }
 
