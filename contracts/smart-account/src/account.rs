@@ -2,9 +2,9 @@ use crate::auth::core::authorizer::Authorizer;
 use crate::auth::permissions::PolicyCallback;
 use crate::auth::proof::SignatureProofs;
 use crate::config::{
-    ADMIN_COUNT_KEY, INSTANCE_EXTEND_TO, INSTANCE_TTL_THRESHOLD, PLUGINS_KEY, TOPIC_PLUGIN,
-    TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED, VERB_REVOKED, VERB_UNINSTALLED,
-    VERB_UNINSTALL_FAILED, VERB_UPDATED,
+    ADMIN_COUNT_KEY, CONTRACT_VERSION_KEY, CURRENT_CONTRACT_VERSION, INSTANCE_EXTEND_TO,
+    INSTANCE_TTL_THRESHOLD, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED,
+    VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
 };
 use crate::error::Error;
 use crate::events::{
@@ -12,6 +12,7 @@ use crate::events::{
     SignerRevokedEvent, SignerUpdatedEvent,
 };
 use crate::handle_nested_result_failure;
+use crate::migration::{run_migration, MigrationData};
 use crate::plugin::SmartAccountPluginClient;
 use initializable::{only_not_initialized, Initializable};
 use smart_account_interfaces::SmartAccountError;
@@ -21,10 +22,13 @@ use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    map, panic_with_error, Address, Env, Map, Symbol, Vec,
+    map, panic_with_error, Address, BytesN, Env, Map, Symbol, Vec,
 };
 use storage::Storage;
-use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
+use upgradeable::{
+    SmartAccountUpgradeableAuth, SmartAccountUpgradeableMigratable,
+    SmartAccountUpgradeableMigratableInternal,
+};
 
 /// SmartAccount is a multi-signature account contract that provides enhanced security
 /// through role-based access control, policy-based authorization, and an extensible plugin system.
@@ -34,13 +38,48 @@ use upgradeable::{SmartAccountUpgradeable, SmartAccountUpgradeableAuth};
 #[contract]
 pub struct SmartAccount;
 
-// Implements SmartAccountUpgradeable trait to allow the contract to be upgraded
-// by authorized signers through the upgrade mechanism
-upgradeable::impl_upgradeable!(SmartAccount);
-
+// Implements upgrade and migrate via the SmartAccountUpgradeableMigratable trait
+// from the `upgradeable` crate. This provides the standard two-phase upgrade flow:
+// upgrade() swaps WASM + sets MIGRATING flag, migrate() runs data migration + clears flag.
+//
+// SmartAccountUpgradeableAuth provides the authorization check.
+// SmartAccountUpgradeableMigratableInternal provides the migration callback.
+// SmartAccountUpgradeableMigratable ties them together with the public entry points.
 impl SmartAccountUpgradeableAuth for SmartAccount {
     fn _require_auth_upgrade(e: &Env) {
         e.current_contract_address().require_auth();
+    }
+}
+
+impl SmartAccountUpgradeableMigratableInternal for SmartAccount {
+    type MigrationData = MigrationData;
+
+    fn _migrate(e: &Env, migration_data: &Self::MigrationData) {
+        run_migration(e, migration_data);
+    }
+}
+
+#[contractimpl]
+impl SmartAccountUpgradeableMigratable for SmartAccount {
+    fn upgrade(e: &Env, new_wasm_hash: BytesN<32>) {
+        Self::_require_auth_upgrade(e);
+        upgradeable::enable_migration(e);
+        e.events().publish(
+            (Symbol::new(e, "UPGRADE_STARTED"),),
+            e.current_contract_address(),
+        );
+        e.deployer().update_current_contract_wasm(new_wasm_hash);
+    }
+
+    fn migrate(e: &Env, migration_data: MigrationData) {
+        Self::_require_auth_upgrade(e);
+        upgradeable::ensure_can_complete_migration(e);
+        Self::_migrate(e, &migration_data);
+        upgradeable::complete_migration(e);
+        e.events().publish(
+            (Symbol::new(e, "UPGRADE_COMPLETED"),),
+            e.current_contract_address(),
+        );
     }
 }
 
@@ -95,6 +134,11 @@ impl SmartAccountInterface for SmartAccount {
             SmartAccount::install_plugin(&env, plugin)
                 .unwrap_or_else(|e| panic_with_error!(env, e));
         }
+
+        // Set the contract version so future migrations know the starting point
+        env.storage()
+            .instance()
+            .set(&CONTRACT_VERSION_KEY, &CURRENT_CONTRACT_VERSION);
 
         // Initialize the contract
         SmartAccount::initialize(&env).unwrap_or_else(|e| panic_with_error!(env, e));
