@@ -1,8 +1,7 @@
-use smart_account_interfaces::{Signer, SignerKey};
-use soroban_sdk::{contracttype, Address, String};
+use smart_account_interfaces::{RecoveryOperation, Signer, SignerKey};
+use soroban_sdk::{contractevent, Address, BytesN, String};
 
-#[contracttype]
-#[derive(Clone)]
+#[contractevent(topics = ["signer", "added"])]
 pub struct SignerAddedEvent {
     pub signer_key: SignerKey,
     pub signer: Signer,
@@ -17,8 +16,7 @@ impl From<Signer> for SignerAddedEvent {
     }
 }
 
-#[contracttype]
-#[derive(Clone)]
+#[contractevent(topics = ["signer", "updated"])]
 pub struct SignerUpdatedEvent {
     pub signer_key: SignerKey,
     pub new_signer: Signer,
@@ -33,8 +31,7 @@ impl From<Signer> for SignerUpdatedEvent {
     }
 }
 
-#[contracttype]
-#[derive(Clone)]
+#[contractevent(topics = ["signer", "revoked"])]
 pub struct SignerRevokedEvent {
     pub signer_key: SignerKey,
     pub revoked_signer: Signer,
@@ -49,33 +46,48 @@ impl From<Signer> for SignerRevokedEvent {
     }
 }
 
-#[contracttype]
-#[derive(Clone)]
+#[contractevent(topics = ["plugin", "installed"])]
 pub struct PluginInstalledEvent {
     pub plugin: Address,
 }
 
-#[contracttype]
-#[derive(Clone)]
+#[contractevent(topics = ["plugin", "uninstalled"])]
 pub struct PluginUninstalledEvent {
     pub plugin: Address,
 }
 
-#[contracttype]
-#[derive(Clone)]
+#[contractevent(topics = ["plugin", "uninstall_failed"])]
 pub struct PluginUninstallFailedEvent {
     pub plugin: Address,
 }
 
-#[contracttype]
-#[derive(Clone)]
+#[contractevent(topics = ["plugin", "auth_failed"])]
 pub struct PluginAuthFailedEvent {
+    #[topic]
     pub plugin: Address,
     pub error: String,
 }
 
-#[contracttype]
-#[derive(Clone)]
+#[contractevent(topics = ["policy", "callback_failed"])]
 pub struct PolicyCallbackFailedEvent {
     pub policy_address: Address,
+}
+
+#[contractevent(topics = ["recovery", "scheduled"])]
+pub struct RecoveryScheduledEvent {
+    pub operation_id: BytesN<32>,
+    pub operation: RecoveryOperation,
+    pub scheduled_by: SignerKey,
+    pub execute_after: u64,
+}
+
+#[contractevent(topics = ["recovery", "executed"])]
+pub struct RecoveryExecutedEvent {
+    pub operation_id: BytesN<32>,
+    pub operation: RecoveryOperation,
+}
+
+#[contractevent(topics = ["recovery", "cancelled"])]
+pub struct RecoveryCancelledEvent {
+    pub operation_id: BytesN<32>,
 }

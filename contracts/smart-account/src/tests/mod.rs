@@ -5,6 +5,7 @@ mod expiring_signer_test;
 mod multisig_test;
 mod plugin_test;
 mod policy_test;
+mod recovery_test;
 mod secp256r1_signer_test;
 mod signer_management_test;
 mod test_utils;

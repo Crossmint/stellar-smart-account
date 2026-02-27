@@ -48,6 +48,47 @@ pub enum SignerRole {
     /// Standard signer with optional policies and an optional expiration timestamp.
     /// The `u64` is a Unix timestamp after which the signer expires. 0 = no expiration.
     Standard(Option<Vec<SignerPolicy>>, u64),
+    /// Recovery signer that can only perform signer management operations through
+    /// a time-delayed two-phase flow (schedule → wait → execute).
+    /// Recovery signers do not expire.
+    /// - `u32`: delay in seconds before scheduled operations can execute
+    /// - `bool`: if true, the signer can only add signers (cannot update/revoke)
+    Recovery(u32, bool),
+}
+
+// ============================================================================
+// Recovery operation types
+// ============================================================================
+
+/// Represents a signer management operation scheduled by a recovery signer.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub enum RecoveryOperation {
+    AddSigner(Signer),
+    UpdateSigner(Signer),
+    RevokeSigner(SignerKey),
+}
+
+/// Storage key for pending recovery operations.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub enum RecoveryStorageKey {
+    /// Maps an OZ timelock operation_id to its pending recovery data.
+    PendingOp(BytesN<32>),
+}
+
+/// Data stored for each pending recovery operation.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct PendingRecoveryOpData {
+    /// The signer management operation to perform.
+    pub operation: RecoveryOperation,
+    /// The recovery signer that scheduled the operation.
+    pub scheduled_by: SignerKey,
+    /// Unix timestamp when the operation was scheduled.
+    pub scheduled_at: u64,
+    /// The salt used when scheduling, needed to rebuild the OZ Operation for execution.
+    pub salt: BytesN<32>,
 }
 
 #[contracttype]
@@ -155,11 +196,11 @@ impl Signer {
     }
 
     /// Returns the expiration timestamp (0 = no expiration).
-    /// Admin signers always return 0.
+    /// Admin and Recovery signers always return 0 (never expire).
     pub fn expiration(&self) -> u64 {
         match self.role() {
             SignerRole::Standard(_, expiration) => expiration,
-            SignerRole::Admin => 0,
+            SignerRole::Admin | SignerRole::Recovery(_, _) => 0,
         }
     }
 

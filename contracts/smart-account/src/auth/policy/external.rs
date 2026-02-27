@@ -5,7 +5,6 @@ use crate::{
         permissions::{AuthorizationCheck, PolicyCallback},
         policy::interface::SmartAccountPolicyClient,
     },
-    config::{TOPIC_POLICY, VERB_CALLBACK_FAILED},
     events::PolicyCallbackFailedEvent,
     handle_nested_result_failure,
 };
@@ -25,13 +24,10 @@ impl PolicyCallback for ExternalPolicy {
         let policy_client = SmartAccountPolicyClient::new(env, &self.policy_address);
         let res = policy_client.try_on_add(&env.current_contract_address());
         handle_nested_result_failure!(res, {
-            // Emit event indicating that the on_add callback failed
-            env.events().publish(
-                (TOPIC_POLICY, VERB_CALLBACK_FAILED),
-                PolicyCallbackFailedEvent {
-                    policy_address: self.policy_address.clone(),
-                },
-            );
+            PolicyCallbackFailedEvent {
+                policy_address: self.policy_address.clone(),
+            }
+            .publish(env);
             return Err(SmartAccountError::PolicyClientInitializationError);
         });
         Ok(())
@@ -41,13 +37,10 @@ impl PolicyCallback for ExternalPolicy {
         let policy_client = SmartAccountPolicyClient::new(env, &self.policy_address);
         let res = policy_client.try_on_revoke(&env.current_contract_address());
         handle_nested_result_failure!(res, {
-            // Emit event indicating that the on_revoke callback failed
-            env.events().publish(
-                (TOPIC_POLICY, VERB_CALLBACK_FAILED),
-                PolicyCallbackFailedEvent {
-                    policy_address: self.policy_address.clone(),
-                },
-            );
+            PolicyCallbackFailedEvent {
+                policy_address: self.policy_address.clone(),
+            }
+            .publish(env);
         });
         Ok(())
     }

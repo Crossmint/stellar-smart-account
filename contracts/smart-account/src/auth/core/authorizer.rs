@@ -2,9 +2,7 @@
 use crate::auth::permissions::AuthorizationCheck;
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signers::SignatureVerifier as _;
-use crate::config::{
-    PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD, PLUGINS_KEY, TOPIC_PLUGIN, VERB_AUTH_FAILED,
-};
+use crate::config::{PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD, PLUGINS_KEY};
 use crate::error::Error;
 use crate::events::PluginAuthFailedEvent;
 use crate::handle_nested_result_failure;
@@ -31,6 +29,7 @@ impl Authorizer {
         }
 
         let mut admin_signers = Vec::new(env);
+        let mut recovery_signers = Vec::new(env);
         let mut standard_signers = Vec::new(env);
 
         for (signer_key, proof) in proof_map.iter() {
@@ -52,10 +51,12 @@ impl Authorizer {
 
             match signer.role() {
                 SignerRole::Admin => admin_signers.push_back(signer),
+                SignerRole::Recovery(_, _) => recovery_signers.push_back(signer),
                 SignerRole::Standard(_, _) => standard_signers.push_back(signer),
             }
         }
 
+        // Check admin signers first (highest privilege)
         for signer in admin_signers.iter() {
             let key: SignerKey = signer.clone().into();
             if signer.is_authorized(env, &key, auth_contexts) {
@@ -63,6 +64,15 @@ impl Authorizer {
             }
         }
 
+        // Check recovery signers (can only schedule/execute recovery)
+        for signer in recovery_signers.iter() {
+            let key: SignerKey = signer.clone().into();
+            if signer.is_authorized(env, &key, auth_contexts) {
+                return Ok(());
+            }
+        }
+
+        // Check standard signers last
         for signer in standard_signers.iter() {
             let key: SignerKey = signer.clone().into();
             if signer.is_authorized(env, &key, auth_contexts) {
@@ -83,13 +93,11 @@ impl Authorizer {
             let res = SmartAccountPluginClient::new(env, &plugin)
                 .try_on_auth(&env.current_contract_address(), auth_contexts);
             handle_nested_result_failure!(res, {
-                env.events().publish(
-                    (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
-                    PluginAuthFailedEvent {
-                        plugin: plugin.clone(),
-                        error: String::from_str(env, "Plugin on_auth failed"),
-                    },
-                );
+                PluginAuthFailedEvent {
+                    plugin: plugin.clone(),
+                    error: String::from_str(env, "Plugin on_auth failed"),
+                }
+                .publish(env);
                 return Err(Error::PluginOnAuthFailed);
             });
         }

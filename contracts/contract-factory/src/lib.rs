@@ -1,10 +1,8 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, vec, xdr::ToXdr, Address, Bytes, BytesN,
-    Env, Symbol, Val, Vec,
+    contract, contractevent, contractimpl, contracttype, xdr::ToXdr, Address, Bytes, BytesN, Env,
+    Symbol, Val, Vec,
 };
-
-const DEPLOYED_CONTRACT: Symbol = symbol_short!("DEPLOYED");
 
 const DAY_IN_LEDGERS: u32 = 17_280;
 const INSTANCE_TTL_THRESHOLD: u32 = 7 * DAY_IN_LEDGERS;
@@ -21,10 +19,9 @@ pub struct ContractDeploymentArgs {
     constructor_args: Vec<Val>,
 }
 
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[contractevent(topics = ["DEPLOYED"], data_format = "single-value")]
 pub struct ContractDeployedEvent {
-    contract_id: Address,
+    pub contract_id: Address,
 }
 
 #[contractimpl]
@@ -64,15 +61,10 @@ impl ContractFactory {
             .with_current_contract(derived_salt)
             .deploy_v2(wasm_hash, constructor_args);
 
-        env.events().publish(
-            vec![env, DEPLOYED_CONTRACT],
-            vec![
-                env,
-                ContractDeployedEvent {
-                    contract_id: contract_id.clone(),
-                },
-            ],
-        );
+        ContractDeployedEvent {
+            contract_id: contract_id.clone(),
+        }
+        .publish(env);
         contract_id
     }
 

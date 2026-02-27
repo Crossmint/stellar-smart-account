@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contracttype, symbol_short, Env, IntoVal, TryFromVal, Val};
+use soroban_sdk::{contractevent, contracttype, Env, IntoVal, TryFromVal, Val};
 
 #[derive(Debug)]
 pub enum Error {
@@ -15,19 +15,19 @@ pub enum StorageType {
     Instance,
 }
 
-#[contracttype]
-#[derive(Clone)]
-pub enum StorageOperation {
-    Store,
-    Update,
-    Delete,
+#[contractevent(topics = ["storage", "store"], data_format = "single-value")]
+pub struct StorageStoreEvent {
+    pub storage_type: StorageType,
 }
 
-#[contracttype]
-#[derive(Clone)]
-pub struct StorageChangeEvent {
+#[contractevent(topics = ["storage", "update"], data_format = "single-value")]
+pub struct StorageUpdateEvent {
     pub storage_type: StorageType,
-    pub operation: StorageOperation,
+}
+
+#[contractevent(topics = ["storage", "delete"], data_format = "single-value")]
+pub struct StorageDeleteEvent {
+    pub storage_type: StorageType,
 }
 
 pub struct Storage {
@@ -102,12 +102,10 @@ impl Storage {
 
         match result {
             Ok(_) => {
-                let event = StorageChangeEvent {
+                StorageStoreEvent {
                     storage_type: self.storage_type.clone(),
-                    operation: StorageOperation::Store,
-                };
-                env.events()
-                    .publish((symbol_short!("storage"), symbol_short!("store")), event);
+                }
+                .publish(env);
                 Ok(())
             }
             Err(e) => Err(e),
@@ -147,12 +145,10 @@ impl Storage {
 
         match result {
             Ok(_) => {
-                let event = StorageChangeEvent {
+                StorageUpdateEvent {
                     storage_type: self.storage_type.clone(),
-                    operation: StorageOperation::Update,
-                };
-                env.events()
-                    .publish((symbol_short!("storage"), symbol_short!("update")), event);
+                }
+                .publish(env);
                 Ok(())
             }
             Err(e) => Err(e),
@@ -175,12 +171,10 @@ impl Storage {
             }
         }
 
-        let event = StorageChangeEvent {
+        StorageDeleteEvent {
             storage_type: self.storage_type.clone(),
-            operation: StorageOperation::Delete,
-        };
-        env.events()
-            .publish((symbol_short!("storage"), symbol_short!("delete")), event);
+        }
+        .publish(env);
 
         Ok(())
     }
