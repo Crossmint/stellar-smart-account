@@ -12,38 +12,39 @@ A comprehensive smart contract system for Stellar/Soroban that provides enterpri
 - **🔐 Multi-Signature Account**: Advanced smart account with customizable authentication
 - **🏭 Contract Factory**: Permissionless deployment system with deterministic addresses
 - **🎯 Role-Based Permissions**: Admin and Standard signer roles with optional policies
-- **📋 Policy System**: Time-based, contract allow/deny lists, external delegation, and extensible policies
+- **📋 Policy System**: External delegation, token spending limits with reset windows and recipient allowlists, and extensible policies
 - **🔌 Plugin System**: Extensible architecture with install/uninstall lifecycle and authorization hooks
 - **🌐 External Delegation**: Delegate authorization decisions to external policy contracts
 - **🤖 AI Agent Ready**: Built for both human users and automated systems
 - **⚡ Soroban Native**: Leverages Stellar's smart contract platform capabilities
 - **🔄 Upgradeable**: Built-in contract upgrade support with permission controls
-- **📚 TypeScript Bindings**: Auto-generated JavaScript/TypeScript libraries
+- **🔀 V1→V2 Migration**: Built-in migration system for upgrading from v1 contracts
 
 ## 🏗️ Architecture
 
-The system consists of two main smart contracts and supporting JavaScript libraries:
+The system consists of multiple smart contracts and shared libraries:
 
 ```
 stellar-smart-account/
 ├── contracts/
-│   ├── smart-account/         # Multi-signature account contract with plugin support
-│   ├── contract-factory/      # Secure contract deployment factory
-│   ├── deny-list-policy/      # Example external policy contract
-│   ├── initializable/         # Contract initialization utilities
-│   ├── storage/              # Storage management utilities
-│   └── upgradeable/          # Contract upgrade utilities
-├── packages/
-│   ├── smart_account/        # TypeScript bindings for smart account
-│   └── factory/              # TypeScript bindings for factory
-└── examples/                 # Usage examples and demos
+│   ├── smart-account/              # Multi-signature account contract with plugin support
+│   ├── smart-account-interfaces/   # Shared types and trait definitions
+│   ├── contract-factory/           # Permissionless contract deployment factory
+│   ├── examples/
+│   │   ├── plugin-policy-example/          # Example plugin+policy contract
+│   │   └── plugin-policy-example-reverts/  # Example plugin that reverts on uninstall
+│   ├── initializable/              # Contract initialization utilities
+│   ├── storage/                    # Storage management utilities
+│   ├── testing/                    # Shared test utilities
+│   ├── upgradeable/                # Contract upgrade utilities
+│   └── web-auth/                   # WebAuthn verification utilities
 ```
 
 ### Smart Account Contract
 
 The core smart account provides:
 
-- **Multiple Signature Schemes**: Ed25519 and Secp256r1 (WebAuthn/passkeys), extensible to others
+- **Multiple Signature Schemes**: Ed25519, Secp256r1, WebAuthn (passkeys), and Multisig (M-of-N threshold), extensible to others
 - **Flexible Authorization**: Role-based access with policy enforcement
 - **Multi-Signature Support**: Customizable authorization logic
 - **Plugin Architecture**: Extensible functionality through installable plugins
@@ -64,7 +65,6 @@ Permissionless deployment system featuring:
 
 - Rust 1.75+ with `wasm32-unknown-unknown` target
 - [Stellar CLI](https://soroban.stellar.org/docs/getting-started/setup)
-- Node.js 18+ (for JavaScript bindings)
 
 ### Installation
 
@@ -84,12 +84,6 @@ stellar contract build
 cargo test
 ```
 
-4. **Install JavaScript dependencies** (optional):
-```bash
-cd packages/smart_account && npm install
-cd ../factory && npm install
-```
-
 ## 🔑 Authentication & Permissions
 
 ### Signer Roles
@@ -101,24 +95,21 @@ cd ../factory && npm install
 
 ### Policy Types
 
-- **Time-Based**: Restrict signer validity to specific time windows
-- **Contract Allow List**: Only permit interactions with specified contracts  
-- **Contract Deny List**: Block interactions with specified contracts
 - **External Delegation**: Delegate authorization decisions to external policy contracts
-- **Extensible**: Add custom policies for spending limits, rate limiting, etc.
+- **Token Transfer Policy**: Restrict signers to specific token transfers with cumulative spending limits, reset windows, recipient allowlists, and per-policy expiration
+- **Extensible**: Add custom policies by implementing the `AuthorizationCheck` and `PolicyCallback` traits
 
-### Example: Time-Restricted AI Agent
+### Signer Expiration
+
+Standard signers can have an expiration timestamp. Once the ledger timestamp exceeds the expiration, the signer is rejected. A value of `0` means no expiration.
+
+### Example: Expiring AI Agent Signer
 
 ```rust
-// Create an AI agent with time-limited access
-let time_policy = TimeWindowPolicy {
-    not_before: start_timestamp,
-    not_after: end_timestamp,
-};
-
+// Create an AI agent with time-limited access using signer expiration
 let ai_signer = Signer::Ed25519(
     Ed25519Signer::new(ai_agent_pubkey),
-    SignerRole::Standard(Some(vec![SignerPolicy::TimeWindowPolicy(time_policy)]))
+    SignerRole::Standard(None, end_timestamp) // expires at end_timestamp, 0 = no expiration
 );
 ```
 
@@ -132,7 +123,10 @@ let external_policy = ExternalPolicy {
 
 let restricted_signer = Signer::Ed25519(
     Ed25519Signer::new(signer_pubkey),
-    SignerRole::Standard(Some(vec![SignerPolicy::ExternalValidatorPolicy(external_policy)]))
+    SignerRole::Standard(
+        Some(vec![SignerPolicy::ExternalValidatorPolicy(external_policy)]),
+        0, // 0 = no expiration
+    )
 );
 ```
 
@@ -195,17 +189,21 @@ The project maintains 80%+ test coverage with comprehensive integration tests.
 
 ### Adding New Signer Types
 
-1. Define the signer struct in `src/auth/signers/`
-2. Implement the `SignatureVerifier` trait
-3. Add variants to `SignerKey`, `Signer`, and `SignerProof` enums
-4. Update match statements in implementation files
+1. Define the signer struct in `contracts/smart-account-interfaces/src/auth/types.rs`
+2. Implement the `SignatureVerifier` trait in `contracts/smart-account/src/auth/signers/`
+3. Add variants to `SignerKey` and `Signer` enums in the interfaces crate, and `SignerProof` in `contracts/smart-account/src/auth/proof.rs`
+4. Add a `From<NewSigner> for SignerKey` implementation
+5. Update match statements in `contracts/smart-account/src/auth/signer.rs` and `contracts/smart-account/src/auth/core/authorizer.rs`
 
 ### Adding New Policies
 
-1. Create policy struct in `src/auth/policy/`
-2. Implement `AuthorizationCheck` and `PolicyCallback` traits
-3. Add to `SignerPolicy` enum
-4. Update policy validation logic
+1. Create the policy struct in `contracts/smart-account-interfaces/src/auth/types.rs`
+2. Implement `AuthorizationCheck` and `PolicyCallback` traits in `contracts/smart-account/src/auth/policy/`
+   - `AuthorizationCheck::is_authorized(&self, env, signer_key, contexts) -> bool`
+   - `PolicyCallback::on_add(&self, env, signer_key) -> Result<(), SmartAccountError>`
+   - `PolicyCallback::on_revoke(&self, env, signer_key) -> Result<(), SmartAccountError>`
+3. Add a variant to the `SignerPolicy` enum in the interfaces crate
+4. Update match arms in `contracts/smart-account/src/auth/permissions.rs`
 
 See the [Smart Account Architecture Documentation](contracts/smart-account/README.md) for detailed extension guides.
 
