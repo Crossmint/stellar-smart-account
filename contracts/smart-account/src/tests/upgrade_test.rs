@@ -468,18 +468,19 @@ fn test_migrate_ed25519_with_external_policy() {
     let v2_hash = upload_v2_wasm(&env);
     v1_client.upgrade(&v2_hash);
 
-    // Migrate — the Ed25519 standard signer with ExternalValidatorPolicy
-    // should NOT need migration since the variant name is the same
+    // Migrate — ALL Standard signers need migration due to XDR layout change
+    // (v1 Standard(Vec<...>) vs v2 Standard(Option<Vec<...>>, u64))
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
-        signers_to_migrate: vec![&env],
+        signers_to_migrate: vec![&env, v2::V1SignerKey::Ed25519(standard_pk.clone())],
     }));
 
     // Verify the standard signer and its policy are preserved
     let signer = v2_client.get_signer(&v2::SignerKey::Ed25519(standard_pk));
     match signer {
-        v2::Signer::Ed25519(_, v2::SignerRole::Standard(policies)) => {
+        v2::Signer::Ed25519(_, v2::SignerRole::Standard(Some(policies), expiration)) => {
             assert_eq!(policies.len(), 1);
+            assert_eq!(expiration, 0);
         }
         other => panic!("Expected Ed25519 Standard signer, got {:?}", other),
     }
@@ -544,12 +545,12 @@ fn test_migrate_ed25519_with_time_window_policy() {
     // Verify signer exists and TimeWindowPolicy was dropped
     let signer = v2_client.get_signer(&v2::SignerKey::Ed25519(standard_pk));
     match signer {
-        v2::Signer::Ed25519(_, v2::SignerRole::Standard(policies)) => {
-            // TimeWindowPolicy should have been dropped during migration
-            assert_eq!(policies.len(), 0);
+        v2::Signer::Ed25519(_, v2::SignerRole::Standard(None, expiration)) => {
+            // TimeWindowPolicy should have been dropped during migration, resulting in None
+            assert_eq!(expiration, 0);
         }
         other => panic!(
-            "Expected Ed25519 Standard signer with empty policies, got {:?}",
+            "Expected Ed25519 Standard signer with no policies, got {:?}",
             other
         ),
     }
@@ -648,7 +649,7 @@ fn test_add_and_revoke_signer_after_migration() {
         v2::Ed25519Signer {
             public_key: new_pk.clone(),
         },
-        v2::SignerRole::Standard(vec![&env]),
+        v2::SignerRole::Standard(None, 0),
     );
     v2_client.add_signer(&new_signer);
 
@@ -689,14 +690,14 @@ fn test_update_signer_role_after_migration() {
         v2::Ed25519Signer {
             public_key: admin_pk.clone(),
         },
-        v2::SignerRole::Standard(vec![&env]),
+        v2::SignerRole::Standard(None, 0),
     ));
 
     // Verify the role changed
     let signer = v2_client.get_signer(&v2::SignerKey::Ed25519(admin_pk));
     assert!(matches!(
         signer,
-        v2::Signer::Ed25519(_, v2::SignerRole::Standard(_))
+        v2::Signer::Ed25519(_, v2::SignerRole::Standard(_, _))
     ));
 }
 
@@ -840,7 +841,7 @@ fn test_revoke_migrated_webauthn_standard_signer() {
     let signer = v2_client.get_signer(&webauthn_key);
     assert!(matches!(
         signer,
-        v2::Signer::Webauthn(_, v2::SignerRole::Standard(_))
+        v2::Signer::Webauthn(_, v2::SignerRole::Standard(_, _))
     ));
 
     // Revoke the migrated standard Webauthn signer
@@ -915,7 +916,7 @@ fn test_auth_standard_cannot_authorize_upgrade_after_migration() {
         v2::Ed25519Signer {
             public_key: standard_pk.clone(),
         },
-        v2::SignerRole::Standard(vec![&env]),
+        v2::SignerRole::Standard(None, 0),
     );
     v2_client.add_signer(&standard_signer);
 
@@ -1010,7 +1011,7 @@ fn test_auth_standard_cannot_authorize_migrate_after_migration() {
         v2::Ed25519Signer {
             public_key: standard_pk.clone(),
         },
-        v2::SignerRole::Standard(vec![&env]),
+        v2::SignerRole::Standard(None, 0),
     );
     v2_client.add_signer(&standard_signer);
 

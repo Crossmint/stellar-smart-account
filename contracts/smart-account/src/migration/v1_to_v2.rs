@@ -1,8 +1,10 @@
 //! Migration logic from v1.0.0 to v2.
 //!
-//! Handles two breaking changes:
+//! Handles three breaking changes:
 //! 1. Secp256r1 signers (WebAuthn-based in v1) must be re-keyed to the new Webauthn signer type
 //! 2. Standard signers with TimeWindowPolicy must have that policy dropped (variant removed in v2)
+//! 3. ALL Standard signers require migration due to XDR layout change:
+//!    v1 `Standard(Vec<SignerPolicy>)` vs v2 `Standard(Option<Vec<SignerPolicy>>, u64)`
 
 use smart_account_interfaces::{
     Ed25519Signer, ExternalPolicy, Signer, SignerKey, SignerPolicy, SignerRole, WebauthnSigner,
@@ -70,7 +72,8 @@ fn convert_signer(env: &Env, old_key: &V1SignerKey, old_signer: &V1Signer) -> (S
 }
 
 /// Converts a V1 role to a V2 role, dropping TimeWindowPolicy and re-mapping
-/// ExternalValidatorPolicy.
+/// ExternalValidatorPolicy. Migrated Standard signers get expiration = 0 (no expiration)
+/// and policies are wrapped in Option (None if empty, Some if non-empty).
 fn convert_role(env: &Env, v1_role: &V1SignerRole) -> SignerRole {
     match v1_role {
         V1SignerRole::Admin => SignerRole::Admin,
@@ -90,7 +93,12 @@ fn convert_role(env: &Env, v1_role: &V1SignerRole) -> SignerRole {
                     }
                 }
             }
-            SignerRole::Standard(new_policies)
+            let policies = if new_policies.is_empty() {
+                None
+            } else {
+                Some(new_policies)
+            };
+            SignerRole::Standard(policies, 0)
         }
     }
 }
