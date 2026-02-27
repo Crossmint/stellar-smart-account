@@ -61,7 +61,11 @@ impl AuthorizationCheck for SignerRole {
 
         match self {
             SignerRole::Admin => true,
-            SignerRole::Standard(policies) => {
+            SignerRole::Standard(policies, expiration) => {
+                // Check signer expiration (defense-in-depth; authorizer checks first)
+                if *expiration > 0 && env.ledger().timestamp() > *expiration {
+                    return false;
+                }
                 // Standard signers cannot perform admin operations
                 if needs_admin_approval {
                     false

@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, Bytes, BytesN, Vec};
+use soroban_sdk::{contracttype, Address, Bytes, BytesN, Env, Vec};
 
 // ============================================================================
 // Token Transfer Policy types
@@ -45,7 +45,9 @@ pub enum SpendTrackerKey {
 #[derive(Clone, Debug, PartialEq)]
 pub enum SignerRole {
     Admin,
-    Standard(Option<Vec<SignerPolicy>>),
+    /// Standard signer with optional policies and an optional expiration timestamp.
+    /// The `u64` is a Unix timestamp after which the signer expires. 0 = no expiration.
+    Standard(Option<Vec<SignerPolicy>>, u64),
 }
 
 #[contracttype]
@@ -150,6 +152,21 @@ impl Signer {
             Signer::Webauthn(_, role) => role.clone(),
             Signer::Multisig(_, role) => role.clone(),
         }
+    }
+
+    /// Returns the expiration timestamp (0 = no expiration).
+    /// Admin signers always return 0.
+    pub fn expiration(&self) -> u64 {
+        match self.role() {
+            SignerRole::Standard(_, expiration) => expiration,
+            SignerRole::Admin => 0,
+        }
+    }
+
+    /// Checks whether this signer has expired based on the current ledger timestamp.
+    pub fn is_expired(&self, env: &Env) -> bool {
+        let exp = self.expiration();
+        exp > 0 && env.ledger().timestamp() > exp
     }
 }
 

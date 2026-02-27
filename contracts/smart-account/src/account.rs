@@ -106,9 +106,10 @@ impl SmartAccountInterface for SmartAccount {
         if let Signer::Multisig(ref multisig, _) = signer {
             Self::validate_multisig(env, multisig)?;
         }
+        Self::validate_signer_expiration(env, &signer)?;
 
         // Validate: Some(empty_vec) is not allowed — use None for no policies
-        if let SignerRole::Standard(Some(ref policies)) = signer.role() {
+        if let SignerRole::Standard(Some(ref policies), _) = signer.role() {
             if policies.is_empty() {
                 return Err(SmartAccountError::InvalidPolicy);
             }
@@ -120,7 +121,7 @@ impl SmartAccountInterface for SmartAccount {
 
         // Handle role-specific initialization
         match signer.role() {
-            SignerRole::Standard(policies) => {
+            SignerRole::Standard(policies, _) => {
                 Self::activate_policies(env, &policies)?;
             }
             SignerRole::Admin => {
@@ -139,9 +140,10 @@ impl SmartAccountInterface for SmartAccount {
         if let Signer::Multisig(ref multisig, _) = signer {
             Self::validate_multisig(env, multisig)?;
         }
+        Self::validate_signer_expiration(env, &signer)?;
 
         // Validate: Some(empty_vec) is not allowed — use None for no policies
-        if let SignerRole::Standard(Some(ref policies)) = signer.role() {
+        if let SignerRole::Standard(Some(ref policies), _) = signer.role() {
             if policies.is_empty() {
                 return Err(SmartAccountError::InvalidPolicy);
             }
@@ -181,7 +183,7 @@ impl SmartAccountInterface for SmartAccount {
 
         storage.delete::<SignerKey>(env, &signer_key)?;
         // Deactivate policies if this is a Standard signer
-        if let SignerRole::Standard(policies) = signer_to_revoke.role() {
+        if let SignerRole::Standard(policies, _) = signer_to_revoke.role() {
             Self::deactivate_policies(env, &policies)?;
         }
         env.events().publish(
@@ -291,17 +293,17 @@ impl SmartAccount {
     ) -> Result<(), SmartAccountError> {
         match (old_role, new_role) {
             // Admin → Standard: decrease admin count, activate policies
-            (SignerRole::Admin, SignerRole::Standard(policies)) => {
+            (SignerRole::Admin, SignerRole::Standard(policies, _)) => {
                 Self::decrement_admin_count(env)?;
                 Self::activate_policies(env, policies)?;
             }
             // Standard → Admin: increase admin count, deactivate policies
-            (SignerRole::Standard(policies), SignerRole::Admin) => {
+            (SignerRole::Standard(policies, _), SignerRole::Admin) => {
                 Self::increment_admin_count(env)?;
                 Self::deactivate_policies(env, policies)?;
             }
             // Standard → Standard: handle policy set changes
-            (SignerRole::Standard(old_policies), SignerRole::Standard(new_policies)) => {
+            (SignerRole::Standard(old_policies, _), SignerRole::Standard(new_policies, _)) => {
                 Self::handle_policy_set_changes(env, old_policies, new_policies)?;
             }
             // Admin → Admin: no changes needed
@@ -338,6 +340,16 @@ impl SmartAccount {
             .checked_add(1)
             .ok_or(SmartAccountError::MaxSignersReached)?;
         storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
+        Ok(())
+    }
+
+    /// Validates that a signer's expiration (if set) is in the future.
+    fn validate_signer_expiration(env: &Env, signer: &Signer) -> Result<(), SmartAccountError> {
+        if let SignerRole::Standard(_, expiration) = signer.role() {
+            if expiration > 0 && expiration <= env.ledger().timestamp() {
+                return Err(SmartAccountError::SignerExpired);
+            }
+        }
         Ok(())
     }
 
