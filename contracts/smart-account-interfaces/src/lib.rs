@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(clippy::enum_variant_names)]
 
 pub mod account;
 pub mod auth;
