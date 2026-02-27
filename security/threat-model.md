@@ -29,7 +29,9 @@ The key innovation is moving from Stellar's traditional "signature + threshold" 
 | Signature Algorithm | Features & Capabilities |
 |---|---|
 | **Ed25519 Signatures** | • Traditional cryptographic signatures<br>• Backward compatible with existing Stellar tooling |
-| **Secp256r1 Signatures** | • Enables **Passkey/WebAuthn** authentication flows<br>• Provides better user experience through biometric authentication<br>• Supports hardware security keys and platform authenticators<br>• Eliminates the need for users to manage seed phrases |
+| **Secp256r1 Signatures** | • Standard NIST P-256 curve signatures<br>• Can be used with hardware security modules |
+| **WebAuthn Signatures** | • Enables **Passkey/WebAuthn** authentication flows<br>• Provides better user experience through biometric authentication<br>• Supports hardware security keys and platform authenticators<br>• Identified by a key_id (Bytes) and secp256r1 public key |
+| **Multisig (M-of-N)** | • Threshold-based multi-party signatures<br>• Members can use Ed25519, Secp256r1, or WebAuthn keys<br>• Configurable threshold for required signatures |
 
 This dual signature support allows the smart account to bridge traditional crypto workflows with modern web authentication standards, making it more accessible to mainstream users while maintaining the security guarantees expected in the Stellar ecosystem.
 
@@ -49,7 +51,7 @@ The Smart Account implements a strict security model with the following core pri
 **Step-by-Step Authorization Process:**
 
 1. **Signature Validation Phase**
-   - Verify all provided signatures are cryptographically correct (Ed25519 or Secp256r1)
+   - Verify all provided signatures are cryptographically correct (Ed25519, Secp256r1, WebAuthn, or Multisig)
    - Confirm all signing keys exist in the smart account's signer registry
    - Reject the entire transaction if any signature is invalid
 
@@ -130,6 +132,10 @@ sequenceDiagram
                 Signer->>Signer: ed25519_verify(public_key, signature_payload, proof)
             else Secp256r1 signature
                 Signer->>Signer: secp256r1_verify(public_key, signature_payload, proof)
+            else WebAuthn signature
+                Signer->>Signer: webauthn_verify(key_id, public_key, authenticator_data, client_data_json, signature)
+            else Multisig signature
+                Signer->>Signer: verify threshold M-of-N member signatures (recursive)
             end
             
             alt Signature invalid

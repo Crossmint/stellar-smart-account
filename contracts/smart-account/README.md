@@ -22,9 +22,10 @@ The Smart Account is a multi-signature account contract built on Soroban that pr
 ## Overview
 
 The Smart Account contract implements a flexible authentication system that combines:
-- **Multiple signature schemes** (Ed25519 and Secp256r1/WebAuthn, extensible to others)
+- **Multiple signature schemes** (Ed25519, Secp256r1, WebAuthn/passkeys, and Multisig M-of-N threshold)
 - **Role-based access control** (Admin, Standard with optional policies)
-- **Policy-based restrictions** (time-based, contract allow/deny lists, external delegation)
+- **Policy-based restrictions** (external delegation, token spending limits with reset windows)
+- **Signer expiration** (time-limited signers with configurable expiration timestamps)
 - **Plugin architecture** with lifecycle hooks and authorization callbacks
 - **Multi-signature support** with customizable authorization logic
 
@@ -82,24 +83,28 @@ graph TB
         SV[SignatureVerifier]
         SP[SignerProof]
         E25[Ed25519Signer]
-        
+        S256[Secp256r1Signer]
+        WA[WebauthnSigner]
+        MS[MultisigSigner]
+
         S --> SV
         SV --> SP
         SV --> E25
+        SV --> S256
+        SV --> WA
+        SV --> MS
     end
-    
+
     subgraph "Permission System"
         PC[AuthorizationCheck]
         SPol[SignerPolicy]
-        TB[TimeWindowPolicy]
-        AL[ContractAllowListPolicy]
-        DL[ContractDenyListPolicy]
-        
+        EP[ExternalValidatorPolicy]
+        TTP[TokenTransferPolicy]
+
         SR --> PC
         PC --> SPol
-        SPol --> TB
-        SPol --> AL
-        SPol --> DL
+        SPol --> EP
+        SPol --> TTP
     end
 ```
 
@@ -178,7 +183,10 @@ let external_policy = ExternalPolicy {
 
 let restricted_signer = Signer::Ed25519(
     Ed25519Signer::new(signer_pubkey),
-    SignerRole::Standard(Some(vec![SignerPolicy::ExternalValidatorPolicy(external_policy)]))
+    SignerRole::Standard(
+        Some(vec![SignerPolicy::ExternalValidatorPolicy(external_policy)]),
+        0, // 0 = no expiration
+    )
 );
 ```
 
@@ -189,32 +197,30 @@ let restricted_signer = Signer::Ed25519(
 - **Modularity**: Separate complex authorization logic into dedicated contracts
 - **Composability**: Combine multiple external policies for complex rules
 
-### Example: Deny-List Policy Contract
+### Example: Custom External Policy Contract
 
-The repository includes an example deny-list policy contract that demonstrates external delegation:
+The repository includes example policy contracts in `contracts/examples/` that demonstrate external delegation. A custom external policy contract must implement the `SmartAccountPolicy` trait:
 
 ```rust
 #[contract]
-pub struct DenyListPolicy;
+pub struct MyCustomPolicy;
 
 #[contractimpl]
-impl SmartAccountPolicy for DenyListPolicy {
+impl SmartAccountPolicy for MyCustomPolicy {
     fn is_authorized(env: &Env, _source: Address, contexts: Vec<Context>) -> bool {
-        let denied_contracts: Vec<Address> = 
-            env.storage().instance().get(&CONTRACTS_SYMBOL).unwrap();
-        
-        contexts.iter().all(|context| match context {
-            Context::Contract(contract) => !denied_contracts.contains(&contract.contract),
-            _ => true,
-        })
+        // Implement custom authorization logic
+        // Return true to authorize, false to deny
+        true
     }
-    
+
     fn on_add(env: &Env, source: Address) {
         source.require_auth();
-        env.storage().instance().set(&source, &0);
+        // Initialization logic when policy is added to a signer
     }
-    
-    fn on_revoke(_env: &Env, _source: Address) {}
+
+    fn on_revoke(_env: &Env, _source: Address) {
+        // Cleanup logic when policy is removed from a signer
+    }
 }
 ```
 
@@ -222,28 +228,44 @@ impl SmartAccountPolicy for DenyListPolicy {
 
 ### Current Signer Implementation
 
-The system supports Ed25519 and Secp256r1 (WebAuthn/passkey) signatures with a design that allows easy extension:
+The system supports four signature schemes with a design that allows easy extension:
 
 ```rust
 pub enum SignerKey {
     Ed25519(BytesN<32>),
-    Secp256r1(Bytes),
+    Secp256r1(BytesN<65>),
+    Webauthn(Bytes),
+    Multisig(BytesN<32>),
 }
 
 pub enum Signer {
     Ed25519(Ed25519Signer, SignerRole),
     Secp256r1(Secp256r1Signer, SignerRole),
+    Webauthn(WebauthnSigner, SignerRole),
+    Multisig(MultisigSigner, SignerRole),
+}
+
+pub struct Secp256r1Signer { pub public_key: BytesN<65> }
+pub struct WebauthnSigner  { pub key_id: Bytes, pub public_key: BytesN<65> }
+pub struct MultisigSigner  { pub id: BytesN<32>, pub members: Vec<MultisigMember>, pub threshold: u32 }
+
+pub enum MultisigMember {
+    Ed25519(Ed25519Signer),
+    Secp256r1(Secp256r1Signer),
+    Webauthn(WebauthnSigner),
 }
 
 pub enum SignerProof {
     Ed25519(BytesN<64>),
-    Secp256r1(Secp256r1Signature),
+    Secp256r1(BytesN<64>),
+    Webauthn(WebauthnSignature),
+    Multisig(Map<SignerKey, SignerProof>),
 }
 ```
 
 ### Adding New Signer Types
 
-To add a new signer type (e.g., WebAuthn, threshold signatures), follow this pattern:
+The system supports Ed25519, Secp256r1, WebAuthn, and Multisig signer types. To add an additional type, follow this pattern:
 
 1. **Define the signer struct** in `src/auth/signers/`:
 ```rust
@@ -283,24 +305,24 @@ NewSignerType(BytesN<64>), // or appropriate proof format
 graph TD
     SR[SignerRole] --> Admin[Admin]
     SR --> Standard[Standard with Policies]
-    
+
     Admin --> |"Can authorize any operation"| AnyOp[Any Operation]
     Standard --> |"Cannot modify signers or upgrade"| LimitedOp[Limited Operations]
+    Standard --> |"Optional expiration timestamp"| Expiration[Signer Expiration]
     Standard --> |"Subject to policies (if any)"| PolicyCheck[Policy Validation]
-    
-    PolicyCheck --> TB[TimeWindowPolicy]
-    PolicyCheck --> AL[ContractAllowListPolicy]
-    PolicyCheck --> DL[ContractDenyListPolicy]
+
+    PolicyCheck --> EP[ExternalValidatorPolicy]
+    PolicyCheck --> TTP[TokenTransferPolicy]
 ```
 
 ## Policy System and Extensibility
 
 ### Current Policy Types
 
-1. **TimeWindowPolicy**: Restricts signer validity to a time window
-2. **ContractAllowListPolicy**: Only allows interactions with specified contracts
-3. **ContractDenyListPolicy**: Blocks interactions with specified contracts
-4. **ExternalValidatorPolicy**: Delegates authorization decisions to external policy contracts
+1. **ExternalValidatorPolicy**: Delegates authorization decisions to external policy contracts
+2. **TokenTransferPolicy**: Restricts a signer to `transfer` calls on a specific SAC token, with cumulative spending limits, configurable reset windows, optional recipient allowlists, and per-policy expiration
+
+**Note:** Signer time restrictions are handled via the expiration field on `SignerRole::Standard(policies, expiration)` rather than a separate policy. A value of `0` means no expiration.
 
 ### Policy Architecture
 
@@ -308,61 +330,50 @@ graph TD
 classDiagram
     class AuthorizationCheck {
         <<trait>>
-        +is_authorized(env, context) bool
+        +is_authorized(env, signer_key, contexts) bool
     }
-    
+
     class PolicyCallback {
         <<trait>>
-        +check(env) Result~(), Error~
+        +on_add(env, signer_key) Result~(), SmartAccountError~
+        +on_revoke(env, signer_key) Result~(), SmartAccountError~
     }
-    
+
     class SignerPolicy {
         <<enum>>
-        TimeWindowPolicy(TimeWindowPolicy)
-        ContractDenyList(ContractDenyListPolicy)
-        ContractAllowList(ContractAllowListPolicy)
         ExternalValidatorPolicy(ExternalPolicy)
+        TokenTransferPolicy(TokenTransferPolicy)
     }
-    
-    class TimeWindowPolicy {
-        +not_before: u64
-        +not_after: u64
-    }
-    
-    class ContractAllowListPolicy {
-        +allowed_contracts: Vec~Address~
-    }
-    
-    class ContractDenyListPolicy {
-        +denied_contracts: Vec~Address~
-    }
-    
+
     class ExternalPolicy {
         +policy_address: Address
     }
-    
+
+    class TokenTransferPolicy {
+        +policy_id: BytesN~32~
+        +token: Address
+        +limit: i128
+        +reset_window_secs: u64
+        +allowed_recipients: Vec~Address~
+        +expiration: u64
+    }
+
     AuthorizationCheck <|.. SignerPolicy
     PolicyCallback <|.. SignerPolicy
-    AuthorizationCheck <|.. TimeWindowPolicy
-    AuthorizationCheck <|.. ContractAllowListPolicy
-    AuthorizationCheck <|.. ContractDenyListPolicy
     AuthorizationCheck <|.. ExternalPolicy
-    PolicyCallback <|.. TimeWindowPolicy
-    PolicyCallback <|.. ContractAllowListPolicy
-    PolicyCallback <|.. ContractDenyListPolicy
+    AuthorizationCheck <|.. TokenTransferPolicy
     PolicyCallback <|.. ExternalPolicy
-    
-    SignerPolicy --> TimeWindowPolicy
-    SignerPolicy --> ContractAllowListPolicy
-    SignerPolicy --> ContractDenyListPolicy
+    PolicyCallback <|.. TokenTransferPolicy
+
     SignerPolicy --> ExternalPolicy
+    SignerPolicy --> TokenTransferPolicy
 ```
 
 ### Adding New Policy Types
 
-To add a new policy type (e.g., spending limits, rate limiting):
+To add a new policy type (e.g., rate limiting, geofencing):
 
-1. **Create the policy struct** in `src/auth/policy/`:
+1. **Create the policy struct** in `contracts/smart-account-interfaces/src/auth/types.rs`:
 ```rust
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -371,31 +382,36 @@ pub struct NewPolicy {
 }
 ```
 
-2. **Implement required traits**:
+2. **Implement required traits** in `contracts/smart-account/src/auth/policy/`:
 ```rust
 impl AuthorizationCheck for NewPolicy {
-    fn is_authorized(&self, env: &Env, context: &Context) -> bool {
+    fn is_authorized(&self, env: &Env, signer_key: &SignerKey, contexts: &Vec<Context>) -> bool {
         // Authorization logic
     }
 }
 
 impl PolicyCallback for NewPolicy {
-    fn check(&self, env: &Env) -> Result<(), Error> {
-        // Validation logic
+    fn on_add(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {
+        // Initialization logic (e.g., set up storage for this policy+signer)
+    }
+
+    fn on_revoke(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {
+        // Cleanup logic (e.g., remove storage entries for this policy+signer)
     }
 }
 ```
 
-3. **Add to SignerPolicy enum**:
+3. **Add to SignerPolicy enum** in the interfaces crate:
 ```rust
 pub enum SignerPolicy {
     // ... existing variants
     ExternalValidatorPolicy(ExternalPolicy),
+    TokenTransferPolicy(TokenTransferPolicy),
     NewPolicyType(NewPolicy),
 }
 ```
 
-4. **Update match statements** in the SignerPolicy implementations.
+4. **Update match statements** in `contracts/smart-account/src/auth/permissions.rs`.
 
 ## Authentication Flow and Sequence
 
@@ -453,13 +469,19 @@ sequenceDiagram
                     SmartAccount->>SmartAccount: context_authorized = true, break loop
                 end
             else Signer role is Standard with policies
-                loop For each policy in role
-                    Signer->>Policy: is_authorized(env, context)
-                    Policy-->>Signer: Policy result
-                end
-                Signer-->>SmartAccount: All policies passed/failed
-                alt All policies passed
-                    SmartAccount->>SmartAccount: context_authorized = true, break loop
+                Signer->>Signer: Check if operation is admin-only
+                alt Admin operation
+                    Signer-->>SmartAccount: Not authorized
+                else Non-admin operation
+                    Signer->>Signer: Check signer expiration
+                    loop For each policy (short-circuit on first match)
+                        Signer->>Policy: policy.is_authorized(env, signer_key, contexts)
+                        Policy-->>Signer: Policy result
+                    end
+                    Signer-->>SmartAccount: Any policy authorizes (OR logic) / None authorize
+                    alt Any policy authorizes
+                        SmartAccount->>SmartAccount: context_authorized = true, break loop
+                    end
                 end
             end
         end
@@ -488,9 +510,8 @@ Total_Gas = Storage_Lookups(n) + Signature_Verification + Role_Checks + Policy_E
 
 Where:
 - n = Number of signers
-- m = Number of authorization contexts  
+- m = Number of authorization contexts
 - p = Number of policies per signer
-- k = Contract list size (for allow/deny policies)
 ```
 
 ### Cost Factors
@@ -503,14 +524,15 @@ Where:
 | **Admin Role** | O(1) | Constant time authorization |
 | **Standard Role** | O(m) | Address comparison per context |
 | **Standard Role with Policies** | O(p × m) | Policy evaluation per context |
-| **TimeBased Policy** | O(1) | Timestamp comparison |
-| **Allow/Deny List Policy** | O(k) | Linear search through contract list |
+| **TokenTransferPolicy** | O(m) | Per-context validation, spending tracker lookup and update |
+| **Signer Expiration Check** | O(1) | Timestamp comparison (done before policy evaluation) |
 
 ### Optimization Recommendations
 
-- Use Ed25519 over Secp256r1 for better performance
+- Use Ed25519 over Secp256r1 or WebAuthn for lower signature verification cost
 - Minimize signer count and policy complexity
-- Keep contract allow/deny lists small (< 10 contracts)
+- Use signer expiration for time-limited access instead of policies where possible
+- Set appropriate reset windows on TokenTransferPolicy to avoid unbounded spending tracker growth
 - Prefer Admin role for high-frequency operations
 
 ### Sequence Numbers and Nonce Handling
@@ -631,41 +653,44 @@ let admin_signer = Signer::Ed25519(
 );
 
 let user_signer = Signer::Ed25519(
-    Ed25519Signer::new(user_pubkey), 
-    SignerRole::Standard
+    Ed25519Signer::new(user_pubkey),
+    SignerRole::Standard(None, 0) // no policies, no expiration
 );
 
 SmartAccount::__constructor(env, vec![admin_signer, user_signer], vec![]);
 ```
 
-### Time-Restricted Signer
+### Expiring Signer
 
 ```rust
-// Create a signer valid only during business hours
-let time_policy = TimeWindowPolicy {
-    not_before: business_start_timestamp,
-    not_after: business_end_timestamp,
-};
-
-let restricted_signer = Signer::Ed25519(
+// Create a signer that expires after a specific timestamp
+let expiring_signer = Signer::Ed25519(
     Ed25519Signer::new(temp_pubkey),
-    SignerRole::Standard(Some(vec![SignerPolicy::TimeWindowPolicy(time_policy)]))
+    SignerRole::Standard(None, business_end_timestamp) // expires at business_end_timestamp, 0 = no expiration
 );
 
-SmartAccount::add_signer(&env, restricted_signer)?;
+SmartAccount::add_signer(&env, expiring_signer)?;
 ```
 
-### Contract-Specific Authorization
+### Token Spending Limits
 
 ```rust
-// Signer that can only interact with specific contracts
-let allow_policy = ContractAllowListPolicy {
-    allowed_contracts: vec![trading_contract_address, vault_contract_address],
+// Signer restricted to transferring a specific token with spending limits
+let spend_policy = TokenTransferPolicy {
+    policy_id: unique_policy_id,
+    token: usdc_token_address,
+    limit: 1000_0000000,            // 1000 tokens (7-decimal)
+    reset_window_secs: 86400,       // resets daily
+    allowed_recipients: vec![&env, treasury_address],
+    expiration: 0,                  // no policy-level expiration
 };
 
-let trading_signer = Signer::Ed25519(
-    Ed25519Signer::new(trading_pubkey),
-    SignerRole::Standard(Some(vec![SignerPolicy::ContractAllowList(allow_policy)]))
+let spending_signer = Signer::Ed25519(
+    Ed25519Signer::new(agent_pubkey),
+    SignerRole::Standard(
+        Some(vec![SignerPolicy::TokenTransferPolicy(spend_policy)]),
+        0, // no signer expiration
+    )
 );
 ```
 
@@ -674,8 +699,9 @@ let trading_signer = Signer::Ed25519(
 The Smart Account architecture is designed to support AI agent integration through:
 
 - **Programmatic Signer Management**: Agents can be granted specific roles and policies
-- **Time-Based Access**: Temporary access grants for automated operations
-- **Contract-Specific Permissions**: Restrict agents to specific contract interactions
+- **Signer Expiration**: Temporary access grants with configurable expiration timestamps
+- **Token Spending Limits**: Restrict agents to specific token transfers with cumulative limits and reset windows
+- **Recipient Allowlists**: Restrict agents to sending tokens only to approved addresses
 - **Policy Composition**: Combine multiple policies for complex authorization rules
 
 This enables secure automation while maintaining fine-grained control over agent capabilities, making it suitable for both human users and AI-driven applications in the Crossmint ecosystem.
@@ -692,7 +718,7 @@ This enables secure automation while maintaining fine-grained control over agent
 
 The modular architecture supports future enhancements:
 
-- **Additional Signature Schemes**: WebAuthn, threshold signatures, multi-party signatures
-- **Advanced Policies**: Spending limits, rate limiting, multi-party approval
+- **Additional Signature Schemes**: New cryptographic algorithms via the `SignatureVerifier` trait
+- **Advanced Policies**: Rate limiting, multi-party approval, geofencing, and other custom authorization logic
 - **Integration Patterns**: Cross-contract authorization, delegation mechanisms
 - **Monitoring**: Event emission for audit trails and analytics
