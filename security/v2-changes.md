@@ -342,7 +342,7 @@ pub trait PolicyCallback {
 
 ### Description
 
-Adds support for WebAuthn/Passkey-based authentication following SEP-0045. This includes both a new signer type in the smart account and a standalone `web-auth` contract for server-side web authentication flows.
+Adds support for WebAuthn/Passkey-based authentication. This is a new signer type in the smart account that enables biometric and security key authentication.
 
 ### Signer Type
 
@@ -378,10 +378,6 @@ In `contracts/smart-account/src/auth/signers/webauthn.rs`:
 3. Parse `client_data_json` (capped at 1024 bytes) as JSON.
 4. Verify the `challenge` field matches the Base64URL-encoded `signature_payload`.
 
-### Web Auth Contract
-
-`contracts/web-auth/src/lib.rs` — A standalone contract implementing SEP-0045 for server-side Web Authentication verification. Requires `require_auth()` from the account and server signing key.
-
 ### Security Focus Areas
 
 - `client_data_json` is capped at 1024 bytes to prevent excessive memory allocation.
@@ -396,7 +392,6 @@ In `contracts/smart-account/src/auth/signers/webauthn.rs`:
 | `contracts/smart-account/src/auth/signers/webauthn.rs` | Signature verification |
 | `contracts/smart-account/src/auth/proof.rs` | `WebauthnSignature` type |
 | `contracts/smart-account-interfaces/src/auth/types.rs` | `WebauthnSigner`, `SignerKey::Webauthn` |
-| `contracts/web-auth/src/lib.rs` | SEP-0045 web auth contract |
 | `contracts/smart-account/src/tests/webauthn_signer_test.rs` | Tests (~94 lines) |
 
 ---
@@ -752,4 +747,3 @@ WASM test fixtures: `testdata/smart_account_v1.wasm` (32 KB) and `testdata/smart
 | `contracts/smart-account-interfaces/src/error.rs` | Error codes |
 | `contracts/contract-factory/src/lib.rs` | Permissionless deployment, salt derivation |
 | `contracts/upgradeable/src/lib.rs` | Two-phase upgrade mechanism |
-| `contracts/web-auth/src/lib.rs` | SEP-0045 implementation |
