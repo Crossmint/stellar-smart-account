@@ -637,15 +637,6 @@ The `TimeWindowPolicy` (formerly `TimeBasedPolicy`) was removed from the policy 
 
 **File removed:** `contracts/smart-account/src/auth/policy/time_based.rs`
 
-### TypeScript Examples and Packages
-
-The following directories were removed entirely:
-- `examples/` — TypeScript example scripts
-- `packages/factory/` — TypeScript factory bindings
-- `packages/smart_account/` — TypeScript smart account bindings
-
-These were replaced by the `bindings/` directory (auto-generated TypeScript bindings).
-
 ---
 
 ## 13. Type System Evolution — V1 vs V2
