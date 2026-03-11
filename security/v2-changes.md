@@ -25,12 +25,11 @@ The v2 release adds four major features — **spending limits**, **signer expira
 9. [Wallet Address Initialization Locking (PR #89)](#9-wallet-address-initialization-locking-pr-89)
 10. [Upgradeable Contract Enhancements](#10-upgradeable-contract-enhancements)
 11. [Interface Crate Restructuring (PRs #84, #85)](#11-interface-crate-restructuring-prs-84-85)
-12. [Other Changes (PRs #86, #87, #90, #100)](#12-other-changes-prs-86-87-90-100)
-13. [Removed Features](#13-removed-features)
-14. [Type System Evolution — V1 vs V2](#14-type-system-evolution--v1-vs-v2)
-15. [New Error Codes](#15-new-error-codes)
-16. [Test Coverage](#16-test-coverage)
-17. [Key Files for Auditor Review](#17-key-files-for-auditor-review)
+12. [Removed Features](#12-removed-features)
+13. [Type System Evolution — V1 vs V2](#13-type-system-evolution--v1-vs-v2)
+14. [New Error Codes](#14-new-error-codes)
+15. [Test Coverage](#15-test-coverage)
+16. [Key Files for Auditor Review](#16-key-files-for-auditor-review)
 
 ---
 
@@ -630,26 +629,7 @@ Shared types and traits were moved from the smart-account crate into the `smart-
 
 ---
 
-## 12. Other Changes (PRs #86, #87, #90, #100)
-
-### Halborn Security Review Documentation (PR #87)
-
-Added the v1 Halborn security review PDF to the repository at `security/reviews/Stellar_Smart_Account_Oct_2025.pdf`.
-
-### Testing Contract Enhancements (PRs #86, #90)
-
-- **PR #86**: Increased scenario complexity in the `hello-world` testing contract to better exercise smart account authorization paths.
-- **PR #90**: Added a duplicated auth function to the testing contract for testing edge cases where the same function is authorized multiple times.
-
-These are test-only changes that do not affect production contract code.
-
-### Documentation Update for V2 (PR #100)
-
-Updated `README.md` and `contracts/smart-account/README.md` to reflect v2 features including spending limits, signer expiration, new signer types, and migration. Updated `security/threat-model.md` with minor adjustments.
-
----
-
-## 13. Removed Features
+## 12. Removed Features
 
 ### TimeWindowPolicy
 
@@ -668,7 +648,7 @@ These were replaced by the `bindings/` directory (auto-generated TypeScript bind
 
 ---
 
-## 14. Type System Evolution — V1 vs V2
+## 13. Type System Evolution — V1 vs V2
 
 | Type | V1 | V2 |
 |------|-----|-----|
@@ -681,7 +661,7 @@ These were replaced by the `bindings/` directory (auto-generated TypeScript bind
 
 ---
 
-## 15. New Error Codes
+## 14. New Error Codes
 
 | Code | Name | Context |
 |------|------|---------|
@@ -698,7 +678,7 @@ These were replaced by the `bindings/` directory (auto-generated TypeScript bind
 
 ---
 
-## 16. Test Coverage
+## 15. Test Coverage
 
 | Test File | Lines | Feature |
 |-----------|-------|---------|
@@ -717,7 +697,7 @@ WASM test fixtures: `testdata/smart_account_v1.wasm` (32 KB) and `testdata/smart
 
 ---
 
-## 17. Key Files for Auditor Review
+## 16. Key Files for Auditor Review
 
 ### Priority 1 — New Feature Implementations
 
