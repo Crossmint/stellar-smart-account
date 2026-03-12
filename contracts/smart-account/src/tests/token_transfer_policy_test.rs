@@ -21,7 +21,7 @@ fn make_policy(env: &Env, token: &Address, limit: i128) -> TokenTransferPolicy {
         token: token.clone(),
         limit,
         reset_window_secs: 0,
-        allowed_recipients: Vec::new(env),
+        allowed_recipients: None,
         expiration: 0,
     }
 }
@@ -363,7 +363,7 @@ fn test_allowlist_allowed_recipient() {
     let token = Address::generate(&env);
     let allowed = Address::generate(&env);
     let mut policy = make_policy(&env, &token, 1000);
-    policy.allowed_recipients = vec![&env, allowed.clone()];
+    policy.allowed_recipients = Some(vec![&env, allowed.clone()]);
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let contexts = vec![&env, make_transfer_context(&env, &token, &allowed, 100)];
@@ -377,7 +377,7 @@ fn test_allowlist_disallowed_recipient() {
     let allowed = Address::generate(&env);
     let disallowed = Address::generate(&env);
     let mut policy = make_policy(&env, &token, 1000);
-    policy.allowed_recipients = vec![&env, allowed];
+    policy.allowed_recipients = Some(vec![&env, allowed]);
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let contexts = vec![&env, make_transfer_context(&env, &token, &disallowed, 100)];
@@ -386,10 +386,10 @@ fn test_allowlist_disallowed_recipient() {
 }
 
 #[test]
-fn test_empty_allowlist_allows_any_recipient() {
+fn test_no_allowlist_allows_any_recipient() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000); // empty allowlist
+    let policy = make_policy(&env, &token, 1000); // None = no restriction on recipients
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let random_recipient = Address::generate(&env);
@@ -401,13 +401,30 @@ fn test_empty_allowlist_allows_any_recipient() {
 }
 
 #[test]
+fn test_empty_allowlist_denies_all_recipients() {
+    let env = setup();
+    let token = Address::generate(&env);
+    let mut policy = make_policy(&env, &token, 1000);
+    policy.allowed_recipients = Some(Vec::new(&env)); // Some([]) = deny all transfers
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+
+    let any_recipient = Address::generate(&env);
+    let contexts = vec![
+        &env,
+        make_transfer_context(&env, &token, &any_recipient, 100),
+    ];
+    let err = check_auth(&env, &contract_id, &signer, &contexts).unwrap_err();
+    assert_eq!(err, Error::InsufficientPermissions);
+}
+
+#[test]
 fn test_allowlist_multiple_recipients() {
     let env = setup();
     let token = Address::generate(&env);
     let allowed_1 = Address::generate(&env);
     let allowed_2 = Address::generate(&env);
     let mut policy = make_policy(&env, &token, 1000);
-    policy.allowed_recipients = vec![&env, allowed_1.clone(), allowed_2.clone()];
+    policy.allowed_recipients = Some(vec![&env, allowed_1.clone(), allowed_2.clone()]);
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     // Transfer to first allowed
@@ -533,7 +550,7 @@ fn test_integration_full_check_auth_flow() {
     let allowed = Address::generate(&env);
     let mut policy = make_policy(&env, &token, 500);
     policy.reset_window_secs = 120;
-    policy.allowed_recipients = vec![&env, allowed.clone()];
+    policy.allowed_recipients = Some(vec![&env, allowed.clone()]);
     policy.expiration = 5000;
 
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);

@@ -48,9 +48,9 @@ impl AuthorizationCheck for TokenTransferPolicy {
                     }
 
                     // Check recipient allowlist if configured
-                    if !self.allowed_recipients.is_empty() {
+                    if let Some(recipients) = &self.allowed_recipients {
                         if let Ok(recipient) = Address::try_from_val(env, &args.get(1).unwrap()) {
-                            if !self.allowed_recipients.iter().any(|a| a == recipient) {
+                            if !recipients.iter().any(|a| a == recipient) {
                                 return false;
                             }
                         } else {

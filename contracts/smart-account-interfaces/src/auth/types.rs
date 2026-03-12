@@ -17,8 +17,8 @@ pub struct TokenTransferPolicy {
     pub limit: i128,
     /// Number of seconds after which the spent amount resets. 0 = no reset (lifetime limit).
     pub reset_window_secs: u64,
-    /// Allowed recipient addresses. Empty = any recipient is allowed.
-    pub allowed_recipients: Vec<Address>,
+    /// Allowed recipient addresses. None = any recipient is allowed; Some([]) = no recipient allowed (deny all).
+    pub allowed_recipients: Option<Vec<Address>>,
     /// Unix timestamp after which this policy expires. 0 = no expiration.
     pub expiration: u64,
 }
