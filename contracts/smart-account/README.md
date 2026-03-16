@@ -354,7 +354,7 @@ classDiagram
         +token: Address
         +limit: i128
         +reset_window_secs: u64
-        +allowed_recipients: Vec~Address~
+        +allowed_recipients: Option~Vec~Address~~
         +expiration: u64
     }
 
@@ -681,7 +681,7 @@ let spend_policy = TokenTransferPolicy {
     token: usdc_token_address,
     limit: 1000_0000000,            // 1000 tokens (7-decimal)
     reset_window_secs: 86400,       // resets daily
-    allowed_recipients: vec![&env, treasury_address],
+    allowed_recipients: Some(vec![&env, treasury_address]),
     expiration: 0,                  // no policy-level expiration
 };
 
