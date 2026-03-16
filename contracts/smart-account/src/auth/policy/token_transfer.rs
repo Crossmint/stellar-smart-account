@@ -75,10 +75,13 @@ impl AuthorizationCheck for TokenTransferPolicy {
             }
         }
 
-        // 3. Load spending tracker
-        let tracker_key = SpendTrackerKey::TokenSpend(self.policy_id.clone(), signer_key.clone());
-        let mut tracker: SpendingTracker =
-            env.storage()
+        // 3. Enforce cumulative limit if configured
+        if let Some(limit) = self.limit {
+            // Load spending tracker
+            let tracker_key =
+                SpendTrackerKey::TokenSpend(self.policy_id.clone(), signer_key.clone());
+            let mut tracker: SpendingTracker = env
+                .storage()
                 .persistent()
                 .get(&tracker_key)
                 .unwrap_or(SpendingTracker {
@@ -86,28 +89,29 @@ impl AuthorizationCheck for TokenTransferPolicy {
                     window_start: now,
                 });
 
-        // 4. Check if the spending window should reset
-        if self.reset_window_secs > 0
-            && now.saturating_sub(tracker.window_start) >= self.reset_window_secs
-        {
-            tracker.spent = 0;
-            tracker.window_start = now;
-        }
+            // Check if the spending window should reset
+            if self.reset_window_secs > 0
+                && now.saturating_sub(tracker.window_start) >= self.reset_window_secs
+            {
+                tracker.spent = 0;
+                tracker.window_start = now;
+            }
 
-        // 5. Check cumulative limit
-        let new_total = tracker.spent.checked_add(total_amount).unwrap_or(i128::MAX);
-        if new_total > self.limit {
-            return false;
-        }
+            // Check cumulative limit
+            let new_total = tracker.spent.checked_add(total_amount).unwrap_or(i128::MAX);
+            if new_total > limit {
+                return false;
+            }
 
-        // 6. Update spending tracker
-        tracker.spent = new_total;
-        env.storage().persistent().set(&tracker_key, &tracker);
-        env.storage().persistent().extend_ttl(
-            &tracker_key,
-            PERSISTENT_TTL_THRESHOLD,
-            PERSISTENT_EXTEND_TO,
-        );
+            // Update spending tracker
+            tracker.spent = new_total;
+            env.storage().persistent().set(&tracker_key, &tracker);
+            env.storage().persistent().extend_ttl(
+                &tracker_key,
+                PERSISTENT_TTL_THRESHOLD,
+                PERSISTENT_EXTEND_TO,
+            );
+        }
 
         true
     }
@@ -115,28 +119,31 @@ impl AuthorizationCheck for TokenTransferPolicy {
 
 impl PolicyCallback for TokenTransferPolicy {
     fn on_add(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {
-        // Validate policy parameters
-        if self.limit <= 0 {
-            return Err(SmartAccountError::InvalidPolicy);
+        // Validate limit if configured
+        if let Some(limit) = self.limit {
+            if limit <= 0 {
+                return Err(SmartAccountError::InvalidPolicy);
+            }
+
+            // Initialize spending tracker
+            let tracker_key =
+                SpendTrackerKey::TokenSpend(self.policy_id.clone(), signer_key.clone());
+            let tracker = SpendingTracker {
+                spent: 0,
+                window_start: env.ledger().timestamp(),
+            };
+            env.storage().persistent().set(&tracker_key, &tracker);
+            env.storage().persistent().extend_ttl(
+                &tracker_key,
+                PERSISTENT_TTL_THRESHOLD,
+                PERSISTENT_EXTEND_TO,
+            );
         }
 
         // If expiration is set, it must be in the future
         if self.expiration > 0 && self.expiration <= env.ledger().timestamp() {
             return Err(SmartAccountError::InvalidNotAfterTime);
         }
-
-        // Initialize spending tracker
-        let tracker_key = SpendTrackerKey::TokenSpend(self.policy_id.clone(), signer_key.clone());
-        let tracker = SpendingTracker {
-            spent: 0,
-            window_start: env.ledger().timestamp(),
-        };
-        env.storage().persistent().set(&tracker_key, &tracker);
-        env.storage().persistent().extend_ttl(
-            &tracker_key,
-            PERSISTENT_TTL_THRESHOLD,
-            PERSISTENT_EXTEND_TO,
-        );
 
         Ok(())
     }

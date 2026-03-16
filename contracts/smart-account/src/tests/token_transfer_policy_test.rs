@@ -15,7 +15,7 @@ use smart_account_interfaces::{
 // Helpers
 // ============================================================================
 
-fn make_policy(env: &Env, token: &Address, limit: i128) -> TokenTransferPolicy {
+fn make_policy(env: &Env, token: &Address, limit: Option<i128>) -> TokenTransferPolicy {
     TokenTransferPolicy {
         policy_id: BytesN::random(env),
         token: token.clone(),
@@ -81,7 +81,7 @@ fn check_auth(
 fn test_transfer_within_limit() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let to = Address::generate(&env);
@@ -93,7 +93,7 @@ fn test_transfer_within_limit() {
 fn test_transfer_exceeds_limit() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let to = Address::generate(&env);
@@ -106,7 +106,7 @@ fn test_transfer_exceeds_limit() {
 fn test_transfer_at_exact_limit() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let to = Address::generate(&env);
@@ -118,7 +118,7 @@ fn test_transfer_at_exact_limit() {
 fn test_zero_amount_transfer() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let to = Address::generate(&env);
@@ -134,7 +134,7 @@ fn test_zero_amount_transfer() {
 fn test_cumulative_spending_second_transfer_exceeds() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let to = Address::generate(&env);
@@ -153,7 +153,7 @@ fn test_cumulative_spending_second_transfer_exceeds() {
 fn test_cumulative_spending_multiple_within_limit() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let to = Address::generate(&env);
@@ -178,7 +178,7 @@ fn test_cumulative_spending_multiple_within_limit() {
 fn test_batch_transfer_cumulative_in_single_auth() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let to = Address::generate(&env);
@@ -203,7 +203,7 @@ fn test_reset_window_resets_spending() {
     env.ledger().set_timestamp(1000);
 
     let token = Address::generate(&env);
-    let mut policy = make_policy(&env, &token, 500);
+    let mut policy = make_policy(&env, &token, Some(500));
     policy.reset_window_secs = 60; // 60 second window
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
@@ -232,7 +232,7 @@ fn test_reset_window_does_not_reset_before_elapsed() {
     env.ledger().set_timestamp(1000);
 
     let token = Address::generate(&env);
-    let mut policy = make_policy(&env, &token, 500);
+    let mut policy = make_policy(&env, &token, Some(500));
     policy.reset_window_secs = 60;
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
@@ -261,7 +261,7 @@ fn test_expired_policy_denied() {
     env.ledger().set_timestamp(1000);
 
     let token = Address::generate(&env);
-    let mut policy = make_policy(&env, &token, 1000);
+    let mut policy = make_policy(&env, &token, Some(1000));
     policy.expiration = 2000; // expires at timestamp 2000
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
@@ -284,7 +284,7 @@ fn test_no_expiration_always_valid() {
     env.ledger().set_timestamp(1_000_000_000);
 
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000); // expiration = 0
+    let policy = make_policy(&env, &token, Some(1000)); // expiration = 0
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let to = Address::generate(&env);
@@ -301,7 +301,7 @@ fn test_wrong_token_denied() {
     let env = setup();
     let token = Address::generate(&env);
     let wrong_token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let to = Address::generate(&env);
@@ -314,7 +314,7 @@ fn test_wrong_token_denied() {
 fn test_wrong_function_denied() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     // Call "approve" on the correct token
@@ -335,7 +335,7 @@ fn test_mixed_contexts_denied() {
     let env = setup();
     let token = Address::generate(&env);
     let other_contract = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let to = Address::generate(&env);
@@ -362,7 +362,7 @@ fn test_allowlist_allowed_recipient() {
     let env = setup();
     let token = Address::generate(&env);
     let allowed = Address::generate(&env);
-    let mut policy = make_policy(&env, &token, 1000);
+    let mut policy = make_policy(&env, &token, Some(1000));
     policy.allowed_recipients = Some(vec![&env, allowed.clone()]);
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
@@ -376,7 +376,7 @@ fn test_allowlist_disallowed_recipient() {
     let token = Address::generate(&env);
     let allowed = Address::generate(&env);
     let disallowed = Address::generate(&env);
-    let mut policy = make_policy(&env, &token, 1000);
+    let mut policy = make_policy(&env, &token, Some(1000));
     policy.allowed_recipients = Some(vec![&env, allowed]);
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
@@ -389,7 +389,7 @@ fn test_allowlist_disallowed_recipient() {
 fn test_no_allowlist_allows_any_recipient() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000); // None = no restriction on recipients
+    let policy = make_policy(&env, &token, Some(1000)); // None = no restriction on recipients
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
     let random_recipient = Address::generate(&env);
@@ -404,7 +404,7 @@ fn test_no_allowlist_allows_any_recipient() {
 fn test_empty_allowlist_denies_all_recipients() {
     let env = setup();
     let token = Address::generate(&env);
-    let mut policy = make_policy(&env, &token, 1000);
+    let mut policy = make_policy(&env, &token, Some(1000));
     policy.allowed_recipients = Some(Vec::new(&env)); // Some([]) = deny all transfers
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
@@ -423,7 +423,7 @@ fn test_allowlist_multiple_recipients() {
     let token = Address::generate(&env);
     let allowed_1 = Address::generate(&env);
     let allowed_2 = Address::generate(&env);
-    let mut policy = make_policy(&env, &token, 1000);
+    let mut policy = make_policy(&env, &token, Some(1000));
     policy.allowed_recipients = Some(vec![&env, allowed_1.clone(), allowed_2.clone()]);
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
 
@@ -444,7 +444,7 @@ fn test_allowlist_multiple_recipients() {
 fn test_on_add_initializes_tracker() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
 
     // Register account with the policy (triggers on_add)
     let (contract_id, signer) = setup_account_with_policy(&env, &policy);
@@ -461,7 +461,7 @@ fn test_on_add_initializes_tracker() {
 fn test_on_revoke_cleans_up_tracker() {
     let env = setup();
     let token = Address::generate(&env);
-    let policy = make_policy(&env, &token, 1000);
+    let policy = make_policy(&env, &token, Some(1000));
 
     let signer_policy = SignerPolicy::TokenTransferPolicy(policy.clone());
     let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
@@ -507,8 +507,8 @@ fn test_on_revoke_cleans_up_tracker() {
 fn test_on_add_rejects_zero_limit() {
     let env = setup();
     let token = Address::generate(&env);
-    let mut policy = make_policy(&env, &token, 1000);
-    policy.limit = 0; // Invalid
+    let mut policy = make_policy(&env, &token, Some(1000));
+    policy.limit = Some(0); // Invalid
 
     // This should panic during on_add (called from add_signer in __constructor)
     let _ = setup_account_with_policy(&env, &policy);
@@ -519,8 +519,8 @@ fn test_on_add_rejects_zero_limit() {
 fn test_on_add_rejects_negative_limit() {
     let env = setup();
     let token = Address::generate(&env);
-    let mut policy = make_policy(&env, &token, 1000);
-    policy.limit = -1; // Invalid
+    let mut policy = make_policy(&env, &token, Some(1000));
+    policy.limit = Some(-1); // Invalid
 
     let _ = setup_account_with_policy(&env, &policy);
 }
@@ -531,7 +531,7 @@ fn test_on_add_rejects_past_expiration() {
     let env = setup();
     env.ledger().set_timestamp(1000);
     let token = Address::generate(&env);
-    let mut policy = make_policy(&env, &token, 1000);
+    let mut policy = make_policy(&env, &token, Some(1000));
     policy.expiration = 999; // In the past
 
     let _ = setup_account_with_policy(&env, &policy);
@@ -548,7 +548,7 @@ fn test_integration_full_check_auth_flow() {
 
     let token = Address::generate(&env);
     let allowed = Address::generate(&env);
-    let mut policy = make_policy(&env, &token, 500);
+    let mut policy = make_policy(&env, &token, Some(500));
     policy.reset_window_secs = 120;
     policy.allowed_recipients = Some(vec![&env, allowed.clone()]);
     policy.expiration = 5000;
@@ -610,8 +610,8 @@ fn test_multi_policy_usdc_transfer_passes() {
     let usdc = Address::generate(&env);
     let eur = Address::generate(&env);
 
-    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, 1000));
-    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, 500));
+    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, Some(1000)));
+    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, Some(500)));
 
     let policies = vec![&env, usdc_policy, eur_policy];
     let (contract_id, signer) = setup_account_with_policies(&env, policies);
@@ -628,8 +628,8 @@ fn test_multi_policy_eur_transfer_passes() {
     let usdc = Address::generate(&env);
     let eur = Address::generate(&env);
 
-    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, 1000));
-    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, 500));
+    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, Some(1000)));
+    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, Some(500)));
 
     let policies = vec![&env, usdc_policy, eur_policy];
     let (contract_id, signer) = setup_account_with_policies(&env, policies);
@@ -646,8 +646,8 @@ fn test_multi_policy_exceeds_one_limit_other_passes() {
     let usdc = Address::generate(&env);
     let eur = Address::generate(&env);
 
-    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, 1000));
-    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, 500));
+    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, Some(1000)));
+    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, Some(500)));
 
     let policies = vec![&env, usdc_policy, eur_policy];
     let (contract_id, signer) = setup_account_with_policies(&env, policies);
@@ -667,8 +667,8 @@ fn test_multi_policy_uncovered_token_denied() {
     let eur = Address::generate(&env);
     let gbp = Address::generate(&env); // Not covered by any policy
 
-    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, 1000));
-    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, 500));
+    let usdc_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &usdc, Some(1000)));
+    let eur_policy = SignerPolicy::TokenTransferPolicy(make_policy(&env, &eur, Some(500)));
 
     let policies = vec![&env, usdc_policy, eur_policy];
     let (contract_id, signer) = setup_account_with_policies(&env, policies);
@@ -698,6 +698,113 @@ fn test_standard_none_signer_can_do_non_admin_operations() {
     let to = Address::generate(&env);
     let contexts = vec![&env, make_transfer_context(&env, &token, &to, 100)];
     check_auth(&env, &contract_id, &standard_signer, &contexts).unwrap();
+}
+
+// ============================================================================
+// Unlimited amount (limit: None) tests
+// ============================================================================
+
+#[test]
+fn test_no_limit_allows_any_amount() {
+    let env = setup();
+    let token = Address::generate(&env);
+    let policy = make_policy(&env, &token, None);
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+
+    let to = Address::generate(&env);
+
+    // Very large transfer — no limit configured, should pass
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, i128::MAX)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+}
+
+#[test]
+fn test_no_limit_multiple_transfers_always_pass() {
+    let env = setup();
+    let token = Address::generate(&env);
+    let policy = make_policy(&env, &token, None);
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+
+    let to = Address::generate(&env);
+
+    // Multiple large transfers — no cumulative tracking when limit is None
+    for _ in 0..5 {
+        let contexts = vec![&env, make_transfer_context(&env, &token, &to, 1_000_000)];
+        check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+    }
+}
+
+#[test]
+fn test_no_limit_still_enforces_recipient_allowlist() {
+    let env = setup();
+    let token = Address::generate(&env);
+    let allowed = Address::generate(&env);
+    let disallowed = Address::generate(&env);
+    let mut policy = make_policy(&env, &token, None);
+    policy.allowed_recipients = Some(vec![&env, allowed.clone()]);
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+
+    // Allowed recipient: passes even with no amount limit
+    let contexts = vec![&env, make_transfer_context(&env, &token, &allowed, 999_999)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+
+    // Disallowed recipient: rejected even though there is no amount limit
+    let contexts = vec![&env, make_transfer_context(&env, &token, &disallowed, 1)];
+    let err = check_auth(&env, &contract_id, &signer, &contexts).unwrap_err();
+    assert_eq!(err, Error::InsufficientPermissions);
+}
+
+#[test]
+fn test_no_limit_still_enforces_expiration() {
+    let env = setup();
+    env.ledger().set_timestamp(1000);
+
+    let token = Address::generate(&env);
+    let mut policy = make_policy(&env, &token, None);
+    policy.expiration = 2000;
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+
+    let to = Address::generate(&env);
+
+    // Before expiration: passes
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 999_999)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+
+    // After expiration: denied even though there is no amount limit
+    env.ledger().set_timestamp(2001);
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 1)];
+    let err = check_auth(&env, &contract_id, &signer, &contexts).unwrap_err();
+    assert_eq!(err, Error::InsufficientPermissions);
+}
+
+#[test]
+fn test_no_limit_still_enforces_token() {
+    let env = setup();
+    let token = Address::generate(&env);
+    let wrong_token = Address::generate(&env);
+    let policy = make_policy(&env, &token, None);
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+
+    let to = Address::generate(&env);
+    let contexts = vec![&env, make_transfer_context(&env, &wrong_token, &to, 100)];
+    let err = check_auth(&env, &contract_id, &signer, &contexts).unwrap_err();
+    assert_eq!(err, Error::InsufficientPermissions);
+}
+
+#[test]
+fn test_no_limit_on_add_does_not_initialize_tracker() {
+    let env = setup();
+    let token = Address::generate(&env);
+    let policy = make_policy(&env, &token, None);
+
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+    let signer_key = SignerKey::Ed25519(signer.public_key(&env));
+    let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key);
+
+    // No tracker should be created when limit is None
+    env.as_contract(&contract_id, || {
+        assert!(!env.storage().persistent().has(&tracker_key));
+    });
 }
 
 #[test]
