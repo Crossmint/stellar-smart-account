@@ -43,7 +43,7 @@ jobs:
 
     - name: Install Stellar CLI
       run: |
-        curl -L https://github.com/stellar/stellar-cli/releases/download/v23.0.0/stellar-cli-23.0.0-x86_64-unknown-linux-gnu.tar.gz | tar -xz
+        curl -L https://github.com/stellar/stellar-cli/releases/download/v25.2.0/stellar-cli-25.2.0-x86_64-unknown-linux-gnu.tar.gz | tar -xz
         sudo mv stellar /usr/local/bin/
         stellar --version
 
@@ -83,34 +83,58 @@ jobs:
     - name: Generate TypeScript bindings
       run: |
         # Generate bindings for smart account
-        cd packages/smart_account
         stellar contract bindings typescript \
-          --wasm ../../target/wasm32v1-none/release/smart_account.wasm \
-          --output-dir temp \
+          --wasm target/wasm32v1-none/release/smart_account.wasm \
+          --output-dir bindings \
           --overwrite
-        cp temp/src/index.ts src/index.ts
-        rm -rf temp
-        
+        # Overwrite generated tsconfig to prevent bs58 ambient type resolution error in TS 5.x
+        cat > bindings/tsconfig.json << 'EOF'
+        {
+          "compilerOptions": {
+            "target": "ESNext",
+            "module": "NodeNext",
+            "moduleResolution": "nodenext",
+            "declaration": true,
+            "outDir": "./dist",
+            "strictNullChecks": true,
+            "skipLibCheck": true,
+            "types": []
+          },
+          "include": ["src/*"]
+        }
+        EOF
+
         # Generate bindings for factory
-        cd ../factory
         stellar contract bindings typescript \
-          --wasm ../../target/wasm32v1-none/release/contract_factory.wasm \
-          --output-dir temp \
+          --wasm target/wasm32v1-none/release/contract_factory.wasm \
+          --output-dir bindings-factory \
           --overwrite
-        cp temp/src/index.ts src/index.ts
-        rm -rf temp
-        cd ../..
+        cat > bindings-factory/tsconfig.json << 'EOF'
+        {
+          "compilerOptions": {
+            "target": "ESNext",
+            "module": "NodeNext",
+            "moduleResolution": "nodenext",
+            "declaration": true,
+            "outDir": "./dist",
+            "strictNullChecks": true,
+            "skipLibCheck": true,
+            "types": []
+          },
+          "include": ["src/*"]
+        }
+        EOF
 
     - name: Build TypeScript packages
       run: |
-        cd packages/smart_account
+        cd bindings
         pnpm install
         pnpm run build
-        
-        cd ../factory
+
+        cd ../bindings-factory
         pnpm install
         pnpm run build
-        cd ../..
+        cd ..
 
     - name: Optimize WASM contracts
       run: |
@@ -148,12 +172,12 @@ jobs:
         cd ..
         
         # Copy TypeScript packages
-        cp -r packages/smart_account/dist release-artifacts/smart_account_types
-        cp -r packages/factory/dist release-artifacts/factory_types
-        
+        cp -r bindings/dist release-artifacts/smart_account_types
+        cp -r bindings-factory/dist release-artifacts/factory_types
+
         # Copy package.json files for reference
-        cp packages/smart_account/package.json release-artifacts/smart_account_types/
-        cp packages/factory/package.json release-artifacts/factory_types/
+        cp bindings/package.json release-artifacts/smart_account_types/
+        cp bindings-factory/package.json release-artifacts/factory_types/
         
         # Create tarfile including both optimized and unoptimized artifacts
         tar -czf stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz -C release-artifacts .
