@@ -61,25 +61,6 @@ jobs:
         # Verify account was funded
         stellar keys address deployer
 
-    - name: Upload WASM files to testnet
-      run: |
-        # Upload smart account contract
-        SMART_ACCOUNT_HASH=$(stellar contract install \
-          --wasm target/wasm32v1-none/release/smart_account.wasm \
-          --source deployer \
-          --network testnet)
-        echo "SMART_ACCOUNT_HASH=$SMART_ACCOUNT_HASH" >> $GITHUB_ENV
-        
-        # Upload contract factory
-        FACTORY_HASH=$(stellar contract install \
-          --wasm target/wasm32v1-none/release/contract_factory.wasm \
-          --source deployer \
-          --network testnet)
-        echo "FACTORY_HASH=$FACTORY_HASH" >> $GITHUB_ENV
-        
-        echo "Smart Account WASM Hash: $SMART_ACCOUNT_HASH"
-        echo "Factory WASM Hash: $FACTORY_HASH"
-
     - name: Generate TypeScript bindings
       run: |
         # Generate bindings for smart account
@@ -149,6 +130,25 @@ jobs:
             --wasm-out "$OUT_DIR/${base}.optimized.wasm"
         done
 
+    - name: Upload WASM files to testnet
+      run: |
+        # Upload smart account contract (optimized)
+        SMART_ACCOUNT_HASH=$(stellar contract upload \
+          --wasm target/wasm32v1-none/release/optimized/smart_account.optimized.wasm \
+          --source deployer \
+          --network testnet)
+        echo "SMART_ACCOUNT_HASH=$SMART_ACCOUNT_HASH" >> $GITHUB_ENV
+
+        # Upload contract factory (optimized)
+        FACTORY_HASH=$(stellar contract upload \
+          --wasm target/wasm32v1-none/release/optimized/contract_factory.optimized.wasm \
+          --source deployer \
+          --network testnet)
+        echo "FACTORY_HASH=$FACTORY_HASH" >> $GITHUB_ENV
+
+        echo "Smart Account WASM Hash: $SMART_ACCOUNT_HASH"
+        echo "Factory WASM Hash: $FACTORY_HASH"
+
     - name: Calculate WASM hashes and create release tarfile
       run: |
         # Create release directory
@@ -187,14 +187,11 @@ jobs:
         tar -tzf stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz
 
     - name: Upload release artifact
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz
-        asset_name: stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz
-        asset_content_type: application/gzip
+      run: |
+        gh release upload ${{ github.event.release.tag_name }} \
+          stellar-smart-account-release-${{ github.event.release.tag_name }}.tar.gz
 
     - name: Create deployment summary
       run: |
