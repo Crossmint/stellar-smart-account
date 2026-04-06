@@ -5,11 +5,23 @@ use soroban_sdk::{
 
 use crate::{
     auth::permissions::{AuthorizationCheck, PolicyCallback},
-    config::{PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD},
+    config::{DAY_IN_LEDGERS, PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD},
 };
 use smart_account_interfaces::{
     SignerKey, SmartAccountError, SpendTrackerKey, SpendingTracker, TokenTransferPolicy,
 };
+
+/// Computes the TTL extend_to value for a spending tracker.
+/// Ensures the tracker stays live for at least one full spending window.
+fn tracker_extend_to(reset_window_secs: u64) -> u32 {
+    if reset_window_secs > 0 {
+        let secs_per_ledger = 86400 / DAY_IN_LEDGERS as u64;
+        let window_ledgers = (reset_window_secs / secs_per_ledger) as u32 + DAY_IN_LEDGERS;
+        window_ledgers.max(PERSISTENT_EXTEND_TO)
+    } else {
+        PERSISTENT_EXTEND_TO
+    }
+}
 
 impl AuthorizationCheck for TokenTransferPolicy {
     fn is_authorized(&self, env: &Env, signer_key: &SignerKey, contexts: &Vec<Context>) -> bool {
@@ -106,10 +118,11 @@ impl AuthorizationCheck for TokenTransferPolicy {
             // Update spending tracker
             tracker.spent = new_total;
             env.storage().persistent().set(&tracker_key, &tracker);
+
             env.storage().persistent().extend_ttl(
                 &tracker_key,
                 PERSISTENT_TTL_THRESHOLD,
-                PERSISTENT_EXTEND_TO,
+                tracker_extend_to(self.reset_window_secs),
             );
         }
 
@@ -136,7 +149,7 @@ impl PolicyCallback for TokenTransferPolicy {
             env.storage().persistent().extend_ttl(
                 &tracker_key,
                 PERSISTENT_TTL_THRESHOLD,
-                PERSISTENT_EXTEND_TO,
+                tracker_extend_to(self.reset_window_secs),
             );
         }
 
