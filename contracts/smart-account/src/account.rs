@@ -3,8 +3,8 @@ use crate::auth::permissions::PolicyCallback;
 use crate::auth::proof::SignatureProofs;
 use crate::config::{
     ADMIN_COUNT_KEY, CONTRACT_VERSION_KEY, CURRENT_CONTRACT_VERSION, INSTANCE_EXTEND_TO,
-    INSTANCE_TTL_THRESHOLD, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED,
-    VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
+    INSTANCE_TTL_THRESHOLD, MAX_PLUGINS, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED,
+    VERB_INSTALLED, VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
 };
 use crate::error::Error;
 use crate::events::{
@@ -257,6 +257,9 @@ impl SmartAccountInterface for SmartAccount {
             .unwrap();
         if existing_plugins.contains_key(plugin.clone()) {
             return Err(SmartAccountError::PluginAlreadyInstalled);
+        }
+        if existing_plugins.len() >= MAX_PLUGINS {
+            return Err(SmartAccountError::MaxPluginsReached);
         }
         existing_plugins.set(plugin.clone(), ());
         storage.update::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY, &existing_plugins)?;
