@@ -10,6 +10,7 @@ members = [
   "contracts/testing/hello-world",
   "contracts/upgradeable",
   "contracts/web-auth",
+  "contracts/fee-abstraction",
   "scripts/upgrade-wallet",
 ]
 
@@ -17,13 +18,14 @@ members = [
 license = "Apache-2.0"
 
 [workspace.dependencies]
-soroban-sdk = "22.0.0"
+soroban-sdk = "25.3.0"
 smart-account = { path = "contracts/smart-account" }
 contract-factory = { path = "contracts/contract-factory" }
 initializable = { path = "contracts/initializable" }
 storage = { path = "contracts/storage" }
 upgradeable = { path = "contracts/upgradeable" }
 deny-list-policy = { path = "contracts/deny-list-policy" }
+fee-abstraction = { path = "contracts/fee-abstraction" }
 smart-account-interfaces = { path = "contracts/smart-account-interfaces" }
 plugin-policy-example = { path = "contracts/examples/plugin-policy-example" }
 hello-world = { path = "contracts/testing/hello-world" }

@@ -4,7 +4,7 @@ pub use smart_account_interfaces::SmartAccountInterface;
 use soroban_sdk::auth::Context;
 use soroban_sdk::testutils::Events;
 use soroban_sdk::{
-    contract, contractimpl, symbol_short, vec, Address, Env, Symbol, TryFromVal, Vec,
+    contract, contractimpl, symbol_short, vec, Address, Env, Symbol, TryFromVal, Val, Vec,
 };
 
 use crate::account::SmartAccount;
@@ -43,24 +43,35 @@ impl DummyExternalPolicy {
     }
 }
 
+fn has_policy_event(env: &Env, policy_id: &Address, event_name: &Symbol) -> bool {
+    use soroban_sdk::xdr::ContractEventBody;
+    env.events().all().events().iter().any(|event| {
+        if let ContractEventBody::V0(body) = &event.body {
+            let has_topic = body.topics.iter().any(|topic_xdr| {
+                Val::try_from_val(env, topic_xdr)
+                    .ok()
+                    .and_then(|val| Symbol::try_from_val(env, &val).ok())
+                    .map(|s| s == *event_name)
+                    .unwrap_or(false)
+            });
+            let data_matches = Val::try_from_val(env, &body.data.clone())
+                .ok()
+                .and_then(|val| Address::try_from_val(env, &val).ok())
+                .map(|addr| addr == *policy_id)
+                .unwrap_or(false);
+            has_topic && data_matches
+        } else {
+            false
+        }
+    })
+}
+
 fn ensure_policy_event_is_emmited(env: &Env, policy_id: Address, event_name: Symbol) {
-    assert!(env.events().all().iter().any(|(_address, topics, data)| {
-        topics.iter().any(|topic| {
-            Symbol::try_from_val(env, &topic)
-                .map(|s| s == event_name && Address::try_from_val(env, &data).unwrap() == policy_id)
-                .unwrap_or(false)
-        })
-    }))
+    assert!(has_policy_event(env, &policy_id, &event_name));
 }
 
 fn ensure_policy_event_is_not_emmited(env: &Env, policy_id: Address, event_name: Symbol) {
-    assert!(!env.events().all().iter().any(|(_address, topics, data)| {
-        topics.iter().any(|topic| {
-            Symbol::try_from_val(env, &topic)
-                .map(|s| s == event_name && Address::try_from_val(env, &data).unwrap() == policy_id)
-                .unwrap_or(false)
-        })
-    }))
+    assert!(!has_policy_event(env, &policy_id, &event_name));
 }
 
 #[test]
