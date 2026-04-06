@@ -45,6 +45,8 @@ pub enum SmartAccountError {
     PluginOnAuthFailed = 103,
 
     MigrationVersionMismatch = 1101,
+    MigrationSignerNotFound = 1102,
+    MigrationSignerTypeMismatch = 1103,
 
     NotFound = 1000,
 }
