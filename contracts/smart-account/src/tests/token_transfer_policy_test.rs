@@ -3,12 +3,13 @@ use soroban_sdk::testutils::{Address as _, BytesN as _, Ledger as _};
 use soroban_sdk::{map, vec, Address, BytesN, Env, IntoVal, Vec};
 
 use crate::account::SmartAccount;
+use crate::auth::permissions::AuthorizationCheck;
 use crate::auth::proof::SignatureProofs;
 use crate::error::Error;
 use crate::tests::test_utils::{setup, Ed25519TestSigner, TestSignerTrait as _};
 use smart_account_interfaces::{
     SignerKey, SignerPolicy, SignerRole, SmartAccountInterface as _, SpendTrackerKey,
-    TokenTransferPolicy,
+    SpendingTracker, TokenTransferPolicy,
 };
 
 // ============================================================================
@@ -821,4 +822,43 @@ fn test_standard_some_empty_vec_rejected() {
             Vec::<Address>::new(&env),
         ),
     );
+}
+
+// ============================================================================
+// Read-only predicate tests (is_authorized must not write)
+// ============================================================================
+
+#[test]
+fn test_is_authorized_does_not_write_tracker() {
+    let env = setup();
+    let token = Address::generate(&env);
+    let policy = make_policy(&env, &token, Some(1000));
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+
+    let to = Address::generate(&env);
+
+    // 1. Execute a full check_auth for 500 (calls both is_authorized and on_authorized).
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 500)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+
+    let signer_key = SignerKey::Ed25519(signer.public_key(&env));
+    let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key.clone());
+
+    // 2. Verify the tracker now shows spent = 500.
+    env.as_contract(&contract_id, || {
+        let tracker: SpendingTracker = env.storage().persistent().get(&tracker_key).unwrap();
+        assert_eq!(tracker.spent, 500);
+    });
+
+    // 3. Call ONLY is_authorized (the read-only predicate) for an additional 200.
+    //    700 < 1000, so it should return true, but must NOT update the tracker.
+    let contexts_200 = vec![&env, make_transfer_context(&env, &token, &to, 200)];
+    env.as_contract(&contract_id, || {
+        let result = policy.is_authorized(&env, &signer_key, &contexts_200);
+        assert!(result);
+
+        // 4. Verify the tracker was NOT modified -- still 500, not 700.
+        let tracker: SpendingTracker = env.storage().persistent().get(&tracker_key).unwrap();
+        assert_eq!(tracker.spent, 500);
+    });
 }
