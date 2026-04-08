@@ -83,7 +83,18 @@ impl Authorizer {
                 .try_on_auth(&env.current_contract_address(), auth_contexts);
             match res {
                 // Plugin executed successfully
-                Ok(_) => {}
+                Ok(Ok(_)) => {}
+                // Plugin return value conversion failure (ABI mismatch)
+                // Treat as technical failure: log and continue
+                Ok(Err(_)) => {
+                    env.events().publish(
+                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
+                        PluginAuthFailedEvent {
+                            plugin: plugin.clone(),
+                            error: String::from_str(env, "Plugin return type mismatch (skipped)"),
+                        },
+                    );
+                }
                 // Plugin intentionally rejected (contracterror / panic_with_error!)
                 Err(Ok(_)) => {
                     env.events().publish(

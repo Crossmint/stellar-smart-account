@@ -77,15 +77,6 @@ mod rejecting_plugin {
 
 use rejecting_plugin::RejectingPlugin;
 
-// NOTE: Testing the Err(Err(_)) branch (technical failure / panic!) is not
-// feasible in the Soroban test harness. In native test mode, a panic! inside a
-// cross-contract `try_call` is caught and re-raised as a WasmVm error which the
-// host then escalates through `call_account_contract_check_auth`, causing the
-// outer `try_invoke_contract_check_auth` to see a contract-level failure rather
-// than letting `call_plugins_on_auth` gracefully skip the plugin.
-// In production (Wasm), a panic! in a plugin produces Err(Err(InvokeError))
-// at the try_on_auth level, allowing the smart account to log-and-skip it.
-
 // -----------------------------------------------------------------------------
 // Test: Uninstall properly persists removal, plugin no longer receives on_auth
 // -----------------------------------------------------------------------------
