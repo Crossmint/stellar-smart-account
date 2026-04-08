@@ -81,14 +81,14 @@ fn check_spending_limit(
     let now = env.ledger().timestamp();
 
     let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key.clone());
-    let mut tracker: SpendingTracker = env
-        .storage()
-        .persistent()
-        .get(&tracker_key)
-        .unwrap_or(SpendingTracker {
-            spent: 0,
-            window_start: now,
-        });
+    let mut tracker: SpendingTracker =
+        env.storage()
+            .persistent()
+            .get(&tracker_key)
+            .unwrap_or(SpendingTracker {
+                spent: 0,
+                window_start: now,
+            });
 
     // Check if the spending window should reset
     if policy.reset_window_secs > 0
@@ -150,7 +150,9 @@ impl AuthorizationCheck for TokenTransferPolicy {
             None => return,
         };
 
-        if let Some((tracker_key, tracker)) = check_spending_limit(self, env, signer_key, total_amount) {
+        if let Some((tracker_key, tracker)) =
+            check_spending_limit(self, env, signer_key, total_amount)
+        {
             record_spend(env, &tracker_key, &tracker);
         }
     }
