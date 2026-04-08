@@ -9,6 +9,7 @@ use soroban_sdk::{
 #[repr(u32)]
 pub enum Error {
     MigrationNotAllowed = 1100,
+    MigrationAlreadyPending = 1110,
 }
 
 pub const MIGRATING: Symbol = symbol_short!("MIGRATING");
@@ -16,6 +17,7 @@ pub const MIGRATING: Symbol = symbol_short!("MIGRATING");
 pub trait SmartAccountUpgradeable: SmartAccountUpgradeableAuth {
     fn upgrade(env: &Env, new_wasm_hash: BytesN<32>) {
         Self::_require_auth_upgrade(env);
+        ensure_no_pending_migration(env);
         enable_migration(env);
         env.deployer().update_current_contract_wasm(new_wasm_hash);
     }
@@ -26,6 +28,7 @@ pub trait SmartAccountUpgradeableMigratable:
 {
     fn upgrade(e: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
         Self::_require_auth_upgrade(e);
+        ensure_no_pending_migration(e);
         enable_migration(e);
         e.events().publish(
             (Symbol::new(e, "UPGRADE_STARTED"),),
@@ -69,6 +72,7 @@ macro_rules! impl_upgradeable {
         impl SmartAccountUpgradeable for $contract_type {
             fn upgrade(env: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
                 Self::_require_auth_upgrade(env);
+                $crate::ensure_no_pending_migration(env);
                 $crate::enable_migration(env);
                 env.deployer().update_current_contract_wasm(new_wasm_hash);
             }
@@ -95,6 +99,7 @@ macro_rules! impl_upgradeable_migratable {
         impl $contract_type {
             pub fn upgrade(e: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
                 Self::_require_auth_upgrade(e);
+                $crate::ensure_no_pending_migration(e);
                 $crate::enable_migration(e);
                 e.events().publish(
                     (soroban_sdk::Symbol::new(e, "UPGRADE_STARTED"),),
@@ -130,6 +135,11 @@ pub fn can_complete_migration(e: &Env) -> bool {
 }
 pub fn complete_migration(e: &Env) {
     e.storage().instance().set(&MIGRATING, &false);
+}
+pub fn ensure_no_pending_migration(e: &Env) {
+    if can_complete_migration(e) {
+        panic_with_error!(e, Error::MigrationAlreadyPending)
+    }
 }
 pub fn enable_migration(e: &Env) {
     e.storage().instance().set(&MIGRATING, &true);
