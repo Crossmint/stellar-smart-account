@@ -17,7 +17,6 @@ pub const MIGRATING: Symbol = symbol_short!("MIGRATING");
 pub trait SmartAccountUpgradeable: SmartAccountUpgradeableAuth {
     fn upgrade(env: &Env, new_wasm_hash: BytesN<32>) {
         Self::_require_auth_upgrade(env);
-        ensure_no_pending_migration(env);
         enable_migration(env);
         env.deployer().update_current_contract_wasm(new_wasm_hash);
     }
@@ -72,7 +71,6 @@ macro_rules! impl_upgradeable {
         impl SmartAccountUpgradeable for $contract_type {
             fn upgrade(env: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
                 Self::_require_auth_upgrade(env);
-                $crate::ensure_no_pending_migration(env);
                 $crate::enable_migration(env);
                 env.deployer().update_current_contract_wasm(new_wasm_hash);
             }
