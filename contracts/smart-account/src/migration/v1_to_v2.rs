@@ -29,10 +29,7 @@ pub struct V1ToV2MigrationData {
 /// - Converts to V2 types (Secp256r1→Webauthn, TimeWindowPolicy dropped)
 /// - Deletes the old storage entry
 /// - Writes the new entry with V2 key and value
-pub fn migrate_v1_to_v2(
-    env: &Env,
-    data: &V1ToV2MigrationData,
-) -> Result<(), SmartAccountError> {
+pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) -> Result<(), SmartAccountError> {
     for old_key in data.signers_to_migrate.iter() {
         let old_signer: V1Signer = env
             .storage()
