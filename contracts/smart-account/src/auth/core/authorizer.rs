@@ -105,8 +105,15 @@ impl Authorizer {
                         },
                     );
                 }
-                // Plugin intentionally rejected (contracterror / panic_with_error!)
-                Err(Ok(_)) => {
+                // Plugin invocation failed.
+                // Because on_auth returns () (not Result), the contractclient
+                // macro sets E = soroban_sdk::Error, so try_from never fails
+                // and all errors land in Err(Ok(soroban_sdk::Error)).
+                // We inspect the error type to distinguish intentional
+                // rejection (ScErrorType::Contract) from technical failure.
+                Err(Ok(ref error))
+                    if error.is_type(soroban_sdk::xdr::ScErrorType::Contract) =>
+                {
                     env.events().publish(
                         (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
                         PluginAuthFailedEvent {
@@ -116,9 +123,9 @@ impl Authorizer {
                     );
                     return Err(Error::PluginOnAuthFailed);
                 }
-                // Plugin had a technical failure (panic!, host trap, TTL expiry)
-                // Non-blocking: log and continue to next plugin
-                Err(Err(_)) => {
+                // Technical failure: host trap, bare panic!, missing function,
+                // budget exhaustion, expired TTL. Non-blocking — skip.
+                Err(_) => {
                     env.events().publish(
                         (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
                         PluginAuthFailedEvent {
