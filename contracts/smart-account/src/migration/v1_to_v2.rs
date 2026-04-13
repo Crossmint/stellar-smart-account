@@ -11,9 +11,10 @@ use smart_account_interfaces::{
     WebauthnSigner,
 };
 use soroban_sdk::{contracttype, Env, Vec};
+use storage::Storage;
 
 use super::v1_types::{V1Signer, V1SignerKey, V1SignerPolicy, V1SignerRole};
-use crate::config::{PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD};
+use crate::config::{ADMIN_COUNT_KEY, PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD};
 
 /// Data required by the migration function.
 /// The caller must provide the list of v1 signer keys that need migration.
@@ -31,12 +32,21 @@ pub struct V1ToV2MigrationData {
 /// - Deletes the old storage entry
 /// - Writes the new entry with V2 key and value
 pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) -> Result<(), SmartAccountError> {
+    let mut migrated_admin_count: u32 = 0;
+
     for old_key in data.signers_to_migrate.iter() {
         let old_signer: V1Signer = env
             .storage()
             .persistent()
             .get(&old_key)
             .ok_or(SmartAccountError::MigrationSignerNotFound)?;
+
+        let role = match &old_signer {
+            V1Signer::Ed25519(_, role) | V1Signer::Secp256r1(_, role) => role,
+        };
+        if matches!(role, V1SignerRole::Admin) {
+            migrated_admin_count += 1;
+        }
 
         // Remove the old entry
         env.storage().persistent().remove(&old_key);
@@ -50,6 +60,14 @@ pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) -> Result<(), Sma
             PERSISTENT_EXTEND_TO,
         );
     }
+
+    // If any admin signers were in the migrated set, recalculate admin_cnt
+    // from the migrated set to prevent desync from orphaned V1 admins.
+    // For partial migrations with no admins, the existing count is preserved.
+    if migrated_admin_count > 0 {
+        Storage::persistent().update(env, &ADMIN_COUNT_KEY, &migrated_admin_count)?;
+    }
+
     Ok(())
 }
 
