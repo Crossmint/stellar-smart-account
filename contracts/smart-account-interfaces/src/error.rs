@@ -43,6 +43,7 @@ pub enum SmartAccountError {
     PluginAlreadyInstalled = 101,
     PluginInitializationFailed = 102,
     PluginOnAuthFailed = 103,
+    MaxPluginsReached = 104,
 
     MigrationVersionMismatch = 1101,
 
