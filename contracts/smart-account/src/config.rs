@@ -10,6 +10,7 @@ pub const INSTANCE_TTL_THRESHOLD: u32 = 7 * DAY_IN_LEDGERS;
 pub const INSTANCE_EXTEND_TO: u32 = 30 * DAY_IN_LEDGERS;
 pub const PERSISTENT_TTL_THRESHOLD: u32 = 7 * DAY_IN_LEDGERS;
 pub const PERSISTENT_EXTEND_TO: u32 = 30 * DAY_IN_LEDGERS;
+pub const MAX_PLUGINS: u32 = 10;
 
 pub const TOPIC_SIGNER: soroban_sdk::Symbol = symbol_short!("signer");
 pub const TOPIC_PLUGIN: soroban_sdk::Symbol = symbol_short!("plugin");

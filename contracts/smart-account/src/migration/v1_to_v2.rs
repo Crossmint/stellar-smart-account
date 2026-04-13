@@ -7,7 +7,8 @@
 //!    v1 `Standard(Vec<SignerPolicy>)` vs v2 `Standard(Option<Vec<SignerPolicy>>, u64)`
 
 use smart_account_interfaces::{
-    Ed25519Signer, ExternalPolicy, Signer, SignerKey, SignerPolicy, SignerRole, WebauthnSigner,
+    Ed25519Signer, ExternalPolicy, Signer, SignerKey, SignerPolicy, SignerRole, SmartAccountError,
+    WebauthnSigner,
 };
 use soroban_sdk::{contracttype, Env, Vec};
 
@@ -29,19 +30,19 @@ pub struct V1ToV2MigrationData {
 /// - Converts to V2 types (Secp256r1→Webauthn, TimeWindowPolicy dropped)
 /// - Deletes the old storage entry
 /// - Writes the new entry with V2 key and value
-pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) {
+pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) -> Result<(), SmartAccountError> {
     for old_key in data.signers_to_migrate.iter() {
         let old_signer: V1Signer = env
             .storage()
             .persistent()
             .get(&old_key)
-            .expect("v1 signer not found during migration");
+            .ok_or(SmartAccountError::MigrationSignerNotFound)?;
 
         // Remove the old entry
         env.storage().persistent().remove(&old_key);
 
         // Convert and write the new entry
-        let (new_key, new_signer) = convert_signer(env, &old_key, &old_signer);
+        let (new_key, new_signer) = convert_signer(env, &old_key, &old_signer)?;
         env.storage().persistent().set(&new_key, &new_signer);
         env.storage().persistent().extend_ttl(
             &new_key,
@@ -49,10 +50,15 @@ pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) {
             PERSISTENT_EXTEND_TO,
         );
     }
+    Ok(())
 }
 
 /// Converts a V1 signer key + value into V2 types.
-fn convert_signer(env: &Env, old_key: &V1SignerKey, old_signer: &V1Signer) -> (SignerKey, Signer) {
+fn convert_signer(
+    env: &Env,
+    old_key: &V1SignerKey,
+    old_signer: &V1Signer,
+) -> Result<(SignerKey, Signer), SmartAccountError> {
     match (old_key, old_signer) {
         // Secp256r1 → Webauthn: re-key and restructure
         (V1SignerKey::Secp256r1(_key_id), V1Signer::Secp256r1(secp_signer, v1_role)) => {
@@ -62,7 +68,7 @@ fn convert_signer(env: &Env, old_key: &V1SignerKey, old_signer: &V1Signer) -> (S
                 WebauthnSigner::new(secp_signer.key_id.clone(), secp_signer.public_key.clone()),
                 new_role,
             );
-            (new_key, new_signer)
+            Ok((new_key, new_signer))
         }
         // Ed25519: key stays the same, only role/policies may need conversion
         (V1SignerKey::Ed25519(pk), V1Signer::Ed25519(ed_signer, v1_role)) => {
@@ -70,10 +76,10 @@ fn convert_signer(env: &Env, old_key: &V1SignerKey, old_signer: &V1Signer) -> (S
             let new_role = convert_role(env, v1_role);
             let new_signer =
                 Signer::Ed25519(Ed25519Signer::new(ed_signer.public_key.clone()), new_role);
-            (new_key, new_signer)
+            Ok((new_key, new_signer))
         }
         // Mismatched key/value types — should not happen with valid v1 data
-        _ => panic!("mismatched v1 signer key and value types"),
+        _ => Err(SmartAccountError::MigrationSignerTypeMismatch),
     }
 }
 
