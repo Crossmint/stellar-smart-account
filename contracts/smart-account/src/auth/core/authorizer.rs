@@ -111,9 +111,7 @@ impl Authorizer {
                 // and all errors land in Err(Ok(soroban_sdk::Error)).
                 // We inspect the error type to distinguish intentional
                 // rejection (ScErrorType::Contract) from technical failure.
-                Err(Ok(ref error))
-                    if error.is_type(soroban_sdk::xdr::ScErrorType::Contract) =>
-                {
+                Err(Ok(ref error)) if error.is_type(soroban_sdk::xdr::ScErrorType::Contract) => {
                     env.events().publish(
                         (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
                         PluginAuthFailedEvent {
