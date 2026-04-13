@@ -520,7 +520,7 @@ impl SmartAccount {
         // Process old policies: revoke those whose identity is absent from new set
         for old_policy in old.iter() {
             let id = Self::policy_identity(env, &old_policy);
-            if new_id_map.contains_key(id.clone()) {
+            if new_id_map.contains_key(id) {
                 // Identity exists in both sets — mark as not needing on_add
                 new_id_map.set(id, false);
             } else {
