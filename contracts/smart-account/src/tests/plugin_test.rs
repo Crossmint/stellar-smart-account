@@ -45,6 +45,39 @@ impl DummyPlugin {
 }
 
 // -----------------------------------------------------------------------------
+// Plugin that intentionally rejects authorization (panic_with_error!)
+// Wrapped in a submodule to avoid contractimpl symbol collisions.
+// -----------------------------------------------------------------------------
+
+mod rejecting_plugin {
+    use soroban_sdk::{auth::Context, contract, contractimpl, panic_with_error, Address, Env, Vec};
+
+    use crate::error::Error;
+
+    #[contract]
+    pub struct RejectingPlugin;
+
+    #[contractimpl]
+    impl RejectingPlugin {
+        pub fn on_install(_env: &Env, _source: Address) -> Result<(), Error> {
+            Ok(())
+        }
+
+        pub fn on_uninstall(_env: &Env, _source: Address) -> Result<(), Error> {
+            Ok(())
+        }
+
+        pub fn on_auth(env: &Env, _source: Address, _contexts: Vec<Context>) {
+            // This uses panic_with_error! which produces Err(Ok(e)) in try_on_auth,
+            // meaning the plugin intentionally rejected authorization.
+            panic_with_error!(env, Error::PluginOnAuthFailed);
+        }
+    }
+}
+
+use rejecting_plugin::RejectingPlugin;
+
+// -----------------------------------------------------------------------------
 // Test: Uninstall properly persists removal, plugin no longer receives on_auth
 // -----------------------------------------------------------------------------
 
@@ -130,6 +163,50 @@ fn test_uninstall_plugin_persists_removal() {
         count_after_uninstall, 1,
         "Plugin should NOT receive on_auth after uninstall"
     );
+}
+
+// -----------------------------------------------------------------------------
+// Test: Intentional plugin rejection blocks authorization
+// -----------------------------------------------------------------------------
+
+#[test]
+fn test_plugin_intentional_rejection_blocks_auth() {
+    let env = setup();
+    env.mock_all_auths();
+
+    // Deploy SmartAccount with one admin signer
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin);
+    let smart_account_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    // Deploy and install the rejecting plugin
+    let plugin_id = env.register(RejectingPlugin, ());
+    env.as_contract(&smart_account_id, || {
+        SmartAccount::install_plugin(&env, plugin_id.clone())
+    })
+    .unwrap();
+
+    // Try to authenticate
+    let payload = BytesN::random(&env);
+    let (admin_key, admin_proof) = admin.sign(&env, &payload);
+    let auth_payloads = SignatureProofs(soroban_sdk::map![&env, (admin_key, admin_proof)]);
+
+    let result = env.try_invoke_contract_check_auth::<Error>(
+        &smart_account_id,
+        &payload,
+        auth_payloads.into_val(&env),
+        &vec![&env, get_token_auth_context(&env)],
+    );
+
+    // The rejecting plugin (panic_with_error!) should cause PluginOnAuthFailed,
+    // blocking authorization. This exercises the Err(Ok(_)) branch in
+    // call_plugins_on_auth.
+    assert_eq!(result, Err(Ok(Error::PluginOnAuthFailed)));
 }
 
 // -----------------------------------------------------------------------------

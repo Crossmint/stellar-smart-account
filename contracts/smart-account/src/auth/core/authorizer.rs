@@ -8,7 +8,6 @@ use crate::config::{
 };
 use crate::error::Error;
 use crate::events::PluginAuthFailedEvent;
-use crate::handle_nested_result_failure;
 use smart_account_interfaces::SmartAccountPluginClient;
 use smart_account_interfaces::{Signer, SignerKey, SignerRole};
 use soroban_sdk::{auth::Context, crypto::Hash, Env, Vec};
@@ -92,16 +91,43 @@ impl Authorizer {
         {
             let res = SmartAccountPluginClient::new(env, &plugin)
                 .try_on_auth(&env.current_contract_address(), auth_contexts);
-            handle_nested_result_failure!(res, {
-                env.events().publish(
-                    (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
-                    PluginAuthFailedEvent {
-                        plugin: plugin.clone(),
-                        error: String::from_str(env, "Plugin on_auth failed"),
-                    },
-                );
-                return Err(Error::PluginOnAuthFailed);
-            });
+            match res {
+                // Plugin executed successfully
+                Ok(Ok(_)) => {}
+                // Plugin return value conversion failure (ABI mismatch)
+                // Treat as technical failure: log and continue
+                Ok(Err(_)) => {
+                    env.events().publish(
+                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
+                        PluginAuthFailedEvent {
+                            plugin: plugin.clone(),
+                            error: String::from_str(env, "Plugin return type mismatch (skipped)"),
+                        },
+                    );
+                }
+                // Plugin intentionally rejected (contracterror / panic_with_error!)
+                Err(Ok(_)) => {
+                    env.events().publish(
+                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
+                        PluginAuthFailedEvent {
+                            plugin: plugin.clone(),
+                            error: String::from_str(env, "Plugin rejected authorization"),
+                        },
+                    );
+                    return Err(Error::PluginOnAuthFailed);
+                }
+                // Plugin had a technical failure (panic!, host trap, TTL expiry)
+                // Non-blocking: log and continue to next plugin
+                Err(Err(_)) => {
+                    env.events().publish(
+                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
+                        PluginAuthFailedEvent {
+                            plugin: plugin.clone(),
+                            error: String::from_str(env, "Plugin technical failure (skipped)"),
+                        },
+                    );
+                }
+            }
         }
         Ok(())
     }
