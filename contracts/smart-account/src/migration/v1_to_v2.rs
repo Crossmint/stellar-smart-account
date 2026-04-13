@@ -13,6 +13,7 @@ use smart_account_interfaces::{
 use soroban_sdk::{contracttype, Env, Vec};
 
 use super::v1_types::{V1Signer, V1SignerKey, V1SignerPolicy, V1SignerRole};
+use crate::config::{PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD};
 
 /// Data required by the migration function.
 /// The caller must provide the list of v1 signer keys that need migration.
@@ -43,6 +44,11 @@ pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) -> Result<(), Sma
         // Convert and write the new entry
         let (new_key, new_signer) = convert_signer(env, &old_key, &old_signer)?;
         env.storage().persistent().set(&new_key, &new_signer);
+        env.storage().persistent().extend_ttl(
+            &new_key,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_EXTEND_TO,
+        );
     }
     Ok(())
 }

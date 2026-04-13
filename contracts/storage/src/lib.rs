@@ -185,6 +185,25 @@ impl Storage {
         Ok(())
     }
 
+    pub fn extend_ttl<K: IntoVal<Env, Val>>(
+        &self,
+        env: &Env,
+        key: &K,
+        threshold: u32,
+        extend_to: u32,
+    ) {
+        match self.storage_type {
+            StorageType::Persistent => {
+                env.storage()
+                    .persistent()
+                    .extend_ttl(key, threshold, extend_to);
+            }
+            StorageType::Instance => {
+                // Instance storage TTL is managed at the instance level, not per-key
+            }
+        }
+    }
+
     pub fn has<K: IntoVal<Env, Val>>(&self, env: &Env, key: &K) -> bool {
         match self.storage_type {
             StorageType::Persistent => env.storage().persistent().has::<K>(key),
