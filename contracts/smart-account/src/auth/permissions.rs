@@ -16,6 +16,7 @@ pub trait AuthorizationCheck {
 
 pub trait PolicyCallback {
     fn on_add(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError>;
+    fn on_update(&self, env: &Env) -> Result<(), SmartAccountError>;
     fn on_revoke(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError>;
 }
 
@@ -51,6 +52,12 @@ impl PolicyCallback for SignerPolicy {
         match self {
             SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_add(env, signer_key),
             SignerPolicy::TokenTransferPolicy(policy) => policy.on_add(env, signer_key),
+        }
+    }
+    fn on_update(&self, env: &Env) -> Result<(), SmartAccountError> {
+        match self {
+            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_update(env),
+            SignerPolicy::TokenTransferPolicy(policy) => policy.on_update(env),
         }
     }
     fn on_revoke(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {

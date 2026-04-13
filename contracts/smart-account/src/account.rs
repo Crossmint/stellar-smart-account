@@ -528,11 +528,13 @@ impl SmartAccount {
             }
         }
 
-        // Process new policies: add those whose identity was not in old set
+        // Process new policies: add new ones, validate updated ones
         for policy in new.iter() {
             let id = Self::policy_identity(env, &policy);
             if new_id_map.get(id).unwrap_or(false) {
                 policy.on_add(env, signer_key)?;
+            } else {
+                policy.on_update(env)?;
             }
         }
 

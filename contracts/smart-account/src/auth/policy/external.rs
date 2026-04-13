@@ -37,6 +37,10 @@ impl PolicyCallback for ExternalPolicy {
         Ok(())
     }
 
+    fn on_update(&self, _env: &Env) -> Result<(), SmartAccountError> {
+        Ok(())
+    }
+
     fn on_revoke(&self, env: &Env, _signer_key: &SignerKey) -> Result<(), SmartAccountError> {
         let policy_client = SmartAccountPolicyClient::new(env, &self.policy_address);
         let res = policy_client.try_on_revoke(&env.current_contract_address());

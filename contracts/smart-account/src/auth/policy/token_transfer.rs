@@ -177,15 +177,24 @@ impl AuthorizationCheck for TokenTransferPolicy {
     }
 }
 
+fn validate_policy(policy: &TokenTransferPolicy, env: &Env) -> Result<(), SmartAccountError> {
+    if let Some(limit) = policy.limit {
+        if limit <= 0 {
+            return Err(SmartAccountError::InvalidPolicy);
+        }
+    }
+    if policy.expiration > 0 && policy.expiration <= env.ledger().timestamp() {
+        return Err(SmartAccountError::InvalidNotAfterTime);
+    }
+    Ok(())
+}
+
 impl PolicyCallback for TokenTransferPolicy {
     fn on_add(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {
-        // Validate limit if configured
-        if let Some(limit) = self.limit {
-            if limit <= 0 {
-                return Err(SmartAccountError::InvalidPolicy);
-            }
+        validate_policy(self, env)?;
 
-            // Initialize spending tracker
+        // Initialize spending tracker if limit is configured
+        if self.limit.is_some() {
             let tracker_key =
                 SpendTrackerKey::TokenSpend(self.policy_id.clone(), signer_key.clone());
             let tracker = SpendingTracker {
@@ -200,12 +209,11 @@ impl PolicyCallback for TokenTransferPolicy {
             );
         }
 
-        // If expiration is set, it must be in the future
-        if self.expiration > 0 && self.expiration <= env.ledger().timestamp() {
-            return Err(SmartAccountError::InvalidNotAfterTime);
-        }
-
         Ok(())
+    }
+
+    fn on_update(&self, env: &Env) -> Result<(), SmartAccountError> {
+        validate_policy(self, env)
     }
 
     fn on_revoke(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {
