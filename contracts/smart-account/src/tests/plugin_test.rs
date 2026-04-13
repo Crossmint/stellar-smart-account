@@ -11,10 +11,7 @@ use crate::{
     account::SmartAccount,
     auth::proof::SignatureProofs,
     error::Error,
-    tests::test_utils::{
-        get_token_auth_context, get_uninstall_plugin_auth_context, setup, Ed25519TestSigner,
-        TestSignerTrait as _,
-    },
+    tests::test_utils::{get_token_auth_context, setup, Ed25519TestSigner, TestSignerTrait as _},
 };
 use smart_account_interfaces::{SignerRole, SmartAccountInterface};
 
@@ -496,84 +493,4 @@ fn test_max_plugins_limit() {
         .unwrap_err();
 
     assert_eq!(err, Error::MaxPluginsReached);
-}
-
-// -----------------------------------------------------------------------------
-// Test: Uninstall bypasses the rejecting plugin (escape hatch)
-// -----------------------------------------------------------------------------
-
-#[test]
-fn test_uninstall_bypasses_rejecting_plugin() {
-    let env = setup();
-    env.mock_all_auths();
-
-    let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let smart_account_id = env.register(
-        SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env)],
-            Vec::<Address>::new(&env),
-        ),
-    );
-
-    let plugin_id = env.register(RejectingPlugin, ());
-    env.as_contract(&smart_account_id, || {
-        SmartAccount::install_plugin(&env, plugin_id.clone())
-    })
-    .unwrap();
-
-    // Normal auth is blocked by the rejecting plugin
-    let token_contexts = vec![&env, get_token_auth_context(&env)];
-    let blocked = check_auth(&env, &smart_account_id, &admin, &token_contexts);
-    assert_eq!(blocked, Err(Ok(Error::PluginOnAuthFailed)));
-
-    // Auth for uninstalling THIS plugin should succeed — the target plugin
-    // is skipped in call_plugins_on_auth.
-    let uninstall_contexts = vec![
-        &env,
-        get_uninstall_plugin_auth_context(&env, &smart_account_id, &plugin_id),
-    ];
-    let allowed = check_auth(&env, &smart_account_id, &admin, &uninstall_contexts);
-    assert!(allowed.is_ok());
-}
-
-// -----------------------------------------------------------------------------
-// Test: Uninstall bypass only skips the target plugin, not others
-// -----------------------------------------------------------------------------
-
-#[test]
-fn test_uninstall_bypass_only_skips_target() {
-    let env = setup();
-    env.mock_all_auths();
-
-    let admin = Ed25519TestSigner::generate(SignerRole::Admin);
-    let smart_account_id = env.register(
-        SmartAccount,
-        (
-            vec![&env, admin.into_signer(&env)],
-            Vec::<Address>::new(&env),
-        ),
-    );
-
-    // Install a rejecting plugin AND a dummy plugin
-    let rejecting_id = env.register(RejectingPlugin, ());
-    env.as_contract(&smart_account_id, || {
-        SmartAccount::install_plugin(&env, rejecting_id.clone())
-    })
-    .unwrap();
-
-    let dummy_id = env.register(DummyPlugin, ());
-    env.as_contract(&smart_account_id, || {
-        SmartAccount::install_plugin(&env, dummy_id.clone())
-    })
-    .unwrap();
-
-    // Trying to uninstall the DUMMY plugin — the rejecting plugin is NOT
-    // the target, so it still runs and blocks the operation.
-    let uninstall_contexts = vec![
-        &env,
-        get_uninstall_plugin_auth_context(&env, &smart_account_id, &dummy_id),
-    ];
-    let result = check_auth(&env, &smart_account_id, &admin, &uninstall_contexts);
-    assert_eq!(result, Err(Ok(Error::PluginOnAuthFailed)));
 }

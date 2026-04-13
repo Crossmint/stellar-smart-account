@@ -10,8 +10,8 @@ use crate::error::Error;
 use crate::events::PluginAuthFailedEvent;
 use smart_account_interfaces::SmartAccountPluginClient;
 use smart_account_interfaces::{Signer, SignerKey, SignerRole};
-use soroban_sdk::auth::{Context, ContractContext};
-use soroban_sdk::{crypto::Hash, Address, Env, InvokeError, Map, String, Symbol, TryFromVal, Vec};
+use soroban_sdk::auth::Context;
+use soroban_sdk::{crypto::Hash, Address, Env, InvokeError, Map, String, Symbol, Vec};
 use storage::Storage;
 
 pub struct Authorizer;
@@ -83,22 +83,12 @@ impl Authorizer {
     }
 
     pub fn call_plugins_on_auth(env: &Env, auth_contexts: &Vec<Context>) -> Result<(), Error> {
-        let skip_plugin = Self::plugin_being_uninstalled(env, auth_contexts);
-
         let storage = Storage::instance();
         for (plugin, _) in storage
             .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
             .unwrap()
             .iter()
         {
-            // Escape hatch: skip the plugin being uninstalled so it cannot
-            // veto its own removal.
-            if let Some(ref target) = skip_plugin {
-                if plugin == *target {
-                    continue;
-                }
-            }
-
             let res = SmartAccountPluginClient::new(env, &plugin)
                 .try_on_auth(&env.current_contract_address(), auth_contexts);
             match res {
@@ -153,28 +143,5 @@ impl Authorizer {
             }
         }
         Ok(())
-    }
-
-    /// If the auth context includes an `uninstall_plugin` call on this
-    /// contract, return the address of the plugin being removed so it can
-    /// be skipped in the plugin auth loop.
-    fn plugin_being_uninstalled(env: &Env, auth_contexts: &Vec<Context>) -> Option<Address> {
-        let self_address = env.current_contract_address();
-        for context in auth_contexts.iter() {
-            if let Context::Contract(ContractContext {
-                contract,
-                fn_name,
-                args,
-            }) = context
-            {
-                if contract == self_address
-                    && fn_name == Symbol::new(env, "uninstall_plugin")
-                    && args.len() > 0
-                {
-                    return Address::try_from_val(env, &args.get(0).unwrap()).ok();
-                }
-            }
-        }
-        None
     }
 }

@@ -35,18 +35,6 @@ pub fn get_token_auth_context(e: &Env) -> Context {
     })
 }
 
-pub fn get_uninstall_plugin_auth_context(
-    e: &Env,
-    contract_id: &Address,
-    plugin: &Address,
-) -> Context {
-    Context::Contract(ContractContext {
-        contract: contract_id.clone(),
-        fn_name: "uninstall_plugin".into_val(e),
-        args: (plugin.clone(),).into_val(e),
-    })
-}
-
 pub fn get_update_signer_auth_context(e: &Env, contract_id: &Address, signer: Signer) -> Context {
     Context::Contract(ContractContext {
         contract: contract_id.clone(),
