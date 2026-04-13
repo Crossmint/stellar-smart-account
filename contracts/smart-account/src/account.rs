@@ -23,7 +23,7 @@ use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    map, panic_with_error, Address, BytesN, Env, Map, Symbol, Vec,
+    map, panic_with_error, Address, BytesN, Env, IntoVal, Map, Symbol, Val, Vec,
 };
 use storage::Storage;
 use upgradeable::{
@@ -462,11 +462,26 @@ impl SmartAccount {
         Ok(())
     }
 
-    /// Handles changes to a policy set by calling appropriate callbacks
+    /// Extracts a stable identity key from a policy for lifecycle comparison.
+    /// Uses policy_id for TokenTransferPolicy and policy_address for ExternalPolicy,
+    /// so that mutable fields (allowed_recipients, expiration, etc.) don't trigger
+    /// a full revoke+add cycle that would reset spending trackers.
+    fn policy_identity(env: &Env, policy: &SignerPolicy) -> Val {
+        match policy {
+            SignerPolicy::TokenTransferPolicy(p) => p.policy_id.into_val(env),
+            SignerPolicy::ExternalValidatorPolicy(p) => p.policy_address.into_val(env),
+        }
+    }
+
+    /// Handles changes to a policy set by calling appropriate callbacks.
     ///
-    /// - Policies only in old set: on_revoke() called (removed)
-    /// - Policies only in new set: on_add() called (added)
-    /// - Policies in both sets: no callbacks (unchanged)
+    /// Policies are matched by identity (policy_id / policy_address), not by
+    /// full structural equality. This means updating mutable fields like
+    /// allowed_recipients preserves the spending tracker instead of resetting it.
+    ///
+    /// - Policies whose identity is only in old set: on_revoke() called (removed)
+    /// - Policies whose identity is only in new set: on_add() called (added)
+    /// - Policies whose identity is in both sets: no callbacks (updated in place)
     fn handle_policy_set_changes(
         env: &Env,
         signer_key: &SignerKey,
@@ -483,7 +498,6 @@ impl SmartAccount {
         }
 
         if old.is_empty() {
-            // All new policies need to be added
             for policy in new.iter() {
                 policy.on_add(env, signer_key)?;
             }
@@ -491,36 +505,36 @@ impl SmartAccount {
         }
 
         if new.is_empty() {
-            // All old policies need to be revoked
             for policy in old.iter() {
                 policy.on_revoke(env, signer_key)?;
             }
             return Ok(());
         }
 
-        // Create a simple hash using policy content for constant-time lookup
-        let mut new_policy_set = Map::new(env);
-
-        // Build set of new policies
+        // Build a map of new policy identities → "needs on_add" flag
+        let mut new_id_map: Map<Val, bool> = Map::new(env);
         for policy in new.iter() {
-            new_policy_set.set(policy, true);
+            new_id_map.set(Self::policy_identity(env, &policy), true);
         }
 
-        // Process old policies - find ones to revoke
+        // Process old policies: revoke those whose identity is absent from new set
         for old_policy in old.iter() {
-            if new_policy_set.contains_key(old_policy.clone()) {
-                new_policy_set.set(old_policy, false);
+            let id = Self::policy_identity(env, &old_policy);
+            if new_id_map.contains_key(id) {
+                // Identity exists in both sets — mark as not needing on_add
+                new_id_map.set(id, false);
             } else {
-                // Policy only in old set, revoke it
                 old_policy.on_revoke(env, signer_key)?;
             }
         }
 
-        // Process new policies - find ones to add
+        // Process new policies: add new ones, validate updated ones
         for policy in new.iter() {
-            // If still marked as true, it's a new policy that needs to be added
-            if new_policy_set.get(policy.clone()).unwrap_or(false) {
+            let id = Self::policy_identity(env, &policy);
+            if new_id_map.get(id).unwrap_or(false) {
                 policy.on_add(env, signer_key)?;
+            } else {
+                policy.on_update(env)?;
             }
         }
 

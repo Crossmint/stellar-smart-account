@@ -862,3 +862,69 @@ fn test_is_authorized_does_not_write_tracker() {
         assert_eq!(tracker.spent, 500);
     });
 }
+
+// ============================================================================
+// Policy update preserves tracker tests
+// ============================================================================
+
+#[test]
+fn test_updating_allowed_recipients_preserves_spending_tracker() {
+    let env = setup();
+    env.mock_all_auths();
+
+    let token = Address::generate(&env);
+    let allowed_1 = Address::generate(&env);
+
+    let mut policy = make_policy(&env, &token, Some(1000));
+    policy.allowed_recipients = Some(vec![&env, allowed_1.clone()]);
+    let policy_id = policy.policy_id.clone();
+
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+    let signer_key = SignerKey::Ed25519(signer.public_key(&env));
+
+    // Spend 600 of 1000 limit
+    let contexts = vec![&env, make_transfer_context(&env, &token, &allowed_1, 600)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+
+    // Verify tracker shows 600 spent
+    let tracker_key = SpendTrackerKey::TokenSpend(policy_id.clone(), signer_key.clone());
+    env.as_contract(&contract_id, || {
+        let tracker: SpendingTracker = env.storage().persistent().get(&tracker_key).unwrap();
+        assert_eq!(tracker.spent, 600);
+    });
+
+    // Update the policy: add a second allowed recipient (same policy_id)
+    let allowed_2 = Address::generate(&env);
+    let mut updated_policy = policy.clone();
+    updated_policy.allowed_recipients = Some(vec![&env, allowed_1.clone(), allowed_2.clone()]);
+
+    let updated_signer_policy = SignerPolicy::TokenTransferPolicy(updated_policy);
+    let updated_role = SignerRole::Standard(Some(vec![&env, updated_signer_policy]), 0);
+    let base_signer = signer.into_signer(&env);
+    let new_signer = match base_signer {
+        smart_account_interfaces::Signer::Ed25519(ed, _) => {
+            smart_account_interfaces::Signer::Ed25519(ed, updated_role)
+        }
+        _ => panic!("unexpected signer type"),
+    };
+
+    env.as_contract(&contract_id, || {
+        SmartAccount::update_signer(&env, new_signer).unwrap();
+    });
+
+    // Verify tracker is PRESERVED (still 600, not reset to 0)
+    env.as_contract(&contract_id, || {
+        let tracker: SpendingTracker = env.storage().persistent().get(&tracker_key).unwrap();
+        assert_eq!(tracker.spent, 600);
+    });
+
+    // Verify the new recipient works and cumulative limit is enforced
+    // 600 + 500 = 1100 > 1000 → should fail
+    let contexts = vec![&env, make_transfer_context(&env, &token, &allowed_2, 500)];
+    let err = check_auth(&env, &contract_id, &signer, &contexts).unwrap_err();
+    assert_eq!(err, Error::InsufficientPermissions);
+
+    // 600 + 300 = 900 ≤ 1000 → should succeed
+    let contexts = vec![&env, make_transfer_context(&env, &token, &allowed_2, 300)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+}
