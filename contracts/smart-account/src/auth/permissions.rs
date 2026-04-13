@@ -8,6 +8,10 @@ use smart_account_interfaces::{SignerKey, SignerPolicy, SignerRole};
 
 pub trait AuthorizationCheck {
     fn is_authorized(&self, env: &Env, signer_key: &SignerKey, context: &Vec<Context>) -> bool;
+
+    /// Called after authorization succeeds to commit any side effects (e.g. spending tracker).
+    /// Default is a no-op for policies with no state to commit.
+    fn on_authorized(&self, _env: &Env, _signer_key: &SignerKey, _context: &Vec<Context>) {}
 }
 
 pub trait PolicyCallback {
@@ -26,6 +30,17 @@ impl AuthorizationCheck for SignerPolicy {
             }
             SignerPolicy::TokenTransferPolicy(policy) => {
                 policy.is_authorized(env, signer_key, contexts)
+            }
+        }
+    }
+
+    fn on_authorized(&self, env: &Env, signer_key: &SignerKey, contexts: &Vec<Context>) {
+        match self {
+            SignerPolicy::ExternalValidatorPolicy(policy) => {
+                policy.on_authorized(env, signer_key, contexts)
+            }
+            SignerPolicy::TokenTransferPolicy(policy) => {
+                policy.on_authorized(env, signer_key, contexts)
             }
         }
     }
@@ -78,9 +93,15 @@ impl AuthorizationCheck for SignerRole {
                         // No policies = no restrictions (beyond admin check)
                         None => true,
                         // At least one policy must authorize the full transaction
-                        Some(policies) => policies
-                            .iter()
-                            .any(|policy| policy.is_authorized(env, signer_key, contexts)),
+                        Some(policies) => {
+                            for policy in policies.iter() {
+                                if policy.is_authorized(env, signer_key, contexts) {
+                                    policy.on_authorized(env, signer_key, contexts);
+                                    return true;
+                                }
+                            }
+                            false
+                        }
                     }
                 }
             }
