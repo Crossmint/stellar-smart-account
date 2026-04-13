@@ -32,11 +32,7 @@ pub struct V1ToV2MigrationData {
 /// - Deletes the old storage entry
 /// - Writes the new entry with V2 key and value
 pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) -> Result<(), SmartAccountError> {
-    if data.signers_to_migrate.is_empty() {
-        return Err(SmartAccountError::NoSigners);
-    }
-
-    let mut admin_count: u32 = 0;
+    let mut migrated_admin_count: u32 = 0;
 
     for old_key in data.signers_to_migrate.iter() {
         let old_signer: V1Signer = env
@@ -49,7 +45,7 @@ pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) -> Result<(), Sma
             V1Signer::Ed25519(_, role) | V1Signer::Secp256r1(_, role) => role,
         };
         if matches!(role, V1SignerRole::Admin) {
-            admin_count += 1;
+            migrated_admin_count += 1;
         }
 
         // Remove the old entry
@@ -65,12 +61,12 @@ pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) -> Result<(), Sma
         );
     }
 
-    if admin_count == 0 {
-        return Err(SmartAccountError::NoSigners);
+    // If any admin signers were in the migrated set, recalculate admin_cnt
+    // from the migrated set to prevent desync from orphaned V1 admins.
+    // For partial migrations with no admins, the existing count is preserved.
+    if migrated_admin_count > 0 {
+        Storage::persistent().update(env, &ADMIN_COUNT_KEY, &migrated_admin_count)?;
     }
-
-    // Overwrite admin_cnt with the actual count from migrated signers
-    Storage::persistent().update(env, &ADMIN_COUNT_KEY, &admin_count)?;
 
     Ok(())
 }
