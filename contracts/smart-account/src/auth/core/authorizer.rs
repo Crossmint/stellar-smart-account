@@ -10,8 +10,8 @@ use crate::error::Error;
 use crate::events::PluginAuthFailedEvent;
 use smart_account_interfaces::SmartAccountPluginClient;
 use smart_account_interfaces::{Signer, SignerKey, SignerRole};
-use soroban_sdk::{auth::Context, crypto::Hash, Env, Vec};
-use soroban_sdk::{Address, Map, String, Symbol};
+use soroban_sdk::auth::{Context, ContractContext};
+use soroban_sdk::{crypto::Hash, Address, Env, InvokeError, Map, String, Symbol, TryFromVal, Vec};
 use storage::Storage;
 
 pub struct Authorizer;
@@ -83,19 +83,29 @@ impl Authorizer {
     }
 
     pub fn call_plugins_on_auth(env: &Env, auth_contexts: &Vec<Context>) -> Result<(), Error> {
+        let skip_plugin = Self::plugin_being_uninstalled(env, auth_contexts);
+
         let storage = Storage::instance();
         for (plugin, _) in storage
             .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
             .unwrap()
             .iter()
         {
+            // Escape hatch: skip the plugin being uninstalled so it cannot
+            // veto its own removal.
+            if let Some(ref target) = skip_plugin {
+                if plugin == *target {
+                    continue;
+                }
+            }
+
             let res = SmartAccountPluginClient::new(env, &plugin)
                 .try_on_auth(&env.current_contract_address(), auth_contexts);
             match res {
-                // Plugin executed successfully
+                // Plugin approved (new-style Ok(()) or old-style void return —
+                // both produce Void at the ABI level).
                 Ok(Ok(_)) => {}
-                // Plugin return value conversion failure (ABI mismatch)
-                // Treat as technical failure: log and continue
+                // Return value conversion failure (ABI mismatch) — skip.
                 Ok(Err(_)) => {
                     env.events().publish(
                         (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
@@ -105,13 +115,8 @@ impl Authorizer {
                         },
                     );
                 }
-                // Plugin invocation failed.
-                // Because on_auth returns () (not Result), the contractclient
-                // macro sets E = soroban_sdk::Error, so try_from never fails
-                // and all errors land in Err(Ok(soroban_sdk::Error)).
-                // We inspect the error type to distinguish intentional
-                // rejection (ScErrorType::Contract) from technical failure.
-                Err(Ok(ref error)) if error.is_type(soroban_sdk::xdr::ScErrorType::Contract) => {
+                // Plugin explicitly rejected via Err(PluginRejection::Rejected).
+                Err(Ok(_)) => {
                     env.events().publish(
                         (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
                         PluginAuthFailedEvent {
@@ -121,9 +126,22 @@ impl Authorizer {
                     );
                     return Err(Error::PluginOnAuthFailed);
                 }
-                // Technical failure: host trap, bare panic!, missing function,
+                // Old-style rejection: panic_with_error! with a contract error
+                // code that doesn't match PluginRejection. Treat as rejection
+                // to preserve backwards compatibility with existing plugins.
+                Err(Err(InvokeError::Contract(_))) => {
+                    env.events().publish(
+                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
+                        PluginAuthFailedEvent {
+                            plugin: plugin.clone(),
+                            error: String::from_str(env, "Plugin rejected authorization"),
+                        },
+                    );
+                    return Err(Error::PluginOnAuthFailed);
+                }
+                // Technical failure: bare panic!, missing function, host trap,
                 // budget exhaustion, expired TTL. Non-blocking — skip.
-                Err(_) => {
+                Err(Err(InvokeError::Abort)) => {
                     env.events().publish(
                         (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
                         PluginAuthFailedEvent {
@@ -135,5 +153,28 @@ impl Authorizer {
             }
         }
         Ok(())
+    }
+
+    /// If the auth context includes an `uninstall_plugin` call on this
+    /// contract, return the address of the plugin being removed so it can
+    /// be skipped in the plugin auth loop.
+    fn plugin_being_uninstalled(env: &Env, auth_contexts: &Vec<Context>) -> Option<Address> {
+        let self_address = env.current_contract_address();
+        for context in auth_contexts.iter() {
+            if let Context::Contract(ContractContext {
+                contract,
+                fn_name,
+                args,
+            }) = context
+            {
+                if contract == self_address
+                    && fn_name == Symbol::new(env, "uninstall_plugin")
+                    && args.len() > 0
+                {
+                    return Address::try_from_val(env, &args.get(0).unwrap()).ok();
+                }
+            }
+        }
+        None
     }
 }

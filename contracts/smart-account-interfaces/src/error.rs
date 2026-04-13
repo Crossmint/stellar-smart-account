@@ -1,5 +1,16 @@
 use soroban_sdk::contracterror;
 
+/// Dedicated rejection signal for the plugin `on_auth` interface.
+///
+/// Plugins return `Err(PluginRejection::Rejected)` to intentionally block
+/// authorization. Any panic is treated as a technical failure and skipped.
+#[contracterror]
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u32)]
+pub enum PluginRejection {
+    Rejected = 1,
+}
+
 #[contracterror]
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u32)]
