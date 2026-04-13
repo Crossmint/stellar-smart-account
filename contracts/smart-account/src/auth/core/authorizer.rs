@@ -3,7 +3,8 @@ use crate::auth::permissions::AuthorizationCheck;
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signers::SignatureVerifier as _;
 use crate::config::{
-    PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD, PLUGINS_KEY, TOPIC_PLUGIN, VERB_AUTH_FAILED,
+    ADMIN_COUNT_KEY, PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD, PLUGINS_KEY, TOPIC_PLUGIN,
+    VERB_AUTH_FAILED,
 };
 use crate::error::Error;
 use crate::events::PluginAuthFailedEvent;
@@ -53,6 +54,15 @@ impl Authorizer {
                 SignerRole::Admin => admin_signers.push_back(signer),
                 SignerRole::Standard(_, _) => standard_signers.push_back(signer),
             }
+        }
+
+        // Keep the admin count alive alongside signer entries
+        if env.storage().persistent().has(&ADMIN_COUNT_KEY) {
+            env.storage().persistent().extend_ttl(
+                &ADMIN_COUNT_KEY,
+                PERSISTENT_TTL_THRESHOLD,
+                PERSISTENT_EXTEND_TO,
+            );
         }
 
         for signer in admin_signers.iter() {

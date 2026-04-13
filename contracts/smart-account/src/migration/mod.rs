@@ -43,12 +43,13 @@ pub fn set_contract_version(env: &Env, version: u32) {
 pub fn run_migration(env: &Env, data: &MigrationData) {
     let version = get_contract_version(env);
 
-    match (version, data) {
-        (1, MigrationData::V1ToV2(v1_data)) => {
-            migrate_v1_to_v2(env, v1_data);
-        }
+    let result = match (version, data) {
+        (1, MigrationData::V1ToV2(v1_data)) => migrate_v1_to_v2(env, v1_data),
         _ => panic_with_error!(env, Error::MigrationVersionMismatch),
-    }
+    };
 
-    set_contract_version(env, CURRENT_CONTRACT_VERSION);
+    match result {
+        Ok(()) => set_contract_version(env, CURRENT_CONTRACT_VERSION),
+        Err(e) => panic_with_error!(env, e),
+    }
 }

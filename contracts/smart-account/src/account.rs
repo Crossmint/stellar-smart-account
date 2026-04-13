@@ -3,8 +3,9 @@ use crate::auth::permissions::PolicyCallback;
 use crate::auth::proof::SignatureProofs;
 use crate::config::{
     ADMIN_COUNT_KEY, CONTRACT_VERSION_KEY, CURRENT_CONTRACT_VERSION, INSTANCE_EXTEND_TO,
-    INSTANCE_TTL_THRESHOLD, PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED,
-    VERB_REVOKED, VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
+    INSTANCE_TTL_THRESHOLD, MAX_PLUGINS, PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD,
+    PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED, VERB_REVOKED,
+    VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
 };
 use crate::error::Error;
 use crate::events::{
@@ -162,6 +163,7 @@ impl SmartAccountInterface for SmartAccount {
         let key = signer.clone().into();
         let storage = Storage::persistent();
         storage.store::<SignerKey, Signer>(env, &key, &signer)?;
+        storage.extend_ttl(env, &key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_EXTEND_TO);
 
         // Handle role-specific initialization
         match signer.role() {
@@ -204,6 +206,7 @@ impl SmartAccountInterface for SmartAccount {
 
         // Update the signer in storage
         storage.update::<SignerKey, Signer>(env, &key, &signer)?;
+        storage.extend_ttl(env, &key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_EXTEND_TO);
         env.events().publish(
             (TOPIC_SIGNER, VERB_UPDATED),
             SignerUpdatedEvent::from(signer),
@@ -257,6 +260,9 @@ impl SmartAccountInterface for SmartAccount {
             .unwrap();
         if existing_plugins.contains_key(plugin.clone()) {
             return Err(SmartAccountError::PluginAlreadyInstalled);
+        }
+        if existing_plugins.len() >= MAX_PLUGINS {
+            return Err(SmartAccountError::MaxPluginsReached);
         }
         existing_plugins.set(plugin.clone(), ());
         storage.update::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY, &existing_plugins)?;
@@ -372,6 +378,11 @@ impl SmartAccount {
             .checked_sub(1)
             .ok_or(SmartAccountError::CannotDowngradeLastAdmin)?;
         storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
+        env.storage().persistent().extend_ttl(
+            &ADMIN_COUNT_KEY,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_EXTEND_TO,
+        );
         Ok(())
     }
 
@@ -385,6 +396,11 @@ impl SmartAccount {
             .checked_add(1)
             .ok_or(SmartAccountError::MaxSignersReached)?;
         storage.update::<Symbol, u32>(env, &ADMIN_COUNT_KEY, &new_count)?;
+        env.storage().persistent().extend_ttl(
+            &ADMIN_COUNT_KEY,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_EXTEND_TO,
+        );
         Ok(())
     }
 

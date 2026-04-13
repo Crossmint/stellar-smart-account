@@ -208,3 +208,42 @@ fn test_plugin_intentional_rejection_blocks_auth() {
     // call_plugins_on_auth.
     assert_eq!(result, Err(Ok(Error::PluginOnAuthFailed)));
 }
+
+// -----------------------------------------------------------------------------
+// Test: Installing more than MAX_PLUGINS plugins fails with MaxPluginsReached
+// -----------------------------------------------------------------------------
+
+#[test]
+fn test_max_plugins_limit() {
+    let env = setup();
+    env.mock_all_auths();
+
+    // Deploy SmartAccount with one admin signer
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin);
+    let smart_account_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    // Install 10 plugins (the maximum allowed)
+    for i in 0..10u32 {
+        let plugin_id = env.register(DummyPlugin, ());
+        env.as_contract(&smart_account_id, || {
+            SmartAccount::install_plugin(&env, plugin_id.clone())
+        })
+        .unwrap_or_else(|e| panic!("Plugin {} install should succeed but got: {:?}", i, e));
+    }
+
+    // The 11th plugin should fail with MaxPluginsReached
+    let extra_plugin_id = env.register(DummyPlugin, ());
+    let err = env
+        .as_contract(&smart_account_id, || {
+            SmartAccount::install_plugin(&env, extra_plugin_id.clone())
+        })
+        .unwrap_err();
+
+    assert_eq!(err, Error::MaxPluginsReached);
+}
