@@ -10,8 +10,8 @@ use crate::error::Error;
 use crate::events::PluginAuthFailedEvent;
 use smart_account_interfaces::SmartAccountPluginClient;
 use smart_account_interfaces::{Signer, SignerKey, SignerRole};
-use soroban_sdk::{auth::Context, crypto::Hash, Env, Vec};
-use soroban_sdk::{Address, Map, String, Symbol};
+use soroban_sdk::auth::Context;
+use soroban_sdk::{crypto::Hash, Address, Env, InvokeError, Map, String, Symbol, Vec};
 use storage::Storage;
 
 pub struct Authorizer;
@@ -92,10 +92,10 @@ impl Authorizer {
             let res = SmartAccountPluginClient::new(env, &plugin)
                 .try_on_auth(&env.current_contract_address(), auth_contexts);
             match res {
-                // Plugin executed successfully
+                // Plugin approved (new-style Ok(()) or old-style void return —
+                // both produce Void at the ABI level).
                 Ok(Ok(_)) => {}
-                // Plugin return value conversion failure (ABI mismatch)
-                // Treat as technical failure: log and continue
+                // Return value conversion failure (ABI mismatch) — skip.
                 Ok(Err(_)) => {
                     env.events().publish(
                         (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
@@ -105,7 +105,7 @@ impl Authorizer {
                         },
                     );
                 }
-                // Plugin intentionally rejected (contracterror / panic_with_error!)
+                // Plugin explicitly rejected via Err(PluginRejection::Rejected).
                 Err(Ok(_)) => {
                     env.events().publish(
                         (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
@@ -116,9 +116,22 @@ impl Authorizer {
                     );
                     return Err(Error::PluginOnAuthFailed);
                 }
-                // Plugin had a technical failure (panic!, host trap, TTL expiry)
-                // Non-blocking: log and continue to next plugin
-                Err(Err(_)) => {
+                // Old-style rejection: panic_with_error! with a contract error
+                // code that doesn't match PluginRejection. Treat as rejection
+                // to preserve backwards compatibility with existing plugins.
+                Err(Err(InvokeError::Contract(_))) => {
+                    env.events().publish(
+                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
+                        PluginAuthFailedEvent {
+                            plugin: plugin.clone(),
+                            error: String::from_str(env, "Plugin rejected authorization"),
+                        },
+                    );
+                    return Err(Error::PluginOnAuthFailed);
+                }
+                // Technical failure: bare panic!, missing function, host trap,
+                // budget exhaustion, expired TTL. Non-blocking — skip.
+                Err(Err(InvokeError::Abort)) => {
                     env.events().publish(
                         (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
                         PluginAuthFailedEvent {

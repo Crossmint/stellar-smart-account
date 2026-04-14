@@ -12,5 +12,5 @@ pub use auth::types::{
     SignerKey, SignerPolicy, SignerRole, SpendTrackerKey, SpendingTracker, TokenTransferPolicy,
     WebauthnSigner,
 };
-pub use error::SmartAccountError;
+pub use error::{PluginRejection, SmartAccountError};
 pub use plugin::{SmartAccountPlugin, SmartAccountPluginClient};

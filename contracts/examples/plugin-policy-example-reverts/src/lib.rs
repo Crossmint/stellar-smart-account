@@ -1,5 +1,5 @@
 #![no_std]
-use smart_account_interfaces::{SmartAccountPlugin, SmartAccountPolicy};
+use smart_account_interfaces::{PluginRejection, SmartAccountPlugin, SmartAccountPolicy};
 use soroban_sdk::{
     auth::{Context, ContractContext},
     contract, contractimpl, contracttype, symbol_short, Address, Env, Symbol, TryFromVal, Vec,
@@ -41,7 +41,7 @@ impl SmartAccountPlugin for PluginPolicyContractReverts {
         source.require_auth();
     }
 
-    fn on_auth(env: &Env, source: Address, contexts: Vec<Context>) {
+    fn on_auth(env: &Env, source: Address, contexts: Vec<Context>) -> Result<(), PluginRejection> {
         source.require_auth();
         // Increment the internal counter
         let current_counter: u32 = env.storage().instance().get(&AUTH_COUNTER_KEY).unwrap_or(0);
@@ -60,6 +60,8 @@ impl SmartAccountPlugin for PluginPolicyContractReverts {
                 counter: new_counter,
             },
         );
+
+        Ok(())
     }
 }
 
