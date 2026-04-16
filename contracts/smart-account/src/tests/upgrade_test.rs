@@ -1048,3 +1048,78 @@ fn test_auth_standard_cannot_authorize_migrate_after_migration() {
         Ok(err) => assert_eq!(err, Error::InsufficientPermissions),
     }
 }
+
+// ============================================================================
+// Test: upgrade() rejects a second call while a previous migration is pending
+//
+// Regression guard for the missing `ensure_no_pending_migration` check in
+// account.rs::upgrade. Without the guard, an admin could swap WASM twice
+// without running migrate() in between, orphaning the migration chain.
+//
+// Drives the *current* source's upgrade via `env.as_contract` so the test
+// doesn't depend on the frozen testdata/smart_account_v2.wasm artifact.
+// ============================================================================
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1110)")]
+fn test_upgrade_rejected_when_migration_pending() {
+    use crate::account::SmartAccount;
+    use crate::tests::test_utils::{Ed25519TestSigner, TestSignerTrait as _};
+    use smart_account_interfaces::SignerRole;
+    use upgradeable::SmartAccountUpgradeableMigratable as _;
+
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            soroban_sdk::vec![&env, admin],
+            soroban_sdk::Vec::<soroban_sdk::Address>::new(&env),
+        ),
+    );
+
+    // Simulate a prior upgrade that left MIGRATING=true (no migrate run).
+    env.as_contract(&contract_id, || {
+        upgradeable::enable_migration(&env);
+    });
+
+    // Second upgrade must now panic with MigrationAlreadyPending (#1110).
+    env.as_contract(&contract_id, || {
+        SmartAccount::upgrade(&env, BytesN::random(&env));
+    });
+}
+
+// ============================================================================
+// Test: upgrade() is allowed again after migrate() completes
+// ============================================================================
+
+#[test]
+fn test_upgrade_allowed_after_migrate_completes() {
+    use crate::account::SmartAccount;
+    use crate::tests::test_utils::{Ed25519TestSigner, TestSignerTrait as _};
+    use smart_account_interfaces::SignerRole;
+
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            soroban_sdk::vec![&env, admin],
+            soroban_sdk::Vec::<soroban_sdk::Address>::new(&env),
+        ),
+    );
+
+    // Walk the full upgrade lifecycle via the helpers used by
+    // account.rs::upgrade and account.rs::migrate.
+    env.as_contract(&contract_id, || {
+        upgradeable::enable_migration(&env);
+        // (skipping the actual WASM swap — we are only verifying the guard)
+        upgradeable::complete_migration(&env);
+        // After complete_migration, the next upgrade must NOT panic on the guard.
+        upgradeable::ensure_no_pending_migration(&env);
+    });
+}
