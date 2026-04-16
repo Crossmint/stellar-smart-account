@@ -159,6 +159,9 @@ impl SmartAccountInterface for SmartAccount {
                 return Err(SmartAccountError::InvalidPolicy);
             }
         }
+        if let SignerRole::Standard(ref policies, _) = signer.role() {
+            Self::validate_homogeneous_policies(policies)?;
+        }
 
         let key = signer.clone().into();
         let storage = Storage::persistent();
@@ -193,6 +196,9 @@ impl SmartAccountInterface for SmartAccount {
             if policies.is_empty() {
                 return Err(SmartAccountError::InvalidPolicy);
             }
+        }
+        if let SignerRole::Standard(ref policies, _) = signer.role() {
+            Self::validate_homogeneous_policies(policies)?;
         }
 
         let key = signer.clone().into();
@@ -409,6 +415,37 @@ impl SmartAccount {
         if let SignerRole::Standard(_, expiration) = signer.role() {
             if expiration > 0 && expiration <= env.ledger().timestamp() {
                 return Err(SmartAccountError::SignerExpired);
+            }
+        }
+        Ok(())
+    }
+
+    /// Ensures a Standard signer's policy vector contains only one variant.
+    ///
+    /// Mixing `ExternalValidatorPolicy` with `TokenTransferPolicy` is rejected:
+    /// the OR-short-circuit in `SignerRole::is_authorized` would let the
+    /// permissive policy authorize a transaction the strict policy intended
+    /// to cap, and the strict policy's spending tracker would never observe
+    /// the spend. Same-variant sets (multi-token caps, multiple external
+    /// validators) remain allowed.
+    fn validate_homogeneous_policies(
+        policies: &Option<Vec<SignerPolicy>>,
+    ) -> Result<(), SmartAccountError> {
+        let Some(policies) = policies else {
+            return Ok(());
+        };
+        if policies.len() <= 1 {
+            return Ok(());
+        }
+
+        let first_is_external = matches!(
+            policies.get(0).unwrap(),
+            SignerPolicy::ExternalValidatorPolicy(_)
+        );
+        for policy in policies.iter() {
+            let is_external = matches!(policy, SignerPolicy::ExternalValidatorPolicy(_));
+            if is_external != first_is_external {
+                return Err(SmartAccountError::InvalidPolicy);
             }
         }
         Ok(())

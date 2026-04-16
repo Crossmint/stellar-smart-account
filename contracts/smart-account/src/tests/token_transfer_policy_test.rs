@@ -928,3 +928,68 @@ fn test_updating_allowed_recipients_preserves_spending_tracker() {
     let contexts = vec![&env, make_transfer_context(&env, &token, &allowed_2, 300)];
     check_auth(&env, &contract_id, &signer, &contexts).unwrap();
 }
+
+// ============================================================================
+// Regression: overlapping TokenTransferPolicy entries on the same token must
+// each have their `on_authorized` fire so every spending tracker advances.
+// Before the commit-every-match fix, only the FIRST matching policy committed.
+// ============================================================================
+
+#[test]
+fn test_overlapping_token_policies_both_commit_spend() {
+    let env = setup();
+    let token = Address::generate(&env);
+
+    let policy_a = TokenTransferPolicy {
+        policy_id: BytesN::random(&env),
+        token: token.clone(),
+        limit: Some(10_000),
+        reset_window_secs: 0,
+        allowed_recipients: None,
+        expiration: 0,
+    };
+    let policy_b = TokenTransferPolicy {
+        policy_id: BytesN::random(&env),
+        token: token.clone(),
+        limit: Some(10_000),
+        reset_window_secs: 0,
+        allowed_recipients: None,
+        expiration: 0,
+    };
+
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
+    let signer_policies = vec![
+        &env,
+        SignerPolicy::TokenTransferPolicy(policy_a.clone()),
+        SignerPolicy::TokenTransferPolicy(policy_b.clone()),
+    ];
+    let standard_signer = Ed25519TestSigner::generate(SignerRole::Standard(
+        Some(signer_policies),
+        0,
+    ));
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin_signer, standard_signer.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let to = Address::generate(&env);
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 400)];
+    check_auth(&env, &contract_id, &standard_signer, &contexts).unwrap();
+
+    let signer_key = SignerKey::Ed25519(standard_signer.public_key(&env));
+    let key_a = SpendTrackerKey::TokenSpend(policy_a.policy_id, signer_key.clone());
+    let key_b = SpendTrackerKey::TokenSpend(policy_b.policy_id, signer_key);
+
+    env.as_contract(&contract_id, || {
+        let a: SpendingTracker = env.storage().persistent().get(&key_a).unwrap();
+        let b: SpendingTracker = env.storage().persistent().get(&key_b).unwrap();
+        assert_eq!(a.spent, 400, "policy A tracker should reflect the spend");
+        assert_eq!(
+            b.spent, 400,
+            "policy B tracker must ALSO reflect the spend (regression)"
+        );
+    });
+}
