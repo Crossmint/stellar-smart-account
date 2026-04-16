@@ -64,6 +64,11 @@ impl SmartAccountUpgradeableMigratableInternal for SmartAccount {
 impl SmartAccountUpgradeableMigratable for SmartAccount {
     fn upgrade(e: &Env, new_wasm_hash: BytesN<32>) {
         Self::_require_auth_upgrade(e);
+        // Refuse to start a new upgrade while a previous one is still
+        // pending its migrate() call. Without this guard, a second
+        // upgrade() would silently swap WASM again before the first
+        // migration ran, orphaning the migration chain.
+        upgradeable::ensure_no_pending_migration(e);
         upgradeable::enable_migration(e);
         e.events().publish(
             (Symbol::new(e, "UPGRADE_STARTED"),),
