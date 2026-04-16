@@ -92,3 +92,80 @@ fn test_webauthn_end_to_end_auth() {
     )
     .unwrap();
 }
+
+// ============================================================================
+// key_id length bound: anything over 1023 bytes is rejected at registration
+// (matches the FIDO2/CTAP2 CredentialID cap).
+// ============================================================================
+
+#[test]
+fn test_webauthn_oversize_key_id_rejected() {
+    use crate::account::SmartAccount;
+    use smart_account_interfaces::{Signer, SmartAccountInterface as _, WebauthnSigner};
+    use soroban_sdk::testutils::Address as _;
+
+    let env = setup();
+    env.mock_all_auths();
+
+    // Deploy with a valid admin first.
+    let admin = crate::tests::test_utils::WebauthnTestSigner::generate(SignerRole::Admin);
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    // Build a Webauthn signer whose key_id is 1024 bytes — over the cap.
+    let oversize = Bytes::from_slice(&env, &[0xAAu8; 1024]);
+    let pk_bytes = [0x04u8; 65];
+    let bad_signer = Signer::Webauthn(
+        WebauthnSigner {
+            key_id: oversize,
+            public_key: BytesN::from_array(&env, &pk_bytes),
+        },
+        SignerRole::Standard(None, 0),
+    );
+
+    let err = env
+        .as_contract(&contract_id, || {
+            SmartAccount::add_signer(&env, bad_signer)
+        })
+        .unwrap_err();
+    assert_eq!(err, Error::InvalidPolicy);
+}
+
+#[test]
+fn test_webauthn_max_size_key_id_accepted() {
+    use crate::account::SmartAccount;
+    use smart_account_interfaces::{Signer, SmartAccountInterface as _, WebauthnSigner};
+
+    let env = setup();
+    env.mock_all_auths();
+
+    let admin = crate::tests::test_utils::WebauthnTestSigner::generate(SignerRole::Admin);
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    // Exactly 1023 bytes — the FIDO2/CTAP2 cap — must pass.
+    let exact = Bytes::from_slice(&env, &[0xBBu8; 1023]);
+    let pk_bytes = [0x04u8; 65];
+    let ok_signer = Signer::Webauthn(
+        WebauthnSigner {
+            key_id: exact,
+            public_key: BytesN::from_array(&env, &pk_bytes),
+        },
+        SignerRole::Standard(None, 0),
+    );
+
+    env.as_contract(&contract_id, || {
+        SmartAccount::add_signer(&env, ok_signer)
+    })
+    .unwrap();
+}

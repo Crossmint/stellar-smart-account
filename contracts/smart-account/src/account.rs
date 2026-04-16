@@ -151,6 +151,9 @@ impl SmartAccountInterface for SmartAccount {
         if let Signer::Multisig(ref multisig, _) = signer {
             Self::validate_multisig(env, multisig)?;
         }
+        if let Signer::Webauthn(ref webauthn, _) = signer {
+            Self::validate_webauthn_key_id(&webauthn.key_id)?;
+        }
         Self::validate_signer_expiration(env, &signer)?;
 
         // Validate: Some(empty_vec) is not allowed — use None for no policies
@@ -185,6 +188,9 @@ impl SmartAccountInterface for SmartAccount {
 
         if let Signer::Multisig(ref multisig, _) = signer {
             Self::validate_multisig(env, multisig)?;
+        }
+        if let Signer::Webauthn(ref webauthn, _) = signer {
+            Self::validate_webauthn_key_id(&webauthn.key_id)?;
         }
         Self::validate_signer_expiration(env, &signer)?;
 
@@ -410,6 +416,18 @@ impl SmartAccount {
             if expiration > 0 && expiration <= env.ledger().timestamp() {
                 return Err(SmartAccountError::SignerExpired);
             }
+        }
+        Ok(())
+    }
+
+    /// Bounds WebAuthn credential ID length. FIDO2/CTAP2 caps the CredentialID
+    /// at 1023 bytes, and real-world authenticators stay well under that
+    /// (typically ≤ 128 bytes). Unbounded key_ids inflate persistent storage
+    /// rent and signature proof payloads with no upside, so we reject them.
+    fn validate_webauthn_key_id(key_id: &soroban_sdk::Bytes) -> Result<(), SmartAccountError> {
+        const MAX_WEBAUTHN_KEY_ID_LEN: u32 = 1023;
+        if key_id.len() > MAX_WEBAUTHN_KEY_ID_LEN {
+            return Err(SmartAccountError::InvalidPolicy);
         }
         Ok(())
     }
