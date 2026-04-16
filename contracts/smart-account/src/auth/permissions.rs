@@ -99,15 +99,21 @@ impl AuthorizationCheck for SignerRole {
                     match policies {
                         // No policies = no restrictions (beyond admin check)
                         None => true,
-                        // At least one policy must authorize the full transaction
+                        // OR semantics: at least one policy must authorize.
+                        // Every matching policy's on_authorized fires so that
+                        // overlapping policies (e.g. multiple TokenTransferPolicy
+                        // entries on the same token) all commit their state.
+                        // Mixed-variant policy sets are rejected at registration
+                        // (see SmartAccount::validate_homogeneous_policies).
                         Some(policies) => {
+                            let mut authorized = false;
                             for policy in policies.iter() {
                                 if policy.is_authorized(env, signer_key, contexts) {
                                     policy.on_authorized(env, signer_key, contexts);
-                                    return true;
+                                    authorized = true;
                                 }
                             }
-                            false
+                            authorized
                         }
                     }
                 }

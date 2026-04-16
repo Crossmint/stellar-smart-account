@@ -91,13 +91,31 @@ cargo test
 | Role | Capabilities | Use Cases |
 |------|-------------|-----------|
 | **Admin** | Full access, can upgrade contracts | System administrators, emergency access |
-| **Standard** | Normal operations, cannot modify signers, optional policy restrictions | Regular users, application accounts, AI agents with policies |
+| **Standard** | Normal operations, cannot modify signers, optional policy restrictions (see [Policy semantics](#policy-semantics)) | Regular users, application accounts, AI agents with policies |
 
 ### Policy Types
 
 - **External Delegation**: Delegate authorization decisions to external policy contracts
 - **Token Transfer Policy**: Restrict signers to specific token transfers with cumulative spending limits, reset windows, recipient allowlists, and per-policy expiration
 - **Extensible**: Add custom policies by implementing the `AuthorizationCheck` and `PolicyCallback` traits
+
+### Policy semantics
+
+A Standard signer's `policies` vector must contain a single kind of policy
+(all `TokenTransferPolicy` or all `ExternalValidatorPolicy`); mixing kinds
+is rejected at `add_signer` / `update_signer` time with `InvalidPolicy`.
+
+Within a homogeneous set, policies are evaluated with **OR semantics** —
+the signer is authorized if **any** policy allows the operation. Every
+matching policy's `on_authorized` hook fires, so state trackers
+(e.g. spending counters) advance for **all** matching policies, not just
+the first.
+
+This is a deliberate design choice for the current release. It supports
+natural multi-currency configurations (e.g. one `TokenTransferPolicy` per
+token) while preventing the dangerous pattern of stacking a permissive
+external policy with a restrictive token cap. A future release will
+introduce a richer composition model.
 
 ### Signer Expiration
 

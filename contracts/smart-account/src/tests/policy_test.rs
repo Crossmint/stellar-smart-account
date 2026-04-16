@@ -2,15 +2,17 @@ use crate::tests::test_utils::TestSignerTrait as _;
 use smart_account_interfaces::Ed25519Signer;
 pub use smart_account_interfaces::SmartAccountInterface;
 use soroban_sdk::auth::Context;
-use soroban_sdk::testutils::Events;
+use soroban_sdk::testutils::{Address as _, BytesN as _, Events};
 use soroban_sdk::{
-    contract, contractimpl, symbol_short, vec, Address, Env, Symbol, TryFromVal, Vec,
+    contract, contractimpl, symbol_short, vec, Address, BytesN, Env, Symbol, TryFromVal, Vec,
 };
 
 use crate::account::SmartAccount;
 use crate::error::Error;
 use crate::tests::test_utils::{setup, Ed25519TestSigner};
-use smart_account_interfaces::{ExternalPolicy, Signer, SignerKey, SignerPolicy, SignerRole};
+use smart_account_interfaces::{
+    ExternalPolicy, Signer, SignerKey, SignerPolicy, SignerRole, TokenTransferPolicy,
+};
 
 #[contract]
 pub struct DummyExternalPolicy;
@@ -212,4 +214,132 @@ fn test_update_signer_with_external_polic_lifecycle_with_same_policy() {
     })
     .unwrap();
     ensure_policy_event_is_not_emmited(&env, policy_id_1.clone(), symbol_short!("ON_REVOKE"));
+}
+
+// ============================================================================
+// Homogeneous policies — mixing TokenTransferPolicy with ExternalValidatorPolicy
+// is rejected at registration to prevent the OR-short-circuit from letting a
+// permissive external policy hide a strict spending cap.
+// ============================================================================
+
+fn make_ttp(env: &Env) -> TokenTransferPolicy {
+    TokenTransferPolicy {
+        policy_id: BytesN::random(env),
+        token: Address::generate(env),
+        limit: Some(100),
+        reset_window_secs: 0,
+        allowed_recipients: None,
+        expiration: 0,
+    }
+}
+
+#[test]
+#[should_panic(expected = "#80")]
+fn test_mixed_policy_variants_rejected_at_constructor() {
+    let env = setup();
+    let ext_addr = env.register(DummyExternalPolicy, ());
+    let ext = SignerPolicy::ExternalValidatorPolicy(ExternalPolicy {
+        policy_address: ext_addr,
+    });
+    let ttp = SignerPolicy::TokenTransferPolicy(make_ttp(&env));
+
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
+    let mixed = Ed25519TestSigner::generate(SignerRole::Standard(
+        Some(vec![&env, ext, ttp]),
+        0,
+    ));
+    env.register(
+        SmartAccount,
+        (
+            vec![&env, admin, mixed.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+}
+
+#[test]
+fn test_mixed_policy_variants_rejected_on_update_signer() {
+    let env = setup();
+    let ext_addr = env.register(DummyExternalPolicy, ());
+    let ext = SignerPolicy::ExternalValidatorPolicy(ExternalPolicy {
+        policy_address: ext_addr.clone(),
+    });
+
+    // Start homogeneous: external-only.
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
+    let standard =
+        Ed25519TestSigner::generate(SignerRole::Standard(Some(vec![&env, ext.clone()]), 0));
+    let standard_signer = standard.into_signer(&env);
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin, standard_signer.clone()],
+            Vec::<Address>::new(&env),
+        ),
+    );
+    env.mock_all_auths();
+
+    // Now try to update with a mixed set — must fail with InvalidPolicy.
+    let ttp = SignerPolicy::TokenTransferPolicy(make_ttp(&env));
+    let pubkey = match standard_signer {
+        Signer::Ed25519(ref s, _) => s.public_key.clone(),
+        _ => unreachable!(),
+    };
+    let mixed_update = Signer::Ed25519(
+        Ed25519Signer::new(pubkey),
+        SignerRole::Standard(Some(vec![&env, ext, ttp]), 0),
+    );
+
+    let err = env
+        .as_contract(&contract_id, || {
+            SmartAccount::update_signer(&env, mixed_update)
+        })
+        .unwrap_err();
+    assert_eq!(err, Error::InvalidPolicy);
+}
+
+#[test]
+fn test_two_token_transfer_policies_same_variant_allowed() {
+    let env = setup();
+    // Two TokenTransferPolicy entries — multi-currency use case still works.
+    let ttp1 = SignerPolicy::TokenTransferPolicy(make_ttp(&env));
+    let ttp2 = SignerPolicy::TokenTransferPolicy(make_ttp(&env));
+
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
+    let standard = Ed25519TestSigner::generate(SignerRole::Standard(
+        Some(vec![&env, ttp1, ttp2]),
+        0,
+    ));
+    // Should register without panicking.
+    env.register(
+        SmartAccount,
+        (
+            vec![&env, admin, standard.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+}
+
+#[test]
+fn test_two_external_policies_same_variant_allowed() {
+    let env = setup();
+    let ext1 = SignerPolicy::ExternalValidatorPolicy(ExternalPolicy {
+        policy_address: env.register(DummyExternalPolicy, ()),
+    });
+    let ext2 = SignerPolicy::ExternalValidatorPolicy(ExternalPolicy {
+        policy_address: env.register(DummyExternalPolicy, ()),
+    });
+
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
+    let standard = Ed25519TestSigner::generate(SignerRole::Standard(
+        Some(vec![&env, ext1, ext2]),
+        0,
+    ));
+    env.register(
+        SmartAccount,
+        (
+            vec![&env, admin, standard.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
 }
