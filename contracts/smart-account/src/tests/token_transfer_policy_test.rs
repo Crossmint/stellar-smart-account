@@ -928,3 +928,19 @@ fn test_updating_allowed_recipients_preserves_spending_tracker() {
     let contexts = vec![&env, make_transfer_context(&env, &token, &allowed_2, 300)];
     check_auth(&env, &contract_id, &signer, &contexts).unwrap();
 }
+
+// ============================================================================
+// validate_policy must reject `limit = Some(i128::MAX)`.
+// With saturating-adds in extract_transfer_total / check_spending_limit,
+// a MAX limit silently degenerates into unlimited spending.
+// ============================================================================
+
+#[test]
+#[should_panic(expected = "#80")]
+fn test_on_add_rejects_i128_max_limit() {
+    let env = setup();
+    let token = Address::generate(&env);
+    let mut policy = make_policy(&env, &token, Some(1000));
+    policy.limit = Some(i128::MAX);
+    let _ = setup_account_with_policy(&env, &policy);
+}
