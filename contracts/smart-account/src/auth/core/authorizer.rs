@@ -91,10 +91,23 @@ impl Authorizer {
         {
             let res = SmartAccountPluginClient::new(env, &plugin)
                 .try_on_auth(&env.current_contract_address(), auth_contexts);
+            // Plugin-result classification (Soroban 22 try_* semantics):
+            //   Ok(Ok(_))   — plugin returned normally                   → continue
+            //   Ok(Err(_))  — return-value ABI decode failure            → SKIP (fail-open)
+            //   Err(Ok(_))  — contracterror OR panic!/unwrap/unreachable → REJECT (fail-closed)
+            //   Err(Err(_)) — host trap (archival, budget, missing code) → SKIP (fail-open)
+            //
+            // Note: any `panic!` from the plugin — including an unwrap that
+            // fires or an arithmetic overflow — lands in the Err(Ok(_))
+            // branch and blocks auth. Only environmental host traps
+            // (storage archival, budget exhaustion, stack overflow,
+            // contract-not-found) reach Err(Err(_)) and are silently
+            // skipped. Plugins that want to stay enforceable should
+            // manage their own TTL and avoid unbounded work.
             match res {
                 // Plugin executed successfully
                 Ok(Ok(_)) => {}
-                // Plugin return value conversion failure (ABI mismatch)
+                // Plugin return value ABI decode failure
                 // Treat as technical failure: log and continue
                 Ok(Err(_)) => {
                     env.events().publish(
@@ -105,7 +118,8 @@ impl Authorizer {
                         },
                     );
                 }
-                // Plugin intentionally rejected (contracterror / panic_with_error!)
+                // Plugin intentionally rejected (contracterror) or panicked
+                // (panic!, panic_with_error!, unwrap, arithmetic overflow, etc.)
                 Err(Ok(_)) => {
                     env.events().publish(
                         (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
@@ -116,8 +130,10 @@ impl Authorizer {
                     );
                     return Err(Error::PluginOnAuthFailed);
                 }
-                // Plugin had a technical failure (panic!, host trap, TTL expiry)
-                // Non-blocking: log and continue to next plugin
+                // Host-level failure: storage archival, budget exhaustion,
+                // contract not found, stack overflow. Non-blocking: log
+                // and continue to next plugin so an unreachable plugin
+                // cannot brick the account.
                 Err(Err(_)) => {
                     env.events().publish(
                         (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
