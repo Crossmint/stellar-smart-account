@@ -3,9 +3,8 @@
 extern crate std;
 
 use soroban_sdk::{
-    contract, contractimpl,
-    testutils::Address as _,
-    vec, Address, BytesN, Env, IntoVal, Symbol, Val, Vec,
+    contract, contractimpl, testutils::Address as _, vec, Address, BytesN, Env, IntoVal, Symbol,
+    Val, Vec,
 };
 
 use crate::test_constants::SMART_ACCOUNT_WASM;
@@ -124,10 +123,8 @@ fn test_same_salt_produces_same_address() {
 
     let args = default_deployment(&e, 1);
 
-    let address1 =
-        client.get_deployed_address(&args.salt, &args.wasm_hash, &args.constructor_args);
-    let address2 =
-        client.get_deployed_address(&args.salt, &args.wasm_hash, &args.constructor_args);
+    let address1 = client.get_deployed_address(&args.salt, &args.wasm_hash, &args.constructor_args);
+    let address2 = client.get_deployed_address(&args.salt, &args.wasm_hash, &args.constructor_args);
 
     assert_eq!(address1, address2);
 }
