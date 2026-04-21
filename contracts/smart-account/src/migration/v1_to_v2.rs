@@ -17,11 +17,20 @@ use super::v1_types::{V1Signer, V1SignerKey, V1SignerPolicy, V1SignerRole};
 use crate::config::{ADMIN_COUNT_KEY, PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD};
 
 /// Data required by the migration function.
-/// The caller must provide the list of v1 signer keys that need migration.
+///
+/// The caller must provide:
+/// - `signers_to_migrate`: the list of v1 signer keys that need migration
+/// - `expected_signer_count`: must equal `signers_to_migrate.len()`; catches drift
+///   between the declared intent and the actual batch
+/// - `expected_admin_count`: must equal the stored `ADMIN_COUNT_KEY` AND the number
+///   of admins inside `signers_to_migrate`; enforces that every admin is migrated
+///   in the same call
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct V1ToV2MigrationData {
     pub signers_to_migrate: Vec<V1SignerKey>,
+    pub expected_signer_count: u32,
+    pub expected_admin_count: u32,
 }
 
 /// Runs the v1→v2 migration for the provided signer keys.
@@ -32,6 +41,17 @@ pub struct V1ToV2MigrationData {
 /// - Deletes the old storage entry
 /// - Writes the new entry with V2 key and value
 pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) -> Result<(), SmartAccountError> {
+    if data.signers_to_migrate.len() != data.expected_signer_count {
+        return Err(SmartAccountError::MigrationCountMismatch);
+    }
+
+    let stored_admin_count: u32 = Storage::persistent()
+        .get(env, &ADMIN_COUNT_KEY)
+        .unwrap_or(0);
+    if stored_admin_count != data.expected_admin_count {
+        return Err(SmartAccountError::MigrationAdminCountMismatch);
+    }
+
     let mut migrated_admin_count: u32 = 0;
 
     for old_key in data.signers_to_migrate.iter() {
@@ -61,11 +81,8 @@ pub fn migrate_v1_to_v2(env: &Env, data: &V1ToV2MigrationData) -> Result<(), Sma
         );
     }
 
-    // If any admin signers were in the migrated set, recalculate admin_cnt
-    // from the migrated set to prevent desync from orphaned V1 admins.
-    // For partial migrations with no admins, the existing count is preserved.
-    if migrated_admin_count > 0 {
-        Storage::persistent().update(env, &ADMIN_COUNT_KEY, &migrated_admin_count)?;
+    if migrated_admin_count != data.expected_admin_count {
+        return Err(SmartAccountError::MigrationAdminCountMismatch);
     }
 
     Ok(())

@@ -90,6 +90,11 @@ struct Cli {
     #[arg(long)]
     wasm_hash: Option<String>,
 
+    /// Expected number of admin signers on the account. The contract rejects the migration
+    /// unless this matches the stored admin counter AND the number of admins in the batch.
+    #[arg(long)]
+    expected_admin_count: u32,
+
     /// Perform a dry-run: simulate only, don't submit transactions.
     #[arg(long, default_value_t = false)]
     dry_run: bool,
@@ -511,8 +516,8 @@ fn build_signature_proofs_scval(public_key: &[u8; 32], signature: &[u8; 64]) -> 
     ScVal::Vec(Some(ScVec(vec![inner_map].try_into().unwrap())))
 }
 
-/// Build the ScVal for `MigrationData::V1ToV2(V1ToV2MigrationData { signers_to_migrate })`.
-fn build_migration_data_scval(signers: &DiscoveredSigners) -> ScVal {
+/// Build the ScVal for `MigrationData::V1ToV2(V1ToV2MigrationData { ... })`.
+fn build_migration_data_scval(signers: &DiscoveredSigners, expected_admin_count: u32) -> ScVal {
     let mut signer_keys = Vec::new();
 
     for key_id_hex in &signers.secp256r1 {
@@ -539,13 +544,29 @@ fn build_migration_data_scval(signers: &DiscoveredSigners) -> ScVal {
         ))));
     }
 
-    // V1ToV2MigrationData { signers_to_migrate: Vec<V1SignerKey> }
-    // Struct encoding: Map({ Symbol("signers_to_migrate") => Vec([...]) })
+    let expected_signer_count: u32 = signer_keys.len() as u32;
+
+    // V1ToV2MigrationData {
+    //     expected_admin_count: u32,
+    //     expected_signer_count: u32,
+    //     signers_to_migrate: Vec<V1SignerKey>,
+    // }
+    // Struct encoding: Map(entries sorted by field-name symbol ascending).
     let migration_data_inner = ScVal::Map(Some(ScMap(
-        vec![ScMapEntry {
-            key: ScVal::Symbol(ScSymbol("signers_to_migrate".try_into().unwrap())),
-            val: ScVal::Vec(Some(ScVec(signer_keys.try_into().unwrap()))),
-        }]
+        vec![
+            ScMapEntry {
+                key: ScVal::Symbol(ScSymbol("expected_admin_count".try_into().unwrap())),
+                val: ScVal::U32(expected_admin_count),
+            },
+            ScMapEntry {
+                key: ScVal::Symbol(ScSymbol("expected_signer_count".try_into().unwrap())),
+                val: ScVal::U32(expected_signer_count),
+            },
+            ScMapEntry {
+                key: ScVal::Symbol(ScSymbol("signers_to_migrate".try_into().unwrap())),
+                val: ScVal::Vec(Some(ScVec(signer_keys.try_into().unwrap()))),
+            },
+        ]
         .try_into()
         .unwrap(),
     )));
@@ -778,7 +799,7 @@ async fn run(cli: &Cli) -> Result<(), String> {
     // ---- Step 3: Call migrate(migration_data) ----
 
     println!("[3/3] Calling migrate() with signer migration data...");
-    let migration_data = build_migration_data_scval(&signers);
+    let migration_data = build_migration_data_scval(&signers, cli.expected_admin_count);
     let signer_key_migrate = signer_ledger_key(&contract_id, &client.source_public);
     if cli.dry_run {
         println!("  [dry-run] Skipping actual migrate");

@@ -180,10 +180,12 @@ fn test_upgrade_ed25519_admin_preserved() {
     let v2_hash = upload_v2_wasm(&env);
     v1_client.upgrade(&v2_hash);
 
-    // Migrate with empty list (no signers need migration)
+    // Migrate the admin: v2 requires every admin to appear in the batch
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
-        signers_to_migrate: vec![&env],
+        signers_to_migrate: vec![&env, v2::V1SignerKey::Ed25519(pk.clone())],
+        expected_signer_count: 1,
+        expected_admin_count: 1,
     }));
 
     // Verify signer still accessible after upgrade
@@ -203,7 +205,8 @@ fn test_migrate_secp256r1_to_webauthn() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, _admin_keypair, key_id, pk_bytes) = deploy_v1_with_secp256r1_signer(&env);
+    let (contract_id, admin_keypair, key_id, pk_bytes) = deploy_v1_with_secp256r1_signer(&env);
+    let admin_pk = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
 
     // Verify secp256r1 signer exists on v1
     let v1_client = v1::Client::new(&env, &contract_id);
@@ -218,13 +221,18 @@ fn test_migrate_secp256r1_to_webauthn() {
     let v2_hash = upload_v2_wasm(&env);
     v1_client.upgrade(&v2_hash);
 
-    // Migrate: tell the contract about the Secp256r1 signer that needs conversion
+    // Migrate both admins: the Ed25519 admin and the Secp256r1 admin.
+    // The Ed25519 entry is XDR-compatible but must still be declared so the
+    // admin-count invariant holds.
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
         signers_to_migrate: vec![
             &env,
+            v2::V1SignerKey::Ed25519(admin_pk),
             v2::V1SignerKey::Secp256r1(Bytes::from_array(&env, &key_id)),
         ],
+        expected_signer_count: 2,
+        expected_admin_count: 2,
     }));
 
     // Verify: old Secp256r1 key should NOT exist anymore
@@ -249,28 +257,30 @@ fn test_migrate_secp256r1_to_webauthn() {
 }
 
 // ============================================================================
-// Test: Empty migration for Ed25519-only accounts
+// Test: Migration of an Ed25519-only account
 // ============================================================================
 
 #[test]
-fn test_upgrade_empty_migration() {
+fn test_upgrade_ed25519_only_account() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, _keypair) = deploy_v1_with_ed25519_admin(&env);
+    let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
+    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
 
     // Upgrade
     let v1_client = v1::Client::new(&env, &contract_id);
     let v2_hash = upload_v2_wasm(&env);
     v1_client.upgrade(&v2_hash);
 
-    // Migrate with empty list
+    // Migrate the admin; v2 rejects the call otherwise
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
-        signers_to_migrate: vec![&env],
+        signers_to_migrate: vec![&env, v2::V1SignerKey::Ed25519(pk)],
+        expected_signer_count: 1,
+        expected_admin_count: 1,
     }));
 
-    // Contract should work fine — verify with is_deployed
     assert!(v2_client.is_deployed());
 }
 
@@ -292,10 +302,13 @@ fn test_migrate_without_upgrade_fails() {
 
     let contract_id = env.register(v2::WASM, (vec![&env, signer], Vec::<Address>::new(&env)));
 
-    // Try to call migrate without upgrade — should fail with MigrationNotAllowed (1100)
+    // Try to call migrate without upgrade — should fail with MigrationNotAllowed (1100).
+    // The count fields are placeholders; the MIGRATING gate panics before our checks run.
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
         signers_to_migrate: vec![&env],
+        expected_signer_count: 0,
+        expected_admin_count: 0,
     }));
 }
 
@@ -309,7 +322,8 @@ fn test_migrate_cannot_run_twice() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, _keypair) = deploy_v1_with_ed25519_admin(&env);
+    let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
+    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
 
     // Upgrade
     let v1_client = v1::Client::new(&env, &contract_id);
@@ -319,12 +333,16 @@ fn test_migrate_cannot_run_twice() {
     // First migrate — should succeed
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
-        signers_to_migrate: vec![&env],
+        signers_to_migrate: vec![&env, v2::V1SignerKey::Ed25519(pk)],
+        expected_signer_count: 1,
+        expected_admin_count: 1,
     }));
 
     // Second migrate — should fail with MigrationNotAllowed (1100)
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
         signers_to_migrate: vec![&env],
+        expected_signer_count: 0,
+        expected_admin_count: 0,
     }));
 }
 
@@ -337,7 +355,8 @@ fn test_new_signer_types_after_upgrade() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let (contract_id, _keypair) = deploy_v1_with_ed25519_admin(&env);
+    let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
+    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
 
     // Upgrade and migrate
     let v1_client = v1::Client::new(&env, &contract_id);
@@ -346,7 +365,9 @@ fn test_new_signer_types_after_upgrade() {
 
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
-        signers_to_migrate: vec![&env],
+        signers_to_migrate: vec![&env, v2::V1SignerKey::Ed25519(pk)],
+        expected_signer_count: 1,
+        expected_admin_count: 1,
     }));
 
     // Add a new Webauthn signer (not possible on v1)
@@ -394,13 +415,16 @@ fn test_upgrade_preserves_admin_count() {
     let v2_hash = upload_v2_wasm(&env);
     v1_client.upgrade(&v2_hash);
 
-    // Migrate the secp256r1 signer
+    // Migrate both admins
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
         signers_to_migrate: vec![
             &env,
+            v2::V1SignerKey::Ed25519(admin_pk.clone()),
             v2::V1SignerKey::Secp256r1(Bytes::from_array(&env, &_key_id)),
         ],
+        expected_signer_count: 2,
+        expected_admin_count: 2,
     }));
 
     // Both signers should still exist (Ed25519 as Ed25519, old Secp256r1 as Webauthn)
@@ -469,10 +493,18 @@ fn test_migrate_ed25519_with_external_policy() {
     v1_client.upgrade(&v2_hash);
 
     // Migrate — ALL Standard signers need migration due to XDR layout change
-    // (v1 Standard(Vec<...>) vs v2 Standard(Option<Vec<...>>, u64))
+    // (v1 Standard(Vec<...>) vs v2 Standard(Option<Vec<...>>, u64)). The admin is
+    // also included to satisfy the admin-count invariant.
+    let admin_pk_bytes = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
-        signers_to_migrate: vec![&env, v2::V1SignerKey::Ed25519(standard_pk.clone())],
+        signers_to_migrate: vec![
+            &env,
+            v2::V1SignerKey::Ed25519(admin_pk_bytes),
+            v2::V1SignerKey::Ed25519(standard_pk.clone()),
+        ],
+        expected_signer_count: 2,
+        expected_admin_count: 1,
     }));
 
     // Verify the standard signer and its policy are preserved
@@ -536,10 +568,18 @@ fn test_migrate_ed25519_with_time_window_policy() {
     v1_client.upgrade(&v2_hash);
 
     // Migrate — the Ed25519 standard signer with TimeWindowPolicy needs migration
-    // because the TimeWindowPolicy variant no longer exists in v2
+    // because the TimeWindowPolicy variant no longer exists in v2. The admin is
+    // included to satisfy the admin-count invariant.
+    let admin_pk_bytes = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
-        signers_to_migrate: vec![&env, v2::V1SignerKey::Ed25519(standard_pk.clone())],
+        signers_to_migrate: vec![
+            &env,
+            v2::V1SignerKey::Ed25519(admin_pk_bytes),
+            v2::V1SignerKey::Ed25519(standard_pk.clone()),
+        ],
+        expected_signer_count: 2,
+        expected_admin_count: 1,
     }));
 
     // Verify signer exists and TimeWindowPolicy was dropped
@@ -586,12 +626,15 @@ impl DummyPlugin {
 /// Returns (contract_id, admin_keypair, v2_client).
 fn upgrade_and_migrate(env: &Env) -> (Address, ed25519_dalek::Keypair, v2::Client<'_>) {
     let (contract_id, keypair) = deploy_v1_with_ed25519_admin(env);
+    let pk = BytesN::from_array(env, &keypair.public.to_bytes());
     let v1_client = v1::Client::new(env, &contract_id);
     let v2_hash = upload_v2_wasm(env);
     v1_client.upgrade(&v2_hash);
     let v2_client = v2::Client::new(env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
-        signers_to_migrate: vec![env],
+        signers_to_migrate: vec![env, v2::V1SignerKey::Ed25519(pk)],
+        expected_signer_count: 1,
+        expected_admin_count: 1,
     }));
     (contract_id, keypair, v2_client)
 }
@@ -787,7 +830,7 @@ fn test_revoke_migrated_webauthn_standard_signer() {
 
     let admin_signer = v1::Signer::Ed25519(
         v1::Ed25519Signer {
-            public_key: admin_pk,
+            public_key: admin_pk.clone(),
         },
         v1::SignerRole::Admin,
     );
@@ -832,8 +875,11 @@ fn test_revoke_migrated_webauthn_standard_signer() {
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
         signers_to_migrate: vec![
             &env,
+            v2::V1SignerKey::Ed25519(admin_pk),
             v2::V1SignerKey::Secp256r1(Bytes::from_array(&env, &key_id)),
         ],
+        expected_signer_count: 2,
+        expected_admin_count: 1,
     }));
 
     // Verify the migrated Webauthn signer exists and is Standard
@@ -979,6 +1025,8 @@ fn test_auth_admin_can_authorize_migrate_after_migration() {
 
     let migration_data = v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
         signers_to_migrate: vec![&env],
+        expected_signer_count: 0,
+        expected_admin_count: 0,
     });
 
     env.try_invoke_contract_check_auth::<Error>(
@@ -1030,6 +1078,8 @@ fn test_auth_standard_cannot_authorize_migrate_after_migration() {
 
     let migration_data = v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
         signers_to_migrate: vec![&env],
+        expected_signer_count: 0,
+        expected_admin_count: 0,
     });
 
     match env
@@ -1047,4 +1097,89 @@ fn test_auth_standard_cannot_authorize_migrate_after_migration() {
         Err(err) => panic!("{:?}", err),
         Ok(err) => assert_eq!(err, Error::InsufficientPermissions),
     }
+}
+
+// ############################################################################
+// Expected-count enforcement
+// ############################################################################
+
+// ============================================================================
+// Test: expected_signer_count must match the batch length
+// ============================================================================
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1104)")]
+fn test_migrate_rejects_wrong_expected_signer_count() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
+    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
+
+    let v1_client = v1::Client::new(&env, &contract_id);
+    let v2_hash = upload_v2_wasm(&env);
+    v1_client.upgrade(&v2_hash);
+
+    // List has 1 entry but we claim 2
+    let v2_client = v2::Client::new(&env, &contract_id);
+    v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
+        signers_to_migrate: vec![&env, v2::V1SignerKey::Ed25519(pk)],
+        expected_signer_count: 2,
+        expected_admin_count: 1,
+    }));
+}
+
+// ============================================================================
+// Test: expected_admin_count must match the stored admin counter
+// ============================================================================
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1105)")]
+fn test_migrate_rejects_wrong_expected_admin_count_vs_stored() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
+    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
+
+    let v1_client = v1::Client::new(&env, &contract_id);
+    let v2_hash = upload_v2_wasm(&env);
+    v1_client.upgrade(&v2_hash);
+
+    // Stored admin_cnt is 1, but we claim 2
+    let v2_client = v2::Client::new(&env, &contract_id);
+    v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
+        signers_to_migrate: vec![&env, v2::V1SignerKey::Ed25519(pk)],
+        expected_signer_count: 1,
+        expected_admin_count: 2,
+    }));
+}
+
+// ============================================================================
+// Test: migrating fewer admins than stored is rejected
+// ============================================================================
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1105)")]
+fn test_migrate_rejects_partial_admin_migration() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (contract_id, _admin_keypair, key_id, _pk_bytes) = deploy_v1_with_secp256r1_signer(&env);
+
+    let v1_client = v1::Client::new(&env, &contract_id);
+    let v2_hash = upload_v2_wasm(&env);
+    v1_client.upgrade(&v2_hash);
+
+    // Account has 2 admins but we only migrate the Secp256r1 one.
+    // expected_admin_count == stored (2), but migrated_admin_count will be 1.
+    let v2_client = v2::Client::new(&env, &contract_id);
+    v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
+        signers_to_migrate: vec![
+            &env,
+            v2::V1SignerKey::Secp256r1(Bytes::from_array(&env, &key_id)),
+        ],
+        expected_signer_count: 1,
+        expected_admin_count: 2,
+    }));
 }

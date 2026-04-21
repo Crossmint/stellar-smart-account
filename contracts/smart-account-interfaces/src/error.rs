@@ -48,6 +48,8 @@ pub enum SmartAccountError {
     MigrationVersionMismatch = 1101,
     MigrationSignerNotFound = 1102,
     MigrationSignerTypeMismatch = 1103,
+    MigrationCountMismatch = 1104,
+    MigrationAdminCountMismatch = 1105,
 
     NotFound = 1000,
 }
