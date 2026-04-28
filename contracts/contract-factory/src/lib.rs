@@ -152,7 +152,6 @@ impl ContractFactory {
         let contract_id = Self::deploy_idempotent(env, deployment_args);
 
         contract_id.require_auth();
-
         for call in calls.iter() {
             env.invoke_contract::<Val>(&call.contract_id, &call.func, call.args.clone());
         }
