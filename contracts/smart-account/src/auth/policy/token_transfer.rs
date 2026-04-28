@@ -179,7 +179,11 @@ impl AuthorizationCheck for TokenTransferPolicy {
 
 fn validate_policy(policy: &TokenTransferPolicy, env: &Env) -> Result<(), SmartAccountError> {
     if let Some(limit) = policy.limit {
-        if limit <= 0 {
+        // `<= 0` rejects zero and negative limits. `== i128::MAX` is also
+        // rejected: `extract_transfer_total` and `check_spending_limit`
+        // saturate on overflow, so `limit == i128::MAX` would degenerate
+        // into unlimited spending (`new_total > i128::MAX` is never true).
+        if limit <= 0 || limit == i128::MAX {
             return Err(SmartAccountError::InvalidPolicy);
         }
     }
