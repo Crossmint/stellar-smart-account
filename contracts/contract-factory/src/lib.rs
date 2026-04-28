@@ -23,6 +23,14 @@ pub struct ContractDeploymentArgs {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContractCall {
+    pub args: Vec<Val>,
+    pub contract_id: Address,
+    pub func: Symbol,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContractDeployedEvent {
     contract_id: Address,
 }
@@ -119,6 +127,27 @@ impl ContractFactory {
 
         let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
         Self::deploy_and_emit(env, derived_salt, wasm_hash, constructor_args)
+    }
+
+    /// Idempotently deploys a contract and then dispatches a sequence of inner
+    /// contract calls in the same top-level invocation.
+    ///
+    /// If the deterministic address is already deployed, deployment is skipped
+    /// and the calls run against the existing contract. If any inner call
+    /// reverts, the host aborts the transaction and the whole sequence
+    /// (including the deploy) is rolled back.
+    pub fn deploy_and_call(
+        env: &Env,
+        deployment_args: ContractDeploymentArgs,
+        calls: Vec<ContractCall>,
+    ) -> Address {
+        let contract_id = Self::deploy_idempotent(env, deployment_args);
+
+        for call in calls.iter() {
+            env.invoke_contract::<Val>(&call.contract_id, &call.func, call.args.clone());
+        }
+
+        contract_id
     }
 
     /// Uploads the contract WASM and deploys it on behalf of the `ContractFactory` contract.
