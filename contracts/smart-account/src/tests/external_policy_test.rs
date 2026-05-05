@@ -935,3 +935,101 @@ fn update_to_identical_permission_is_a_noop_for_external() {
     assert_eq!(mock.oa_calls(), 1);
     assert_eq!(mock.or_calls(), 0);
 }
+
+// ============================================================================
+// H. ABI mismatch — exercises the `Ok(Err(ConversionError))` arm of the
+//    `try_is_authorized` dispatch in `external.rs`. This is the case where the
+//    external contract responds successfully but with a value of the wrong
+//    type (e.g. a v1-style `bool` return where the wallet expects
+//    `Result<(), PolicyError>`). Critical for the V1→V2 migration safety
+//    argument: a migrated v1-trait policy contract must fail-safe to "no auth".
+// ============================================================================
+
+/// Mock with the right `on_add` / `on_revoke` shapes (so signer registration
+/// succeeds) but a wrong-typed `is_authorized` that returns `bool` instead
+/// of `Result<(), PolicyError>`. Mirrors the v1 trait shape. Lives in its
+/// own submodule so its `contractimpl`-generated XDR spec items don't
+/// collide with `MockPolicy`'s.
+mod wrong_abi {
+    use super::*;
+
+    #[contract]
+    pub struct WrongAbiPolicy;
+
+    #[contractimpl]
+    impl WrongAbiPolicy {
+        pub fn on_add(
+            _env: &Env,
+            _source: Address,
+            _signer_key: SignerKey,
+        ) -> Result<(), PolicyError> {
+            Ok(())
+        }
+
+        pub fn on_revoke(
+            _env: &Env,
+            _source: Address,
+            _signer_key: SignerKey,
+        ) -> Result<(), PolicyError> {
+            Ok(())
+        }
+
+        /// Returns `bool` instead of `Result<(), PolicyError>`. Even returning
+        /// `true` here must NOT authorize the wallet — the SDK's `try_*`
+        /// decode of `Tag::True` into the expected `()` fails with
+        /// `ConversionError`.
+        pub fn is_authorized(
+            _env: &Env,
+            _source: Address,
+            _signer_key: SignerKey,
+            _contexts: Vec<Context>,
+        ) -> bool {
+            true
+        }
+    }
+}
+
+#[test]
+fn wrong_abi_is_authorized_is_treated_as_fault_and_logged() {
+    let env = setup();
+    let bad_id = env.register(wrong_abi::WrongAbiPolicy, ());
+
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin);
+    let standard = Ed25519TestSigner::generate(SignerRole::Standard(
+        Some(vec![
+            &env,
+            SignerPolicy::ExternalPolicy(ExternalPolicy {
+                policy_address: bad_id.clone(),
+            }),
+        ]),
+        0,
+    ));
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin.into_signer(&env), standard.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let payload = BytesN::random(&env);
+    let (key, proof) = standard.sign(&env, &payload);
+    let auth = SignatureProofs(map![&env, (key, proof)]);
+
+    let res = env
+        .try_invoke_contract_check_auth::<Error>(
+            &contract_id,
+            &payload,
+            auth.into_val(&env),
+            &vec![&env, get_token_auth_context(&env)],
+        )
+        .unwrap_err();
+    match res {
+        Err(e) => panic!("unexpected host error: {:?}", e),
+        Ok(e) => assert_eq!(e, Error::InsufficientPermissions),
+    }
+    // ABI mismatch is a fault, so the wallet must emit PolicyCallbackFailedEvent
+    // (this is the `Ok(Err(_))` branch — distinct from intentional rejection,
+    // which would be silent).
+    assert!(callback_failed_event_count(&env, &bad_id) >= 1);
+}
