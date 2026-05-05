@@ -1,5 +1,6 @@
 pub mod external;
 pub mod interface;
+pub mod permission;
 pub mod token_transfer;
 
 pub use interface::SmartAccountPolicy;

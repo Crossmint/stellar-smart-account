@@ -2,6 +2,7 @@
 mod admin_downgrade_test;
 mod auth_test;
 mod expiring_signer_test;
+mod external_permission_test;
 mod multisig_test;
 mod plugin_test;
 mod policy_test;

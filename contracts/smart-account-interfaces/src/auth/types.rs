@@ -56,12 +56,22 @@ pub enum SignerRole {
 pub enum SignerPolicy {
     ExternalValidatorPolicy(ExternalPolicy),
     TokenTransferPolicy(TokenTransferPolicy),
+    ExternalPermission(ExternalPermission),
 }
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExternalPolicy {
     pub policy_address: Address,
+}
+
+/// External delegation that forwards the evaluating `SignerKey` and uses a
+/// `Result`-returning trait, letting the external contract differentiate
+/// between signers and signal intentional rejection vs. technical failure.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ExternalPermission {
+    pub permission_address: Address,
 }
 
 #[contracttype]

@@ -470,6 +470,7 @@ impl SmartAccount {
         match policy {
             SignerPolicy::TokenTransferPolicy(p) => p.policy_id.into_val(env),
             SignerPolicy::ExternalValidatorPolicy(p) => p.policy_address.into_val(env),
+            SignerPolicy::ExternalPermission(p) => p.permission_address.into_val(env),
         }
     }
 
