@@ -136,14 +136,6 @@ impl ContractFactory {
     /// and the calls run against the existing contract. If any inner call
     /// reverts, the host aborts the transaction and the whole sequence
     /// (including the deploy) is rolled back.
-    ///
-    /// The deployed contract's authorization requirement is hoisted to the
-    /// top-level invocation via `require_auth`. Without this, sub-invocations
-    /// that internally call `require_auth(self)` — such as a smart-account's
-    /// `add_signer` — would fail with `Error(Auth, InvalidAction)` because
-    /// their auth wouldn't be tied to the root contract invocation. Hoisting
-    /// here means callers sign for the deployed contract once and the
-    /// signature transitively covers any inner self-authorizing calls.
     pub fn deploy_and_call(
         env: &Env,
         deployment_args: ContractDeploymentArgs,
@@ -151,7 +143,6 @@ impl ContractFactory {
     ) -> Address {
         let contract_id = Self::deploy_idempotent(env, deployment_args);
 
-        contract_id.require_auth();
         for call in calls.iter() {
             env.invoke_contract::<Val>(&call.contract_id, &call.func, call.args.clone());
         }
