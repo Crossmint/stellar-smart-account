@@ -98,7 +98,7 @@ graph TB
     subgraph "Permission System"
         PC[AuthorizationCheck]
         SPol[SignerPolicy]
-        EP[ExternalValidatorPolicy]
+        EP[ExternalPolicy]
         TTP[TokenTransferPolicy]
 
         SR --> PC
@@ -184,7 +184,7 @@ let external_policy = ExternalPolicy {
 let restricted_signer = Signer::Ed25519(
     Ed25519Signer::new(signer_pubkey),
     SignerRole::Standard(
-        Some(vec![SignerPolicy::ExternalValidatorPolicy(external_policy)]),
+        Some(vec![SignerPolicy::ExternalPolicy(external_policy)]),
         0, // 0 = no expiration
     )
 );
@@ -311,7 +311,7 @@ graph TD
     Standard --> |"Optional expiration timestamp"| Expiration[Signer Expiration]
     Standard --> |"Subject to policies (if any)"| PolicyCheck[Policy Validation]
 
-    PolicyCheck --> EP[ExternalValidatorPolicy]
+    PolicyCheck --> EP[ExternalPolicy]
     PolicyCheck --> TTP[TokenTransferPolicy]
 ```
 
@@ -319,7 +319,7 @@ graph TD
 
 ### Current Policy Types
 
-1. **ExternalValidatorPolicy**: Delegates authorization decisions to external policy contracts
+1. **ExternalPolicy**: Delegates authorization decisions to an external policy contract. The contract receives the wallet `source`, the evaluating `SignerKey`, and the auth `contexts`, and returns `Result<(), PolicyError>` so it can distinguish intentional rejection from technical failure. The wallet calls it via `try_*` so panics and ABI mismatches are contained.
 2. **TokenTransferPolicy**: Restricts a signer to `transfer` calls on a specific SAC token, with cumulative spending limits, configurable reset windows, optional recipient allowlists, and per-policy expiration
 
 **Note:** Signer time restrictions are handled via the expiration field on `SignerRole::Standard(policies, expiration)` rather than a separate policy. A value of `0` means no expiration.
@@ -341,8 +341,8 @@ classDiagram
 
     class SignerPolicy {
         <<enum>>
-        ExternalValidatorPolicy(ExternalPolicy)
         TokenTransferPolicy(TokenTransferPolicy)
+        ExternalPolicy(ExternalPolicy)
     }
 
     class ExternalPolicy {
@@ -405,8 +405,8 @@ impl PolicyCallback for NewPolicy {
 ```rust
 pub enum SignerPolicy {
     // ... existing variants
-    ExternalValidatorPolicy(ExternalPolicy),
     TokenTransferPolicy(TokenTransferPolicy),
+    ExternalPolicy(ExternalPolicy),
     NewPolicyType(NewPolicy),
 }
 ```

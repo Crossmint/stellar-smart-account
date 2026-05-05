@@ -12,16 +12,15 @@ use crate::auth::proof::SignatureProofs;
 use crate::error::Error;
 use crate::events::PolicyCallbackFailedEvent;
 use crate::tests::test_utils::{
-    get_token_auth_context, get_update_signer_auth_context, setup, Ed25519TestSigner,
-    TestSignerTrait as _,
+    get_token_auth_context, setup, Ed25519TestSigner, TestSignerTrait as _,
 };
 use smart_account_interfaces::{
-    Ed25519Signer, ExternalPermission, ExternalPolicy, PolicyError, Signer, SignerKey,
-    SignerPolicy, SignerRole, SmartAccountInterface, SmartAccountPermission, TokenTransferPolicy,
+    Ed25519Signer, ExternalPolicy, PolicyError, Signer, SignerKey, SignerPolicy, SignerRole,
+    SmartAccountInterface, SmartAccountPolicy, TokenTransferPolicy,
 };
 
 // ============================================================================
-// Configurable mock implementing SmartAccountPermission
+// Configurable mock implementing SmartAccountPolicy
 // ============================================================================
 
 #[contracttype]
@@ -45,10 +44,10 @@ const LAST_KEY: Symbol = symbol_short!("last_key");
 const REQ_KEY: Symbol = symbol_short!("req_key");
 
 #[contract]
-pub struct MockPermission;
+pub struct MockPolicy;
 
 #[contractimpl]
-impl MockPermission {
+impl MockPolicy {
     pub fn configure(env: &Env, is_auth_mode: u32, on_add_mode: u32, on_revoke_mode: u32) {
         env.storage().instance().set(
             &CFG_KEY,
@@ -100,7 +99,7 @@ impl MockPermission {
 }
 
 #[contractimpl]
-impl SmartAccountPermission for MockPermission {
+impl SmartAccountPolicy for MockPolicy {
     fn on_add(env: &Env, _source: Address, signer_key: SignerKey) -> Result<(), PolicyError> {
         Self::record_call(env, &OA_CALLS, &signer_key);
         match Self::cfg(env).on_add_mode {
@@ -147,7 +146,7 @@ impl SmartAccountPermission for MockPermission {
 // ============================================================================
 
 fn register_mock(env: &Env) -> Address {
-    env.register(MockPermission, ())
+    env.register(MockPolicy, ())
 }
 
 fn configure_mock(
@@ -157,18 +156,18 @@ fn configure_mock(
     on_add_mode: u32,
     on_revoke_mode: u32,
 ) {
-    let client = MockPermissionClient::new(env, addr);
+    let client = MockPolicyClient::new(env, addr);
     client.configure(&is_auth_mode, &on_add_mode, &on_revoke_mode);
 }
 
 fn set_required_key(env: &Env, addr: &Address, key: SignerKey) {
-    let client = MockPermissionClient::new(env, addr);
+    let client = MockPolicyClient::new(env, addr);
     client.set_required_key(&key);
 }
 
 fn permission(addr: &Address) -> SignerPolicy {
-    SignerPolicy::ExternalPermission(ExternalPermission {
-        permission_address: addr.clone(),
+    SignerPolicy::ExternalPolicy(ExternalPolicy {
+        policy_address: addr.clone(),
     })
 }
 
@@ -197,7 +196,7 @@ fn callback_failed_event_count(env: &Env, expected: &Address) -> u32 {
 // ============================================================================
 
 #[test]
-fn happy_path_external_permission_authorizes() {
+fn happy_path_external_policy_authorizes() {
     let env = setup();
     let mock_id = register_mock(&env);
 
@@ -304,7 +303,7 @@ fn signer_key_is_forwarded_to_permission_contract() {
     )
     .unwrap();
 
-    let mock = MockPermissionClient::new(&env, &mock_id);
+    let mock = MockPolicyClient::new(&env, &mock_id);
     assert_eq!(mock.last_key(), Some(standard_key));
 }
 
@@ -594,7 +593,7 @@ fn dummy_token_transfer_policy(env: &Env) -> SignerPolicy {
 }
 
 #[test]
-fn external_permission_can_authorize_when_sibling_rejects() {
+fn external_policy_can_authorize_when_sibling_rejects() {
     let env = setup();
     let mock_id = register_mock(&env);
     configure_mock(&env, &mock_id, MODE_ALLOW, MODE_ALLOW, MODE_ALLOW);
@@ -630,7 +629,7 @@ fn external_permission_can_authorize_when_sibling_rejects() {
 }
 
 #[test]
-fn two_external_permissions_short_circuit_on_first_match() {
+fn two_external_policys_short_circuit_on_first_match() {
     let env = setup();
     let mock_yes = register_mock(&env);
     let mock_other = register_mock(&env);
@@ -662,12 +661,12 @@ fn two_external_permissions_short_circuit_on_first_match() {
     .unwrap();
 
     // The first permission authorized, so the second one must NOT have been called.
-    let other = MockPermissionClient::new(&env, &mock_other);
+    let other = MockPolicyClient::new(&env, &mock_other);
     assert_eq!(other.ia_calls(), 0);
 }
 
 #[test]
-fn admin_signer_in_bundle_authorizes_when_external_permission_rejects() {
+fn admin_signer_in_bundle_authorizes_when_external_policy_rejects() {
     let env = setup();
     let mock_id = register_mock(&env);
     configure_mock(&env, &mock_id, MODE_REJECT, MODE_ALLOW, MODE_ALLOW);
@@ -733,7 +732,7 @@ fn standard_signer_with_permission_cannot_perform_admin_ops() {
     );
 
     // Reset the call counter (on_add bumped it).
-    let mock_client = MockPermissionClient::new(&env, &mock_id);
+    let mock_client = MockPolicyClient::new(&env, &mock_id);
     let baseline_ia = mock_client.ia_calls();
 
     let payload = BytesN::random(&env);
@@ -777,7 +776,7 @@ fn expired_signer_is_rejected_before_permission_is_invoked() {
         ),
     );
 
-    let mock_client = MockPermissionClient::new(&env, &mock_id);
+    let mock_client = MockPolicyClient::new(&env, &mock_id);
     let baseline_ia = mock_client.ia_calls();
 
     // Advance ledger past expiry.
@@ -824,7 +823,7 @@ fn on_add_is_invoked_with_correct_signer_key() {
         (vec![&env, admin, standard], Vec::<Address>::new(&env)),
     );
 
-    let mock = MockPermissionClient::new(&env, &mock_id);
+    let mock = MockPolicyClient::new(&env, &mock_id);
     assert_eq!(mock.oa_calls(), 1);
     assert_eq!(mock.last_key(), Some(standard_key));
 }
@@ -852,7 +851,7 @@ fn on_revoke_is_invoked_with_correct_signer_key() {
         SmartAccount::revoke_signer(&env, standard_key.clone()).unwrap();
     });
 
-    let mock = MockPermissionClient::new(&env, &mock_id);
+    let mock = MockPolicyClient::new(&env, &mock_id);
     assert_eq!(mock.or_calls(), 1);
     assert_eq!(mock.last_key(), Some(standard_key));
 }
@@ -862,7 +861,7 @@ fn on_revoke_is_invoked_with_correct_signer_key() {
 // ============================================================================
 
 #[test]
-fn update_to_different_permission_address_fires_revoke_then_add() {
+fn update_to_different_policy_address_fires_revoke_then_add() {
     let env = setup();
     let mock_a = register_mock(&env);
     let mock_b = register_mock(&env);
@@ -898,8 +897,8 @@ fn update_to_different_permission_address_fires_revoke_then_add() {
         SmartAccount::update_signer(&env, standard_v2).unwrap();
     });
 
-    let a = MockPermissionClient::new(&env, &mock_a);
-    let b = MockPermissionClient::new(&env, &mock_b);
+    let a = MockPolicyClient::new(&env, &mock_a);
+    let b = MockPolicyClient::new(&env, &mock_b);
     assert_eq!(a.oa_calls(), 1, "old permission was added once");
     assert_eq!(a.or_calls(), 1, "old permission was revoked on update");
     assert_eq!(b.oa_calls(), 1, "new permission was added on update");
@@ -931,69 +930,8 @@ fn update_to_identical_permission_is_a_noop_for_external() {
         SmartAccount::update_signer(&env, standard).unwrap();
     });
 
-    let mock = MockPermissionClient::new(&env, &mock_id);
+    let mock = MockPolicyClient::new(&env, &mock_id);
     // Only the original on_add from registration; update should not re-add or revoke.
     assert_eq!(mock.oa_calls(), 1);
     assert_eq!(mock.or_calls(), 0);
-}
-
-#[test]
-fn update_across_variants_dispatches_correctly() {
-    // ExternalPermission → ExternalValidatorPolicy.
-    // We only assert that ExternalPermission was on_revoke'd; the audited
-    // ExternalValidatorPolicy lifecycle is covered by policy_test.rs.
-    let env = setup();
-    let mock_id = register_mock(&env);
-    configure_mock(&env, &mock_id, MODE_ALLOW, MODE_ALLOW, MODE_ALLOW);
-
-    let admin = Ed25519TestSigner::generate(SignerRole::Admin).into_signer(&env);
-    let standard_v1 = Ed25519TestSigner::generate(SignerRole::Standard(
-        Some(vec![&env, permission(&mock_id)]),
-        0,
-    ))
-    .into_signer(&env);
-
-    let contract_id = env.register(
-        SmartAccount,
-        (
-            vec![&env, admin, standard_v1.clone()],
-            Vec::<Address>::new(&env),
-        ),
-    );
-
-    // Register a DummyExternalPolicy from policy_test for the new policy.
-    use crate::tests::policy_test::DummyExternalPolicy;
-    let policy_id = env.register(DummyExternalPolicy, ());
-
-    let standard_v2 = if let Signer::Ed25519(core, _) = standard_v1.clone() {
-        Signer::Ed25519(
-            Ed25519Signer::new(core.public_key),
-            SignerRole::Standard(
-                Some(vec![
-                    &env,
-                    SignerPolicy::ExternalValidatorPolicy(ExternalPolicy {
-                        policy_address: policy_id.clone(),
-                    }),
-                ]),
-                0,
-            ),
-        )
-    } else {
-        unreachable!()
-    };
-
-    env.mock_all_auths();
-    env.as_contract(&contract_id, || {
-        SmartAccount::update_signer(&env, standard_v2).unwrap();
-    });
-
-    let mock = MockPermissionClient::new(&env, &mock_id);
-    assert_eq!(mock.or_calls(), 1, "ExternalPermission was revoked");
-}
-
-// Avoid unused-import warning when `update_signer` flows aren't exercised here.
-#[allow(dead_code)]
-fn _silence(env: &Env, contract_id: &Address) -> Context {
-    let dummy = Ed25519TestSigner::generate(SignerRole::Standard(None, 0)).into_signer(env);
-    get_update_signer_auth_context(env, contract_id, dummy)
 }

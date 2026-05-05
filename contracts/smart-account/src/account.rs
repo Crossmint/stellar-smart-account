@@ -463,14 +463,14 @@ impl SmartAccount {
     }
 
     /// Extracts a stable identity key from a policy for lifecycle comparison.
-    /// Uses policy_id for TokenTransferPolicy and policy_address for ExternalPolicy,
-    /// so that mutable fields (allowed_recipients, expiration, etc.) don't trigger
-    /// a full revoke+add cycle that would reset spending trackers.
+    /// Uses policy_id for TokenTransferPolicy and policy_address for
+    /// ExternalPolicy, so that mutable fields (allowed_recipients,
+    /// expiration, etc.) don't trigger a full revoke+add cycle that would
+    /// reset spending trackers.
     fn policy_identity(env: &Env, policy: &SignerPolicy) -> Val {
         match policy {
             SignerPolicy::TokenTransferPolicy(p) => p.policy_id.into_val(env),
-            SignerPolicy::ExternalValidatorPolicy(p) => p.policy_address.into_val(env),
-            SignerPolicy::ExternalPermission(p) => p.permission_address.into_val(env),
+            SignerPolicy::ExternalPolicy(p) => p.policy_address.into_val(env),
         }
     }
 

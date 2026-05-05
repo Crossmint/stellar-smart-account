@@ -26,29 +26,19 @@ pub trait PolicyCallback {
 impl AuthorizationCheck for SignerPolicy {
     fn is_authorized(&self, env: &Env, signer_key: &SignerKey, contexts: &Vec<Context>) -> bool {
         match self {
-            SignerPolicy::ExternalValidatorPolicy(policy) => {
-                policy.is_authorized(env, signer_key, contexts)
-            }
             SignerPolicy::TokenTransferPolicy(policy) => {
                 policy.is_authorized(env, signer_key, contexts)
             }
-            SignerPolicy::ExternalPermission(policy) => {
-                policy.is_authorized(env, signer_key, contexts)
-            }
+            SignerPolicy::ExternalPolicy(policy) => policy.is_authorized(env, signer_key, contexts),
         }
     }
 
     fn on_authorized(&self, env: &Env, signer_key: &SignerKey, contexts: &Vec<Context>) {
         match self {
-            SignerPolicy::ExternalValidatorPolicy(policy) => {
-                policy.on_authorized(env, signer_key, contexts)
-            }
             SignerPolicy::TokenTransferPolicy(policy) => {
                 policy.on_authorized(env, signer_key, contexts)
             }
-            SignerPolicy::ExternalPermission(policy) => {
-                policy.on_authorized(env, signer_key, contexts)
-            }
+            SignerPolicy::ExternalPolicy(policy) => policy.on_authorized(env, signer_key, contexts),
         }
     }
 }
@@ -56,23 +46,20 @@ impl AuthorizationCheck for SignerPolicy {
 impl PolicyCallback for SignerPolicy {
     fn on_add(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {
         match self {
-            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_add(env, signer_key),
             SignerPolicy::TokenTransferPolicy(policy) => policy.on_add(env, signer_key),
-            SignerPolicy::ExternalPermission(policy) => policy.on_add(env, signer_key),
+            SignerPolicy::ExternalPolicy(policy) => policy.on_add(env, signer_key),
         }
     }
     fn on_update(&self, env: &Env) -> Result<(), SmartAccountError> {
         match self {
-            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_update(env),
             SignerPolicy::TokenTransferPolicy(policy) => policy.on_update(env),
-            SignerPolicy::ExternalPermission(policy) => policy.on_update(env),
+            SignerPolicy::ExternalPolicy(policy) => policy.on_update(env),
         }
     }
     fn on_revoke(&self, env: &Env, signer_key: &SignerKey) -> Result<(), SmartAccountError> {
         match self {
-            SignerPolicy::ExternalValidatorPolicy(policy) => policy.on_revoke(env, signer_key),
             SignerPolicy::TokenTransferPolicy(policy) => policy.on_revoke(env, signer_key),
-            SignerPolicy::ExternalPermission(policy) => policy.on_revoke(env, signer_key),
+            SignerPolicy::ExternalPolicy(policy) => policy.on_revoke(env, signer_key),
         }
     }
 }
