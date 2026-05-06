@@ -1,5 +1,5 @@
 #![no_std]
-use smart_account_interfaces::{SmartAccountPlugin, SmartAccountPolicy};
+use smart_account_interfaces::{PolicyError, SignerKey, SmartAccountPlugin, SmartAccountPolicy};
 use soroban_sdk::{
     auth::{Context, ContractContext},
     contract, contractimpl, contracttype, symbol_short, Address, Env, Symbol, TryFromVal, Vec,
@@ -65,16 +65,22 @@ impl SmartAccountPlugin for PluginPolicyContractReverts {
 
 #[contractimpl]
 impl SmartAccountPolicy for PluginPolicyContractReverts {
-    fn on_add(_env: &Env, source: Address) {
+    fn on_add(_env: &Env, source: Address, _signer_key: SignerKey) -> Result<(), PolicyError> {
         source.require_auth();
         panic!("Policy add failed");
     }
 
-    fn on_revoke(_env: &Env, source: Address) {
+    fn on_revoke(_env: &Env, source: Address, _signer_key: SignerKey) -> Result<(), PolicyError> {
         source.require_auth();
+        Ok(())
     }
 
-    fn is_authorized(env: &Env, source: Address, contexts: Vec<Context>) -> bool {
+    fn is_authorized(
+        env: &Env,
+        source: Address,
+        _signer_key: SignerKey,
+        contexts: Vec<Context>,
+    ) -> Result<(), PolicyError> {
         source.require_auth();
         // Increment the counter for policy authorization checks
         let current_counter: u32 = env.storage().instance().get(&AUTH_COUNTER_KEY).unwrap_or(0);
@@ -112,7 +118,7 @@ impl SmartAccountPolicy for PluginPolicyContractReverts {
                                     limit: TRANSFER_LIMIT,
                                 },
                             );
-                            return false;
+                            return Err(PolicyError::Unknown);
                         }
                     }
                 }
@@ -120,7 +126,7 @@ impl SmartAccountPolicy for PluginPolicyContractReverts {
         }
 
         // If no transfer exceeds the limit, authorize the transaction
-        true
+        Ok(())
     }
 }
 
@@ -135,7 +141,11 @@ impl PluginPolicyContractReverts {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{auth::ContractContext, testutils::Address as _, IntoVal};
+    use soroban_sdk::{
+        auth::ContractContext,
+        testutils::{Address as _, BytesN as _},
+        BytesN, IntoVal,
+    };
 
     fn setup() -> Env {
         Env::default()
@@ -167,6 +177,10 @@ mod test {
         assert_eq!(client.get_auth_counter(), 2);
     }
 
+    fn dummy_signer_key(env: &Env) -> SignerKey {
+        SignerKey::Ed25519(BytesN::random(env))
+    }
+
     #[test]
     fn test_policy_allows_small_transfers() {
         let env = setup();
@@ -177,7 +191,6 @@ mod test {
         let source = Address::generate(&env);
         let token_address = Address::generate(&env);
 
-        // Create a transfer context with amount 50 (less than 100)
         let transfer_context = Context::Contract(ContractContext {
             contract: token_address,
             fn_name: symbol_short!("transfer"),
@@ -187,11 +200,11 @@ mod test {
         let mut contexts = Vec::new(&env);
         contexts.push_back(transfer_context);
 
-        // Should be authorized (amount <= 100)
-        assert!(client.is_authorized(&source, &contexts));
+        client.is_authorized(&source, &dummy_signer_key(&env), &contexts);
     }
 
     #[test]
+    #[should_panic]
     fn test_policy_denies_large_transfers() {
         let env = setup();
         env.mock_all_auths();
@@ -201,7 +214,6 @@ mod test {
         let source = Address::generate(&env);
         let token_address = Address::generate(&env);
 
-        // Create a transfer context with amount 150 (greater than 100)
         let transfer_context = Context::Contract(ContractContext {
             contract: token_address,
             fn_name: symbol_short!("transfer"),
@@ -211,8 +223,7 @@ mod test {
         let mut contexts = Vec::new(&env);
         contexts.push_back(transfer_context);
 
-        // Should NOT be authorized (amount > 100)
-        assert!(!client.is_authorized(&source, &contexts));
+        client.is_authorized(&source, &dummy_signer_key(&env), &contexts);
     }
 
     #[test]
@@ -225,7 +236,6 @@ mod test {
         let source = Address::generate(&env);
         let contract_address = Address::generate(&env);
 
-        // Create a non-transfer context
         let other_context = Context::Contract(ContractContext {
             contract: contract_address,
             fn_name: symbol_short!("approve"),
@@ -235,7 +245,6 @@ mod test {
         let mut contexts = Vec::new(&env);
         contexts.push_back(other_context);
 
-        // Should be authorized (not a transfer)
-        assert!(client.is_authorized(&source, &contexts));
+        client.is_authorized(&source, &dummy_signer_key(&env), &contexts);
     }
 }

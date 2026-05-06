@@ -6,7 +6,7 @@ pub mod error;
 pub mod plugin;
 
 pub use account::{SmartAccountClient, SmartAccountInterface};
-pub use auth::policy::interface::{SmartAccountPolicy, SmartAccountPolicyClient};
+pub use auth::policy::interface::{PolicyError, SmartAccountPolicy, SmartAccountPolicyClient};
 pub use auth::types::{
     Ed25519Signer, ExternalPolicy, MultisigMember, MultisigSigner, Secp256r1Signer, Signer,
     SignerKey, SignerPolicy, SignerRole, SpendTrackerKey, SpendingTracker, TokenTransferPolicy,

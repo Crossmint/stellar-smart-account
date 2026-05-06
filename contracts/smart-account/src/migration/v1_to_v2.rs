@@ -119,8 +119,9 @@ fn convert_signer(
 }
 
 /// Converts a V1 role to a V2 role, dropping TimeWindowPolicy and re-mapping
-/// ExternalValidatorPolicy. Migrated Standard signers get expiration = 0 (no expiration)
-/// and policies are wrapped in Option (None if empty, Some if non-empty).
+/// V1 ExternalValidatorPolicy entries onto the V2 ExternalPolicy variant
+/// (different trait ABI; assumed unused in V1 deployments). Migrated Standard
+/// signers get expiration = 0 and policies are wrapped in Option.
 fn convert_role(env: &Env, v1_role: &V1SignerRole) -> SignerRole {
     match v1_role {
         V1SignerRole::Admin => SignerRole::Admin,
@@ -130,13 +131,11 @@ fn convert_role(env: &Env, v1_role: &V1SignerRole) -> SignerRole {
                 match v1_policy {
                     // TimeWindowPolicy was removed — drop it
                     V1SignerPolicy::TimeWindowPolicy(_) => {}
-                    // ExternalValidatorPolicy carries over
+                    // V1 ExternalValidatorPolicy maps onto V2 ExternalPolicy.
                     V1SignerPolicy::ExternalValidatorPolicy(ext) => {
-                        new_policies.push_back(SignerPolicy::ExternalValidatorPolicy(
-                            ExternalPolicy {
-                                policy_address: ext.policy_address.clone(),
-                            },
-                        ));
+                        new_policies.push_back(SignerPolicy::ExternalPolicy(ExternalPolicy {
+                            policy_address: ext.policy_address.clone(),
+                        }));
                     }
                 }
             }

@@ -11,7 +11,6 @@ pub mod plugin;
 pub mod utils;
 
 // Re-export key types for external use and bindings generation
-pub use auth::policy::SmartAccountPolicy;
 pub use auth::proof::{SignatureProofs, SignerProof};
 pub use error::Error;
 pub use plugin::SmartAccountPlugin;

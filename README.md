@@ -124,7 +124,7 @@ let external_policy = ExternalPolicy {
 let restricted_signer = Signer::Ed25519(
     Ed25519Signer::new(signer_pubkey),
     SignerRole::Standard(
-        Some(vec![SignerPolicy::ExternalValidatorPolicy(external_policy)]),
+        Some(vec![SignerPolicy::ExternalPolicy(external_policy)]),
         0, // 0 = no expiration
     )
 );
