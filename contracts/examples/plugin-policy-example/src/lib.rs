@@ -113,7 +113,7 @@ impl SmartAccountPolicy for PluginPolicyContract {
                                     limit: TRANSFER_LIMIT,
                                 },
                             );
-                            return Err(PolicyError::Other);
+                            return Err(PolicyError::Unknown);
                         }
                     }
                 }
@@ -218,7 +218,7 @@ mod test {
         let mut contexts = Vec::new(&env);
         contexts.push_back(transfer_context);
 
-        // Returns Err(PolicyError::Other) — the SDK's non-`try_*` client wrapper
+        // Returns Err(PolicyError::Unknown) — the SDK's non-`try_*` client wrapper
         // turns contracterror returns into panics, so we use #[should_panic].
         client.is_authorized(&source, &dummy_signer_key(&env), &contexts);
     }

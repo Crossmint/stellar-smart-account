@@ -9,7 +9,7 @@ use crate::auth::types::SignerKey;
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u32)]
 pub enum PolicyError {
-    Other = 99,
+    Unknown = 99,
 }
 
 #[contractclient(name = "SmartAccountPolicyClient")]

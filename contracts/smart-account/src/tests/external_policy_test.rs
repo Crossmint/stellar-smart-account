@@ -104,7 +104,7 @@ impl SmartAccountPolicy for MockPolicy {
         Self::record_call(env, &OA_CALLS, &signer_key);
         match Self::cfg(env).on_add_mode {
             MODE_ALLOW => Ok(()),
-            MODE_REJECT => Err(PolicyError::Other),
+            MODE_REJECT => Err(PolicyError::Unknown),
             MODE_PANIC => panic!("on_add panic"),
             _ => Ok(()),
         }
@@ -114,7 +114,7 @@ impl SmartAccountPolicy for MockPolicy {
         Self::record_call(env, &OR_CALLS, &signer_key);
         match Self::cfg(env).on_revoke_mode {
             MODE_ALLOW => Ok(()),
-            MODE_REJECT => Err(PolicyError::Other),
+            MODE_REJECT => Err(PolicyError::Unknown),
             MODE_PANIC => panic!("on_revoke panic"),
             _ => Ok(()),
         }
@@ -130,11 +130,11 @@ impl SmartAccountPolicy for MockPolicy {
         let cfg = Self::cfg(env);
         match cfg.is_auth_mode {
             MODE_ALLOW => Ok(()),
-            MODE_REJECT => Err(PolicyError::Other),
+            MODE_REJECT => Err(PolicyError::Unknown),
             MODE_PANIC => panic!("is_authorized panic"),
             MODE_REQUIRE_KEY => match Self::required_key(env) {
                 Some(k) if k == signer_key => Ok(()),
-                _ => Err(PolicyError::Other),
+                _ => Err(PolicyError::Unknown),
             },
             _ => Ok(()),
         }

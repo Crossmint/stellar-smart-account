@@ -118,7 +118,7 @@ impl SmartAccountPolicy for PluginPolicyContractReverts {
                                     limit: TRANSFER_LIMIT,
                                 },
                             );
-                            return Err(PolicyError::Other);
+                            return Err(PolicyError::Unknown);
                         }
                     }
                 }
@@ -141,7 +141,11 @@ impl PluginPolicyContractReverts {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{auth::ContractContext, testutils::{Address as _, BytesN as _}, BytesN, IntoVal};
+    use soroban_sdk::{
+        auth::ContractContext,
+        testutils::{Address as _, BytesN as _},
+        BytesN, IntoVal,
+    };
 
     fn setup() -> Env {
         Env::default()
