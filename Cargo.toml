@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "contracts/contract-factory",
   "contracts/examples/plugin-policy-example",
+  "contracts/examples/withdraw-proxy",
   "contracts/initializable",
   "contracts/smart-account",
   "contracts/smart-account-interfaces",
