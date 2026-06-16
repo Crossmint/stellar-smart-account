@@ -5,9 +5,8 @@ use soroban_sdk::{token, Address, BytesN, Env};
 
 use crate::{Error, WithdrawAuth, WithdrawProxy, WithdrawProxyClient};
 
-// Stand-ins for Rain's Coordinator. A real Coordinator verifies Rain's detached signature and
-// checks `caller == the collateral's registered owner`; here we just move funds from `collateral`
-// to `recipient` (the wallet) so the proxy's effect is observable on-ledger.
+// Coordinator stand-in: moves `amount` from `collateral` to `recipient` so the proxy's effect is
+// observable on-ledger.
 //
 // Each mock lives in its own module because `#[contractimpl]` emits module-level items keyed by
 // the function name, which would otherwise collide between mocks.
@@ -63,8 +62,8 @@ mod failing_coordinator {
     }
 }
 
-// A Coordinator that "succeeds" but delivers the wrong amount (one more than requested), to prove
-// the balance assertion catches it and reverts the (over-)withdrawal.
+// A Coordinator that "succeeds" but delivers one more than requested, to prove the balance check
+// catches it and reverts.
 mod lying_coordinator {
     use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 
@@ -131,8 +130,7 @@ struct Harness {
 fn setup(wallet_balance: i128, collateral_balance: i128) -> Harness {
     let env = Env::default();
     // The mock Coordinators move funds via `token.transfer(from = collateral)`, which requires
-    // `collateral`'s auth deep in the call tree (the real Coordinator instead releases collateral
-    // on Rain's signature, with no such require_auth). Allow that non-root auth.
+    // `collateral`'s auth deep in the call tree. Allow that non-root auth.
     env.mock_all_auths_allowing_non_root_auth();
 
     // A Stellar Asset Contract reports 7 decimals — matching the proxy's EXPECTED_DECIMALS.
