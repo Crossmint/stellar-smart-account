@@ -1,7 +1,7 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, vec, xdr::ToXdr, Address, Bytes, BytesN,
-    Env, Symbol, Val, Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, vec, xdr::ToXdr, Address,
+    Bytes, BytesN, Env, Symbol, Val, Vec,
 };
 
 const DEPLOYED_CONTRACT: Symbol = symbol_short!("DEPLOYED");
@@ -13,12 +13,35 @@ const INSTANCE_EXTEND_TO: u32 = 30 * DAY_IN_LEDGERS;
 #[contract]
 pub struct ContractFactory;
 
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[repr(u32)]
+pub enum FactoryError {
+    DeploymentFailed = 1,
+    InnerCallFailed = 2,
+}
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContractDeploymentArgs {
-    wasm_hash: BytesN<32>,
-    salt: BytesN<32>,
-    constructor_args: Vec<Val>,
+    pub wasm_hash: BytesN<32>,
+    pub salt: BytesN<32>,
+    pub constructor_args: Vec<Val>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContractCall {
+    pub target: Address,
+    pub function: Symbol,
+    pub args: Vec<Val>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeployAndCallResult {
+    pub address: Address,
+    pub results: Vec<Val>,
 }
 
 #[contracttype]
@@ -84,34 +107,15 @@ impl ContractFactory {
         contract_id
     }
 
-    /// Deploys a contract on behalf of the `ContractFactory` contract.
-    pub fn deploy(env: &Env, deployment_args: ContractDeploymentArgs) -> Address {
-        Self::extend_instance_ttl(env);
-        let ContractDeploymentArgs {
-            wasm_hash,
-            salt,
-            constructor_args,
-        } = deployment_args;
-
-        let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
-        Self::deploy_and_emit(env, derived_salt, wasm_hash, constructor_args)
-    }
-
-    /// Deploys a contract on behalf of the `ContractFactory` contract.
-    /// If the contract is already deployed at the deterministic address, returns it.
-    pub fn deploy_idempotent(env: &Env, deployment_args: ContractDeploymentArgs) -> Address {
-        Self::extend_instance_ttl(env);
-        let ContractDeploymentArgs {
-            wasm_hash,
-            salt,
-            constructor_args,
-        } = deployment_args;
-
+    fn predict_and_check_deployed(
+        env: &Env,
+        deployment_args: &ContractDeploymentArgs,
+    ) -> (Address, bool) {
         let tentative_contract_id = Self::get_deployed_address(
             env,
-            salt.clone(),
-            wasm_hash.clone(),
-            constructor_args.clone(),
+            deployment_args.salt.clone(),
+            deployment_args.wasm_hash.clone(),
+            deployment_args.constructor_args.clone(),
         );
         let is_deployed = env
             .try_invoke_contract::<bool, soroban_sdk::Error>(
@@ -120,13 +124,101 @@ impl ContractFactory {
                 Vec::new(env),
             )
             .is_ok();
+        (tentative_contract_id, is_deployed)
+    }
 
-        if is_deployed {
-            return tentative_contract_id;
-        }
+    /// Deploys a contract on behalf of the `ContractFactory` contract.
+    pub fn deploy(
+        env: &Env,
+        deployment_args: ContractDeploymentArgs,
+    ) -> Result<Address, FactoryError> {
+        Self::extend_instance_ttl(env);
+        let ContractDeploymentArgs {
+            wasm_hash,
+            salt,
+            constructor_args,
+        } = deployment_args;
 
         let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
-        Self::deploy_and_emit(env, derived_salt, wasm_hash, constructor_args)
+        Ok(Self::deploy_and_emit(
+            env,
+            derived_salt,
+            wasm_hash,
+            constructor_args,
+        ))
+    }
+
+    /// Deploys a contract on behalf of the `ContractFactory` contract.
+    /// If the contract is already deployed at the deterministic address, returns it.
+    pub fn deploy_idempotent(
+        env: &Env,
+        deployment_args: ContractDeploymentArgs,
+    ) -> Result<Address, FactoryError> {
+        Self::extend_instance_ttl(env);
+        let (tentative_contract_id, is_deployed) =
+            Self::predict_and_check_deployed(env, &deployment_args);
+
+        if is_deployed {
+            return Ok(tentative_contract_id);
+        }
+
+        let ContractDeploymentArgs {
+            wasm_hash,
+            salt,
+            constructor_args,
+        } = deployment_args;
+
+        let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
+        Ok(Self::deploy_and_emit(
+            env,
+            derived_salt,
+            wasm_hash,
+            constructor_args,
+        ))
+    }
+
+    /// Idempotently deploys a contract and then dispatches a sequence of inner
+    /// contract calls, returning the deployed address alongside the raw return
+    /// value of each inner call.
+    ///
+    /// If any inner call reverts, `FactoryError::InnerCallFailed` is returned
+    /// and the whole transaction is rolled back by the host.
+    pub fn deploy_idempotent_and_call(
+        env: &Env,
+        deployment_args: ContractDeploymentArgs,
+        calls: Vec<ContractCall>,
+    ) -> Result<DeployAndCallResult, FactoryError> {
+        Self::extend_instance_ttl(env);
+
+        let (tentative_contract_id, is_deployed) =
+            Self::predict_and_check_deployed(env, &deployment_args);
+
+        let address = if is_deployed {
+            tentative_contract_id
+        } else {
+            let ContractDeploymentArgs {
+                wasm_hash,
+                salt,
+                constructor_args,
+            } = deployment_args;
+            let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
+            Self::deploy_and_emit(env, derived_salt, wasm_hash, constructor_args)
+        };
+
+        let mut results: Vec<Val> = Vec::new(env);
+        for call in calls.iter() {
+            let result = env
+                .try_invoke_contract::<Val, soroban_sdk::Error>(
+                    &call.target,
+                    &call.function,
+                    call.args.clone(),
+                )
+                .map_err(|_| FactoryError::InnerCallFailed)?
+                .map_err(|_| FactoryError::InnerCallFailed)?;
+            results.push_back(result);
+        }
+
+        Ok(DeployAndCallResult { address, results })
     }
 
     /// Idempotently deploys a contract and then dispatches a sequence of inner
@@ -156,11 +248,16 @@ impl ContractFactory {
         wasm_bytes: Bytes,
         salt: BytesN<32>,
         constructor_args: Vec<Val>,
-    ) -> Address {
+    ) -> Result<Address, FactoryError> {
         Self::extend_instance_ttl(env);
         let wasm_hash = env.deployer().upload_contract_wasm(wasm_bytes);
         let derived_salt = Self::derive_salt(env, salt, &wasm_hash, &constructor_args);
-        Self::deploy_and_emit(env, derived_salt, wasm_hash, constructor_args)
+        Ok(Self::deploy_and_emit(
+            env,
+            derived_salt,
+            wasm_hash,
+            constructor_args,
+        ))
     }
 
     pub fn get_deployed_address(
