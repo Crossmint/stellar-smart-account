@@ -13,9 +13,12 @@ use soroban_sdk::{
     Address, Bytes, BytesN, Env, IntoVal, Symbol, Vec,
 };
 
+use crate::account::SmartAccount;
 use crate::auth::proof::{SignatureProofs, SignerProof};
 use crate::error::Error;
-use crate::tests::test_utils::get_token_auth_context;
+use crate::tests::test_utils::{get_token_auth_context, Ed25519TestSigner, TestSignerTrait as _};
+use smart_account_interfaces::SignerRole;
+use upgradeable::SmartAccountUpgradeableMigratable;
 
 // A minimal external-policy contract so the v1 constructor's `on_add` call succeeds.
 #[contract]
@@ -344,6 +347,69 @@ fn test_migrate_cannot_run_twice() {
         expected_signer_count: 0,
         expected_admin_count: 0,
     }));
+}
+
+// ============================================================================
+// Test: Upgrade cannot be called again while a migration is pending
+// ============================================================================
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1110)")]
+fn test_second_upgrade_rejected_while_migration_pending() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    // Register the contract natively so both upgrade calls execute the current
+    // source, not the pre-built v2 WASM snapshot in testdata.
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin);
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let v2_hash = upload_v2_wasm(&env);
+
+    // First upgrade succeeds and leaves MIGRATING = true
+    env.as_contract(&contract_id, || {
+        <SmartAccount as SmartAccountUpgradeableMigratable>::upgrade(&env, v2_hash.clone());
+    });
+
+    // Second upgrade before migrate() — must fail with MigrationAlreadyPending (1110)
+    env.as_contract(&contract_id, || {
+        <SmartAccount as SmartAccountUpgradeableMigratable>::upgrade(&env, v2_hash.clone());
+    });
+}
+
+#[test]
+fn test_upgrade_allowed_again_after_migration_completes() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin);
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let v2_hash = upload_v2_wasm(&env);
+
+    env.as_contract(&contract_id, || {
+        <SmartAccount as SmartAccountUpgradeableMigratable>::upgrade(&env, v2_hash.clone());
+        // migrate() clears the flag via complete_migration; call it directly
+        // rather than running the v1→v2 data migration against v2-shaped storage.
+        upgradeable::complete_migration(&env);
+    });
+
+    // With no migration pending, a follow-up upgrade must be accepted
+    env.as_contract(&contract_id, || {
+        <SmartAccount as SmartAccountUpgradeableMigratable>::upgrade(&env, v2_hash.clone());
+    });
 }
 
 // ============================================================================
