@@ -20,10 +20,10 @@ pub struct TokenTransferPolicy {
     ///
     /// Caveat: the spending tracker lives in Soroban persistent storage,
     /// which always has a finite TTL. The TTL is refreshed on every spending
-    /// check, but after ~30 days without one the entry is archived and the
-    /// cumulative total effectively resets to zero. To guarantee a lifetime
-    /// limit is never forgotten, keep the tracker entry alive externally
-    /// (e.g. a periodic ExtendFootprintTTLOp).
+    /// check but can still lapse after ~30 days without one, archiving the
+    /// entry. Since protocol 23 an archived entry is automatically restored
+    /// with its prior value on next access (paying restoration rent), so the
+    /// cumulative total survives; refreshing the TTL avoids that cost.
     pub reset_window_secs: u64,
     /// Allowed recipient addresses. None = any recipient is allowed; Some([]) = no recipient allowed (deny all).
     pub allowed_recipients: Option<Vec<Address>>,
