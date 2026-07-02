@@ -962,8 +962,7 @@ fn test_tracker_ttl_refreshed_on_denied_check() {
         );
     });
 
-    // An over-limit check is denied and records no spend, but must still
-    // refresh the tracker TTL so inactivity doesn't archive the entry.
+    // A denied over-limit check records no spend but must still refresh the TTL
     let to = Address::generate(&env);
     let contexts = vec![&env, make_transfer_context(&env, &token, &to, 1001)];
     env.as_contract(&contract_id, || {
@@ -1027,10 +1026,7 @@ fn test_windowed_tracker_ttl_covers_full_window() {
 
 #[test]
 fn test_missing_tracker_starts_spending_from_zero() {
-    // Pins the fallback: if the tracker entry is ever absent, the cumulative
-    // total starts over from zero. Archival cannot produce this state —
-    // persistent entries restore with their prior value — so in practice it
-    // takes an explicit removal.
+    // Only an explicit removal makes the tracker absent; spending then starts from zero
     let env = setup();
     let token = Address::generate(&env);
     let policy = make_policy(&env, &token, Some(1000));
@@ -1046,7 +1042,6 @@ fn test_missing_tracker_starts_spending_from_zero() {
     let contexts = vec![&env, make_transfer_context(&env, &token, &to, 1)];
     check_auth(&env, &contract_id, &signer, &contexts).unwrap_err();
 
-    // Simulate archival of the tracker entry
     env.as_contract(&contract_id, || {
         env.storage().persistent().remove(&tracker_key);
     });
@@ -1058,13 +1053,8 @@ fn test_missing_tracker_starts_spending_from_zero() {
 
 #[test]
 fn test_expired_tracker_never_reads_as_reset() {
-    // A lapsed tracker TTL cannot reset the lifetime limit. On the live
-    // network (protocol >= 23) the archived entry is auto-restored with its
-    // prior value before execution (CAP-0066); the SDK test host doesn't
-    // model restoration and aborts the access instead. Under neither
-    // semantics does the entry read as absent, so the `unwrap_or(spent: 0)`
-    // fallback is unreachable through archival and the extra spend below can
-    // never be authorized.
+    // An expired entry never reads as absent: the live network auto-restores it
+    // with its prior value (protocol >= 23); the SDK test host aborts the access.
     let env = setup();
     let token = Address::generate(&env);
     let policy = make_policy(&env, &token, Some(1000)); // lifetime limit

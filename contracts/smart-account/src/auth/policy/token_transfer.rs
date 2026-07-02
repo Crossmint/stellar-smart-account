@@ -13,13 +13,6 @@ use smart_account_interfaces::{
 
 /// Computes the TTL extend_to value for a spending tracker.
 /// Ensures the tracker stays live for at least one full spending window.
-///
-/// Soroban persistent entries always carry a finite TTL, so the tracker is
-/// archived if no policy check refreshes it for PERSISTENT_EXTEND_TO
-/// (~30 days). Since protocol 23 archival is not data loss: the entry is
-/// auto-restored with its prior value on next access, at a restoration-rent
-/// cost. Refreshing the TTL on every check keeps that cost off the spend
-/// path; a periodic ExtendFootprintTTLOp does the same from outside.
 fn tracker_extend_to(reset_window_secs: u64) -> u32 {
     if reset_window_secs > 0 {
         let secs_per_ledger = 86400 / DAY_IN_LEDGERS as u64;
@@ -102,9 +95,7 @@ fn check_spending_limit(
     let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key.clone());
     let stored: Option<SpendingTracker> = env.storage().persistent().get(&tracker_key);
 
-    // Refresh the TTL on every check, not just on recorded spends, so gaps
-    // without spending are less likely to archive the entry and silently
-    // reset the cumulative total (see tracker_extend_to).
+    // Refresh the TTL on every check, not just on recorded spends
     if stored.is_some() {
         env.storage().persistent().extend_ttl(
             &tracker_key,
