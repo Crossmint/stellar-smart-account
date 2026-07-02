@@ -1027,9 +1027,10 @@ fn test_windowed_tracker_ttl_covers_full_window() {
 
 #[test]
 fn test_missing_tracker_starts_spending_from_zero() {
-    // Pins the fallback: if the tracker entry is ever absent (protocol >= 23
-    // auto-restores archived entries, so this needs an explicit removal or
-    // pre-23 semantics), the cumulative total starts over from zero.
+    // Pins the fallback: if the tracker entry is ever absent, the cumulative
+    // total starts over from zero. Archival cannot produce this state —
+    // persistent entries restore with their prior value — so in practice it
+    // takes an explicit removal.
     let env = setup();
     let token = Address::generate(&env);
     let policy = make_policy(&env, &token, Some(1000));
