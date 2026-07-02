@@ -17,6 +17,8 @@ pub struct TokenTransferPolicy {
     /// None = no amount restriction; other checks (expiration, token, recipients) still apply.
     pub limit: Option<i128>,
     /// Number of seconds after which the spent amount resets. 0 = no reset (lifetime limit).
+    /// If the tracker's storage TTL lapses, the archived entry is auto-restored with its
+    /// prior value on next access (protocol >= 23), so the total survives archival.
     pub reset_window_secs: u64,
     /// Allowed recipient addresses. None = any recipient is allowed; Some([]) = no recipient allowed (deny all).
     pub allowed_recipients: Option<Vec<Address>>,

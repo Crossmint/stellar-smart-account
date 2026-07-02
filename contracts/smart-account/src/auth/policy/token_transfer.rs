@@ -93,14 +93,21 @@ fn check_spending_limit(
     let now = env.ledger().timestamp();
 
     let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key.clone());
-    let mut tracker: SpendingTracker =
-        env.storage()
-            .persistent()
-            .get(&tracker_key)
-            .unwrap_or(SpendingTracker {
-                spent: 0,
-                window_start: now,
-            });
+    let stored: Option<SpendingTracker> = env.storage().persistent().get(&tracker_key);
+
+    // Refresh the TTL on every check, not just on recorded spends
+    if stored.is_some() {
+        env.storage().persistent().extend_ttl(
+            &tracker_key,
+            PERSISTENT_TTL_THRESHOLD,
+            tracker_extend_to(policy.reset_window_secs),
+        );
+    }
+
+    let mut tracker = stored.unwrap_or(SpendingTracker {
+        spent: 0,
+        window_start: now,
+    });
 
     // Check if the spending window should reset
     if policy.reset_window_secs > 0
