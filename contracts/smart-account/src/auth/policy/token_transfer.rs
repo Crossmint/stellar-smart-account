@@ -13,6 +13,13 @@ use smart_account_interfaces::{
 
 /// Computes the TTL extend_to value for a spending tracker.
 /// Ensures the tracker stays live for at least one full spending window.
+///
+/// Limitation: Soroban persistent entries always carry a finite TTL, so a
+/// lifetime limit (`reset_window_secs == 0`) is best-effort: if no policy
+/// check refreshes the tracker for PERSISTENT_EXTEND_TO (~30 days), the
+/// entry is archived and the next check starts over from `spent: 0`.
+/// Guaranteeing no reset requires keeping the entry alive externally
+/// (e.g. a periodic ExtendFootprintTTLOp on the tracker entry).
 fn tracker_extend_to(reset_window_secs: u64) -> u32 {
     if reset_window_secs > 0 {
         let secs_per_ledger = 86400 / DAY_IN_LEDGERS as u64;
@@ -93,14 +100,23 @@ fn check_spending_limit(
     let now = env.ledger().timestamp();
 
     let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key.clone());
-    let mut tracker: SpendingTracker =
-        env.storage()
-            .persistent()
-            .get(&tracker_key)
-            .unwrap_or(SpendingTracker {
-                spent: 0,
-                window_start: now,
-            });
+    let stored: Option<SpendingTracker> = env.storage().persistent().get(&tracker_key);
+
+    // Refresh the TTL on every check, not just on recorded spends, so gaps
+    // without spending are less likely to archive the entry and silently
+    // reset the cumulative total (see tracker_extend_to).
+    if stored.is_some() {
+        env.storage().persistent().extend_ttl(
+            &tracker_key,
+            PERSISTENT_TTL_THRESHOLD,
+            tracker_extend_to(policy.reset_window_secs),
+        );
+    }
+
+    let mut tracker = stored.unwrap_or(SpendingTracker {
+        spent: 0,
+        window_start: now,
+    });
 
     // Check if the spending window should reset
     if policy.reset_window_secs > 0

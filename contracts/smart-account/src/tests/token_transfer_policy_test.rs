@@ -928,3 +928,128 @@ fn test_updating_allowed_recipients_preserves_spending_tracker() {
     let contexts = vec![&env, make_transfer_context(&env, &token, &allowed_2, 300)];
     check_auth(&env, &contract_id, &signer, &contexts).unwrap();
 }
+
+// ============================================================================
+// Tracker TTL refresh tests
+// ============================================================================
+
+#[test]
+fn test_tracker_ttl_refreshed_on_denied_check() {
+    use crate::config::PERSISTENT_EXTEND_TO;
+    use soroban_sdk::testutils::storage::Persistent as _;
+
+    let env = setup();
+    let token = Address::generate(&env);
+    let policy = make_policy(&env, &token, Some(1000)); // reset_window_secs = 0 (lifetime)
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+    let signer_key = SignerKey::Ed25519(signer.public_key(&env));
+    let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key.clone());
+
+    // on_add extends the tracker TTL to PERSISTENT_EXTEND_TO
+    env.as_contract(&contract_id, || {
+        assert_eq!(
+            env.storage().persistent().get_ttl(&tracker_key),
+            PERSISTENT_EXTEND_TO
+        );
+    });
+
+    // Let most of the TTL elapse (below PERSISTENT_TTL_THRESHOLD, entry still live)
+    env.ledger().with_mut(|li| li.sequence_number += 450_000);
+    env.as_contract(&contract_id, || {
+        assert_eq!(
+            env.storage().persistent().get_ttl(&tracker_key),
+            PERSISTENT_EXTEND_TO - 450_000
+        );
+    });
+
+    // An over-limit check is denied and records no spend, but must still
+    // refresh the tracker TTL so inactivity doesn't archive the entry.
+    let to = Address::generate(&env);
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 1001)];
+    env.as_contract(&contract_id, || {
+        assert!(!policy.is_authorized(&env, &signer_key, &contexts));
+    });
+
+    env.as_contract(&contract_id, || {
+        assert_eq!(
+            env.storage().persistent().get_ttl(&tracker_key),
+            PERSISTENT_EXTEND_TO
+        );
+    });
+}
+
+#[test]
+fn test_tracker_ttl_refreshed_on_recorded_spend() {
+    use crate::config::PERSISTENT_EXTEND_TO;
+    use soroban_sdk::testutils::storage::Persistent as _;
+
+    let env = setup();
+    let token = Address::generate(&env);
+    let policy = make_policy(&env, &token, Some(1000));
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+    let signer_key = SignerKey::Ed25519(signer.public_key(&env));
+    let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key);
+
+    // Let most of the TTL elapse, then perform an authorized transfer
+    env.ledger().with_mut(|li| li.sequence_number += 450_000);
+    let to = Address::generate(&env);
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 100)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+
+    env.as_contract(&contract_id, || {
+        assert_eq!(
+            env.storage().persistent().get_ttl(&tracker_key),
+            PERSISTENT_EXTEND_TO
+        );
+    });
+}
+
+#[test]
+fn test_windowed_tracker_ttl_covers_full_window() {
+    use crate::config::{DAY_IN_LEDGERS, PERSISTENT_EXTEND_TO};
+    use soroban_sdk::testutils::storage::Persistent as _;
+
+    let env = setup();
+    let token = Address::generate(&env);
+    let mut policy = make_policy(&env, &token, Some(1000));
+    policy.reset_window_secs = 45 * 86_400; // 45-day window, longer than PERSISTENT_EXTEND_TO
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+    let signer_key = SignerKey::Ed25519(signer.public_key(&env));
+    let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key);
+
+    // tracker_extend_to = window in ledgers + one day of margin
+    let expected = 45 * DAY_IN_LEDGERS + DAY_IN_LEDGERS;
+    assert!(expected > PERSISTENT_EXTEND_TO);
+    env.as_contract(&contract_id, || {
+        assert_eq!(env.storage().persistent().get_ttl(&tracker_key), expected);
+    });
+}
+
+#[test]
+fn test_archived_tracker_resets_lifetime_limit() {
+    // Pins the documented residual limitation: if the tracker entry is
+    // archived by TTL expiry, the cumulative total starts over from zero.
+    let env = setup();
+    let token = Address::generate(&env);
+    let policy = make_policy(&env, &token, Some(1000));
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+    let signer_key = SignerKey::Ed25519(signer.public_key(&env));
+    let tracker_key = SpendTrackerKey::TokenSpend(policy.policy_id.clone(), signer_key);
+
+    let to = Address::generate(&env);
+
+    // Exhaust the lifetime limit
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 1000)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 1)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap_err();
+
+    // Simulate archival of the tracker entry
+    env.as_contract(&contract_id, || {
+        env.storage().persistent().remove(&tracker_key);
+    });
+
+    // The limit is forgotten: the full amount can be spent again
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 1000)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+}

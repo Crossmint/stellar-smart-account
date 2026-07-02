@@ -17,6 +17,13 @@ pub struct TokenTransferPolicy {
     /// None = no amount restriction; other checks (expiration, token, recipients) still apply.
     pub limit: Option<i128>,
     /// Number of seconds after which the spent amount resets. 0 = no reset (lifetime limit).
+    ///
+    /// Caveat: the spending tracker lives in Soroban persistent storage,
+    /// which always has a finite TTL. The TTL is refreshed on every spending
+    /// check, but after ~30 days without one the entry is archived and the
+    /// cumulative total effectively resets to zero. To guarantee a lifetime
+    /// limit is never forgotten, keep the tracker entry alive externally
+    /// (e.g. a periodic ExtendFootprintTTLOp).
     pub reset_window_secs: u64,
     /// Allowed recipient addresses. None = any recipient is allowed; Some([]) = no recipient allowed (deny all).
     pub allowed_recipients: Option<Vec<Address>>,
