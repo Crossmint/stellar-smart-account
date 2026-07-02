@@ -1055,3 +1055,44 @@ fn test_missing_tracker_starts_spending_from_zero() {
     let contexts = vec![&env, make_transfer_context(&env, &token, &to, 1000)];
     check_auth(&env, &contract_id, &signer, &contexts).unwrap();
 }
+
+#[test]
+fn test_expired_tracker_never_reads_as_reset() {
+    // A lapsed tracker TTL cannot reset the lifetime limit. On the live
+    // network (protocol >= 23) the archived entry is auto-restored with its
+    // prior value before execution (CAP-0066); the SDK test host doesn't
+    // model restoration and aborts the access instead. Under neither
+    // semantics does the entry read as absent, so the `unwrap_or(spent: 0)`
+    // fallback is unreachable through archival and the extra spend below can
+    // never be authorized.
+    let env = setup();
+    let token = Address::generate(&env);
+    let policy = make_policy(&env, &token, Some(1000)); // lifetime limit
+    let (contract_id, signer) = setup_account_with_policy(&env, &policy);
+
+    let to = Address::generate(&env);
+
+    // Exhaust the lifetime limit
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 1000)];
+    check_auth(&env, &contract_id, &signer, &contexts).unwrap();
+
+    // Let the tracker's TTL (PERSISTENT_EXTEND_TO = 518,400 ledgers) lapse
+    env.ledger().with_mut(|li| li.sequence_number += 600_000);
+
+    // Attempt to spend the full limit again: must not be authorized
+    let payload = BytesN::random(&env);
+    let (signer_key, proof) = signer.sign(&env, &payload);
+    let auth_payloads = SignatureProofs(map![&env, (signer_key, proof)]);
+    let contexts = vec![&env, make_transfer_context(&env, &token, &to, 1000)];
+    let res = env.try_invoke_contract_check_auth::<Error>(
+        &contract_id,
+        &payload,
+        auth_payloads.into_val(&env),
+        &contexts,
+    );
+    assert!(
+        res.is_err(),
+        "spend after tracker archival must not be authorized, got {:?}",
+        res
+    );
+}
