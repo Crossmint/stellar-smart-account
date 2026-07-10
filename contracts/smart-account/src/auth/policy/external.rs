@@ -2,7 +2,6 @@ use soroban_sdk::{auth::Context, Env, Vec};
 
 use crate::{
     auth::permissions::{AuthorizationCheck, PolicyCallback},
-    config::{TOPIC_POLICY, VERB_CALLBACK_FAILED},
     events::PolicyCallbackFailedEvent,
 };
 use smart_account_interfaces::{
@@ -28,12 +27,10 @@ impl AuthorizationCheck for ExternalPolicy {
             Ok(Ok(())) => true,
             Err(Ok(_)) => false,
             Ok(Err(_)) | Err(Err(_)) => {
-                env.events().publish(
-                    (TOPIC_POLICY, VERB_CALLBACK_FAILED),
-                    PolicyCallbackFailedEvent {
-                        policy_address: self.policy_address.clone(),
-                    },
-                );
+                PolicyCallbackFailedEvent {
+                    policy_address: self.policy_address.clone(),
+                }
+                .publish(env);
                 false
             }
         }
@@ -47,12 +44,10 @@ impl PolicyCallback for ExternalPolicy {
         match client.try_on_add(&wallet, signer_key) {
             Ok(Ok(())) => Ok(()),
             _ => {
-                env.events().publish(
-                    (TOPIC_POLICY, VERB_CALLBACK_FAILED),
-                    PolicyCallbackFailedEvent {
-                        policy_address: self.policy_address.clone(),
-                    },
-                );
+                PolicyCallbackFailedEvent {
+                    policy_address: self.policy_address.clone(),
+                }
+                .publish(env);
                 Err(SmartAccountError::PolicyClientInitializationError)
             }
         }
@@ -70,12 +65,10 @@ impl PolicyCallback for ExternalPolicy {
             // Non-blocking: an admin must always be able to revoke a misbehaving
             // permission contract, even if the external rejects the callback.
             _ => {
-                env.events().publish(
-                    (TOPIC_POLICY, VERB_CALLBACK_FAILED),
-                    PolicyCallbackFailedEvent {
-                        policy_address: self.policy_address.clone(),
-                    },
-                );
+                PolicyCallbackFailedEvent {
+                    policy_address: self.policy_address.clone(),
+                }
+                .publish(env);
             }
         }
         Ok(())

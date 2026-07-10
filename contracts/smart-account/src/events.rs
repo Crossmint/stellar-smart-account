@@ -1,7 +1,7 @@
 use smart_account_interfaces::{Signer, SignerKey};
-use soroban_sdk::{contracttype, Address, String};
+use soroban_sdk::{contractevent, Address, String};
 
-#[contracttype]
+#[contractevent(topics = ["signer", "added"])]
 #[derive(Clone)]
 pub struct SignerAddedEvent {
     pub signer_key: SignerKey,
@@ -17,7 +17,7 @@ impl From<Signer> for SignerAddedEvent {
     }
 }
 
-#[contracttype]
+#[contractevent(topics = ["signer", "updated"])]
 #[derive(Clone)]
 pub struct SignerUpdatedEvent {
     pub signer_key: SignerKey,
@@ -33,7 +33,7 @@ impl From<Signer> for SignerUpdatedEvent {
     }
 }
 
-#[contracttype]
+#[contractevent(topics = ["signer", "revoked"])]
 #[derive(Clone)]
 pub struct SignerRevokedEvent {
     pub signer_key: SignerKey,
@@ -49,33 +49,48 @@ impl From<Signer> for SignerRevokedEvent {
     }
 }
 
-#[contracttype]
+#[contractevent(topics = ["plugin", "installed"])]
 #[derive(Clone)]
 pub struct PluginInstalledEvent {
     pub plugin: Address,
 }
 
-#[contracttype]
+#[contractevent(topics = ["plugin", "uninst"])]
 #[derive(Clone)]
 pub struct PluginUninstalledEvent {
     pub plugin: Address,
 }
 
-#[contracttype]
+#[contractevent(topics = ["plugin", "uninsterr"])]
 #[derive(Clone)]
 pub struct PluginUninstallFailedEvent {
     pub plugin: Address,
 }
 
-#[contracttype]
+#[contractevent(topics = ["plugin", "autherr"])]
 #[derive(Clone)]
 pub struct PluginAuthFailedEvent {
+    #[topic]
     pub plugin: Address,
     pub error: String,
 }
 
-#[contracttype]
+#[contractevent(topics = ["policy", "cbfailed"])]
 #[derive(Clone)]
 pub struct PolicyCallbackFailedEvent {
     pub policy_address: Address,
+}
+
+/// Emitted when a two-phase upgrade begins; data is the contract's own address.
+#[contractevent(topics = ["UPGRADE_STARTED"], data_format = "single-value")]
+#[derive(Clone)]
+pub struct UpgradeStartedEvent {
+    pub contract: Address,
+}
+
+/// Emitted when a two-phase upgrade completes; data is the contract's own address.
+#[contractevent(topics = ["UPGRADE_COMPLETED"], data_format = "single-value")]
+#[derive(Clone)]
+pub struct UpgradeCompletedEvent {
+    pub contract: Address,
 }

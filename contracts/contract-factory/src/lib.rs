@@ -1,12 +1,8 @@
 #![no_std]
-// Deprecated in soroban-sdk 23+; `#[contractevent]` migration is deferred (changes event topic layout).
-#![allow(deprecated)]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, vec, xdr::ToXdr, Address, Bytes, BytesN,
-    Env, Symbol, Val, Vec,
+    contract, contractevent, contractimpl, contracttype, xdr::ToXdr, Address, Bytes, BytesN, Env,
+    Symbol, Val, Vec,
 };
-
-const DEPLOYED_CONTRACT: Symbol = symbol_short!("DEPLOYED");
 
 const DAY_IN_LEDGERS: u32 = 17_280;
 const INSTANCE_TTL_THRESHOLD: u32 = 7 * DAY_IN_LEDGERS;
@@ -31,7 +27,7 @@ pub struct ContractCall {
     pub func: Symbol,
 }
 
-#[contracttype]
+#[contractevent(topics = ["DEPLOYED"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContractDeployedEvent {
     contract_id: Address,
@@ -74,15 +70,10 @@ impl ContractFactory {
             .with_current_contract(derived_salt)
             .deploy_v2(wasm_hash, constructor_args);
 
-        env.events().publish(
-            vec![env, DEPLOYED_CONTRACT],
-            vec![
-                env,
-                ContractDeployedEvent {
-                    contract_id: contract_id.clone(),
-                },
-            ],
-        );
+        ContractDeployedEvent {
+            contract_id: contract_id.clone(),
+        }
+        .publish(env);
         contract_id
     }
 

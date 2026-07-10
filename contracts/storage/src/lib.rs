@@ -1,8 +1,6 @@
 #![no_std]
-// Deprecated in soroban-sdk 23+; `#[contractevent]` migration is deferred (changes event topic layout).
-#![allow(deprecated)]
 
-use soroban_sdk::{contracttype, symbol_short, Env, IntoVal, TryFromVal, Val};
+use soroban_sdk::{contractevent, contracttype, Env, IntoVal, TryFromVal, Val};
 
 #[derive(Debug)]
 pub enum Error {
@@ -25,9 +23,32 @@ pub enum StorageOperation {
     Delete,
 }
 
-#[contracttype]
+/// Emitted when a value is first stored under a key.
+///
+/// Carries the same `{storage_type, operation}` data body as the update and
+/// delete events so the on-chain payload is uniform across storage mutations;
+/// the operation is always [`StorageOperation::Store`] here.
+#[contractevent(topics = ["storage", "store"])]
 #[derive(Clone)]
-pub struct StorageChangeEvent {
+pub struct StorageStoredEvent {
+    pub storage_type: StorageType,
+    pub operation: StorageOperation,
+}
+
+/// Emitted when an existing value is updated. The operation is always
+/// [`StorageOperation::Update`].
+#[contractevent(topics = ["storage", "update"])]
+#[derive(Clone)]
+pub struct StorageUpdatedEvent {
+    pub storage_type: StorageType,
+    pub operation: StorageOperation,
+}
+
+/// Emitted when a value is deleted. The operation is always
+/// [`StorageOperation::Delete`].
+#[contractevent(topics = ["storage", "delete"])]
+#[derive(Clone)]
+pub struct StorageDeletedEvent {
     pub storage_type: StorageType,
     pub operation: StorageOperation,
 }
@@ -104,12 +125,11 @@ impl Storage {
 
         match result {
             Ok(_) => {
-                let event = StorageChangeEvent {
+                StorageStoredEvent {
                     storage_type: self.storage_type.clone(),
                     operation: StorageOperation::Store,
-                };
-                env.events()
-                    .publish((symbol_short!("storage"), symbol_short!("store")), event);
+                }
+                .publish(env);
                 Ok(())
             }
             Err(e) => Err(e),
@@ -149,12 +169,11 @@ impl Storage {
 
         match result {
             Ok(_) => {
-                let event = StorageChangeEvent {
+                StorageUpdatedEvent {
                     storage_type: self.storage_type.clone(),
                     operation: StorageOperation::Update,
-                };
-                env.events()
-                    .publish((symbol_short!("storage"), symbol_short!("update")), event);
+                }
+                .publish(env);
                 Ok(())
             }
             Err(e) => Err(e),
@@ -177,12 +196,11 @@ impl Storage {
             }
         }
 
-        let event = StorageChangeEvent {
+        StorageDeletedEvent {
             storage_type: self.storage_type.clone(),
             operation: StorageOperation::Delete,
-        };
-        env.events()
-            .publish((symbol_short!("storage"), symbol_short!("delete")), event);
+        }
+        .publish(env);
 
         Ok(())
     }

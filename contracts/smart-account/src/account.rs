@@ -4,13 +4,12 @@ use crate::auth::proof::SignatureProofs;
 use crate::config::{
     ADMIN_COUNT_KEY, CONTRACT_VERSION_KEY, CURRENT_CONTRACT_VERSION, INSTANCE_EXTEND_TO,
     INSTANCE_TTL_THRESHOLD, MAX_PLUGINS, PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD,
-    PLUGINS_KEY, TOPIC_PLUGIN, TOPIC_SIGNER, VERB_ADDED, VERB_INSTALLED, VERB_REVOKED,
-    VERB_UNINSTALLED, VERB_UNINSTALL_FAILED, VERB_UPDATED,
+    PLUGINS_KEY,
 };
 use crate::error::Error;
 use crate::events::{
     PluginInstalledEvent, PluginUninstallFailedEvent, PluginUninstalledEvent, SignerAddedEvent,
-    SignerRevokedEvent, SignerUpdatedEvent,
+    SignerRevokedEvent, SignerUpdatedEvent, UpgradeCompletedEvent, UpgradeStartedEvent,
 };
 use crate::handle_nested_result_failure;
 use crate::migration::{run_migration, MigrationData};
@@ -66,10 +65,10 @@ impl SmartAccountUpgradeableMigratable for SmartAccount {
         Self::_require_auth_upgrade(e);
         upgradeable::ensure_no_pending_migration(e);
         upgradeable::enable_migration(e);
-        e.events().publish(
-            (Symbol::new(e, "UPGRADE_STARTED"),),
-            e.current_contract_address(),
-        );
+        UpgradeStartedEvent {
+            contract: e.current_contract_address(),
+        }
+        .publish(e);
         e.deployer().update_current_contract_wasm(new_wasm_hash);
     }
 
@@ -78,10 +77,10 @@ impl SmartAccountUpgradeableMigratable for SmartAccount {
         upgradeable::ensure_can_complete_migration(e);
         Self::_migrate(e, &migration_data);
         upgradeable::complete_migration(e);
-        e.events().publish(
-            (Symbol::new(e, "UPGRADE_COMPLETED"),),
-            e.current_contract_address(),
-        );
+        UpgradeCompletedEvent {
+            contract: e.current_contract_address(),
+        }
+        .publish(e);
     }
 }
 
@@ -175,8 +174,7 @@ impl SmartAccountInterface for SmartAccount {
                 Self::increment_admin_count(env)?;
             }
         }
-        env.events()
-            .publish((TOPIC_SIGNER, VERB_ADDED), SignerAddedEvent::from(signer));
+        SignerAddedEvent::from(signer).publish(env);
 
         Ok(())
     }
@@ -208,10 +206,7 @@ impl SmartAccountInterface for SmartAccount {
         // Update the signer in storage
         storage.update::<SignerKey, Signer>(env, &key, &signer)?;
         storage.extend_ttl(env, &key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_EXTEND_TO);
-        env.events().publish(
-            (TOPIC_SIGNER, VERB_UPDATED),
-            SignerUpdatedEvent::from(signer),
-        );
+        SignerUpdatedEvent::from(signer).publish(env);
 
         Ok(())
     }
@@ -234,10 +229,7 @@ impl SmartAccountInterface for SmartAccount {
         if let SignerRole::Standard(policies, _) = signer_to_revoke.role() {
             Self::deactivate_policies(env, &signer_key, &policies)?;
         }
-        env.events().publish(
-            (TOPIC_SIGNER, VERB_REVOKED),
-            SignerRevokedEvent::from(signer_to_revoke),
-        );
+        SignerRevokedEvent::from(signer_to_revoke).publish(env);
         Ok(())
     }
 
@@ -274,10 +266,7 @@ impl SmartAccountInterface for SmartAccount {
             .map_err(|_| SmartAccountError::PluginInitializationFailed)?
             .map_err(|_| SmartAccountError::PluginInitializationFailed)?;
 
-        env.events().publish(
-            (TOPIC_PLUGIN, VERB_INSTALLED),
-            PluginInstalledEvent { plugin },
-        );
+        PluginInstalledEvent { plugin }.publish(env);
 
         Ok(())
     }
@@ -301,18 +290,13 @@ impl SmartAccountInterface for SmartAccount {
         let res = SmartAccountPluginClient::new(env, &plugin)
             .try_on_uninstall(&env.current_contract_address());
         handle_nested_result_failure!(res, {
-            env.events().publish(
-                (TOPIC_PLUGIN, VERB_UNINSTALL_FAILED),
-                PluginUninstallFailedEvent {
-                    plugin: plugin.clone(),
-                },
-            );
+            PluginUninstallFailedEvent {
+                plugin: plugin.clone(),
+            }
+            .publish(env);
         });
 
-        env.events().publish(
-            (TOPIC_PLUGIN, VERB_UNINSTALLED),
-            PluginUninstalledEvent { plugin },
-        );
+        PluginUninstalledEvent { plugin }.publish(env);
 
         Ok(())
     }
