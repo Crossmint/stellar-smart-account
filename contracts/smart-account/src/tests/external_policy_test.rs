@@ -4,13 +4,12 @@ use soroban_sdk::auth::{Context, ContractContext};
 use soroban_sdk::testutils::{Address as _, BytesN as _, Events, Ledger as _};
 use soroban_sdk::{
     contract, contractimpl, contracttype, map, symbol_short, vec, Address, BytesN, Env, IntoVal,
-    Symbol, TryFromVal, Val, Vec,
+    Map, Symbol, TryFromVal, Val, Vec,
 };
 
 use crate::account::SmartAccount;
 use crate::auth::proof::SignatureProofs;
 use crate::error::Error;
-use crate::events::PolicyCallbackFailedEvent;
 use crate::tests::test_utils::{
     get_token_auth_context, setup, Ed25519TestSigner, TestSignerTrait as _,
 };
@@ -179,7 +178,12 @@ fn callback_failed_event_count(env: &Env, expected: &Address) -> u32 {
     // exposes the raw `xdr::ContractEvent`s. Bind it to a local so the borrowed
     // slice outlives the loop, then convert each ScVal topic/data back to a
     // `Val` to preserve the original topic + payload filter.
+    //
+    // The `PolicyCallbackFailedEvent` is now a `#[contractevent]` whose data
+    // body is the sorted map `{policy_address: <addr>}`, so we read the address
+    // back out of that map rather than deserializing the whole struct.
     let target = symbol_short!("cbfailed");
+    let policy_address_key = Symbol::new(env, "policy_address");
     let all = env.events().all();
     let mut count = 0u32;
     for event in all.events() {
@@ -197,8 +201,10 @@ fn callback_failed_event_count(env: &Env, expected: &Address) -> u32 {
         }
 
         if let Ok(data) = Val::try_from_val(env, &body.data) {
-            if PolicyCallbackFailedEvent::try_from_val(env, &data)
-                .map(|e| &e.policy_address == expected)
+            if Map::<Symbol, Address>::try_from_val(env, &data)
+                .ok()
+                .and_then(|m| m.get(policy_address_key.clone()))
+                .map(|addr| &addr == expected)
                 .unwrap_or(false)
             {
                 count += 1;

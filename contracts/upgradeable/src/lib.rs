@@ -1,9 +1,8 @@
 #![no_std]
-// Deprecated in soroban-sdk 23+; `#[contractevent]` migration is deferred (changes event topic layout).
-#![allow(deprecated)]
 
 use soroban_sdk::{
-    contracterror, panic_with_error, symbol_short, BytesN, Env, FromVal, Symbol, Val,
+    contracterror, contractevent, panic_with_error, symbol_short, Address, BytesN, Env, FromVal,
+    Symbol, Val,
 };
 
 #[contracterror(export = false)]
@@ -15,6 +14,22 @@ pub enum Error {
 }
 
 pub const MIGRATING: Symbol = symbol_short!("MIGRATING");
+
+/// Emitted when a two-phase upgrade begins (WASM swap). The data is the
+/// upgrading contract's own address.
+#[contractevent(topics = ["UPGRADE_STARTED"], data_format = "single-value")]
+#[derive(Clone)]
+pub struct UpgradeStartedEvent {
+    pub contract: Address,
+}
+
+/// Emitted when a two-phase upgrade completes (migration done). The data is the
+/// upgraded contract's own address.
+#[contractevent(topics = ["UPGRADE_COMPLETED"], data_format = "single-value")]
+#[derive(Clone)]
+pub struct UpgradeCompletedEvent {
+    pub contract: Address,
+}
 
 pub trait SmartAccountUpgradeable: SmartAccountUpgradeableAuth {
     fn upgrade(env: &Env, new_wasm_hash: BytesN<32>) {
@@ -31,10 +46,10 @@ pub trait SmartAccountUpgradeableMigratable:
         Self::_require_auth_upgrade(e);
         ensure_no_pending_migration(e);
         enable_migration(e);
-        e.events().publish(
-            (Symbol::new(e, "UPGRADE_STARTED"),),
-            e.current_contract_address(),
-        );
+        UpgradeStartedEvent {
+            contract: e.current_contract_address(),
+        }
+        .publish(e);
         e.deployer().update_current_contract_wasm(new_wasm_hash);
     }
 
@@ -43,10 +58,10 @@ pub trait SmartAccountUpgradeableMigratable:
         ensure_can_complete_migration(e);
         Self::_migrate(e, &migration_data);
         complete_migration(e);
-        e.events().publish(
-            (Symbol::new(e, "UPGRADE_COMPLETED"),),
-            e.current_contract_address(),
-        );
+        UpgradeCompletedEvent {
+            contract: e.current_contract_address(),
+        }
+        .publish(e);
     }
 }
 
@@ -101,10 +116,10 @@ macro_rules! impl_upgradeable_migratable {
                 Self::_require_auth_upgrade(e);
                 $crate::ensure_no_pending_migration(e);
                 $crate::enable_migration(e);
-                e.events().publish(
-                    (soroban_sdk::Symbol::new(e, "UPGRADE_STARTED"),),
-                    e.current_contract_address(),
-                );
+                $crate::UpgradeStartedEvent {
+                    contract: e.current_contract_address(),
+                }
+                .publish(e);
                 e.deployer().update_current_contract_wasm(new_wasm_hash);
             }
 
@@ -113,10 +128,10 @@ macro_rules! impl_upgradeable_migratable {
                 $crate::ensure_can_complete_migration(e);
                 Self::_migrate(e, &migration_data);
                 $crate::complete_migration(e);
-                e.events().publish(
-                    (soroban_sdk::Symbol::new(e, "UPGRADE_COMPLETED"),),
-                    e.current_contract_address(),
-                );
+                $crate::UpgradeCompletedEvent {
+                    contract: e.current_contract_address(),
+                }
+                .publish(e);
             }
         }
     };

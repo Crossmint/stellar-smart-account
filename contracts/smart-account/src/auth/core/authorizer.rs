@@ -2,10 +2,7 @@
 use crate::auth::permissions::AuthorizationCheck;
 use crate::auth::proof::SignatureProofs;
 use crate::auth::signers::SignatureVerifier as _;
-use crate::config::{
-    ADMIN_COUNT_KEY, PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD, PLUGINS_KEY, TOPIC_PLUGIN,
-    VERB_AUTH_FAILED,
-};
+use crate::config::{ADMIN_COUNT_KEY, PERSISTENT_EXTEND_TO, PERSISTENT_TTL_THRESHOLD, PLUGINS_KEY};
 use crate::error::Error;
 use crate::events::PluginAuthFailedEvent;
 use smart_account_interfaces::SmartAccountPluginClient;
@@ -97,35 +94,29 @@ impl Authorizer {
                 // Plugin return value conversion failure (ABI mismatch)
                 // Treat as technical failure: log and continue
                 Ok(Err(_)) => {
-                    env.events().publish(
-                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
-                        PluginAuthFailedEvent {
-                            plugin: plugin.clone(),
-                            error: String::from_str(env, "Plugin return type mismatch (skipped)"),
-                        },
-                    );
+                    PluginAuthFailedEvent {
+                        plugin: plugin.clone(),
+                        error: String::from_str(env, "Plugin return type mismatch (skipped)"),
+                    }
+                    .publish(env);
                 }
                 // Plugin intentionally rejected (contracterror / panic_with_error!)
                 Err(Ok(_)) => {
-                    env.events().publish(
-                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
-                        PluginAuthFailedEvent {
-                            plugin: plugin.clone(),
-                            error: String::from_str(env, "Plugin rejected authorization"),
-                        },
-                    );
+                    PluginAuthFailedEvent {
+                        plugin: plugin.clone(),
+                        error: String::from_str(env, "Plugin rejected authorization"),
+                    }
+                    .publish(env);
                     return Err(Error::PluginOnAuthFailed);
                 }
                 // Plugin had a technical failure (panic!, host trap, TTL expiry)
                 // Non-blocking: log and continue to next plugin
                 Err(Err(_)) => {
-                    env.events().publish(
-                        (TOPIC_PLUGIN, &plugin, VERB_AUTH_FAILED),
-                        PluginAuthFailedEvent {
-                            plugin: plugin.clone(),
-                            error: String::from_str(env, "Plugin technical failure (skipped)"),
-                        },
-                    );
+                    PluginAuthFailedEvent {
+                        plugin: plugin.clone(),
+                        error: String::from_str(env, "Plugin technical failure (skipped)"),
+                    }
+                    .publish(env);
                 }
             }
         }

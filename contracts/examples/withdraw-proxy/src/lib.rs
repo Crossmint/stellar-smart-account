@@ -1,7 +1,5 @@
 #![no_std]
 #![allow(clippy::too_many_arguments)]
-// Deprecated in soroban-sdk 23+; `#[contractevent]` migration is deferred (changes event topic layout).
-#![allow(deprecated)]
 
 //! # Withdraw Proxy
 //!
@@ -15,8 +13,8 @@
 //! approvals, so it can never move funds the caller did not authorize.
 
 use soroban_sdk::{
-    contract, contractclient, contracterror, contractimpl, contracttype, token, Address, BytesN,
-    Env, Symbol,
+    contract, contractclient, contracterror, contractevent, contractimpl, contracttype, token,
+    Address, BytesN, Env,
 };
 
 /// Token precision the proxy supports, asserted on-chain. All amounts are token smallest units.
@@ -64,6 +62,18 @@ pub trait Coordinator {
         signature: BytesN<64>,
         public_key: BytesN<32>,
     );
+}
+
+/// Emitted on a successful atomic withdraw-then-transfer. Topics are
+/// `["withdraw_and_transfer", <caller>]`; the data is the vec
+/// `[recipient, withdraw_amount, transfer_amount]`.
+#[contractevent(topics = ["withdraw_and_transfer"], data_format = "vec")]
+pub struct WithdrawAndTransferEvent {
+    #[topic]
+    pub caller: Address,
+    pub recipient: Address,
+    pub withdraw_amount: i128,
+    pub transfer_amount: i128,
 }
 
 #[contract]
@@ -121,10 +131,13 @@ impl WithdrawProxy {
 
         token_client.transfer(&caller, &recipient, &transfer_amount);
 
-        env.events().publish(
-            (Symbol::new(&env, "withdraw_and_transfer"), caller),
-            (recipient, withdraw_amount, transfer_amount),
-        );
+        WithdrawAndTransferEvent {
+            caller,
+            recipient,
+            withdraw_amount,
+            transfer_amount,
+        }
+        .publish(&env);
 
         Ok(())
     }
