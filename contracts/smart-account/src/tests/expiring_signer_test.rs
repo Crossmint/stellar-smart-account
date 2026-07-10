@@ -16,17 +16,13 @@ use smart_account_interfaces::{SignerKey, SignerRole, SmartAccountInterface as _
 
 extern crate std;
 
-use ed25519_dalek::Keypair;
-
 // ============================================================================
 // Helpers
 // ============================================================================
 
-/// Reconstruct an Ed25519TestSigner with the same keypair but a different role.
-/// Needed because `ed25519_dalek::Keypair` does not implement `Clone`.
+/// Reconstruct an Ed25519TestSigner with the same signing key but a different role.
 fn with_role(signer: &Ed25519TestSigner, role: SignerRole) -> Ed25519TestSigner {
-    let bytes = signer.0.to_bytes();
-    Ed25519TestSigner(Keypair::from_bytes(&bytes).unwrap(), role)
+    Ed25519TestSigner(signer.0.clone(), role)
 }
 
 /// Invoke `__check_auth` and return the result.
