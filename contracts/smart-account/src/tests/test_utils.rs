@@ -5,10 +5,10 @@ extern crate std;
 
 use alloc::vec::Vec;
 
-use ed25519_dalek::Keypair;
 use ed25519_dalek::Signer as _;
-use rand::rngs::StdRng;
-use rand::SeedableRng as _;
+// Aliased: the secp256r1/WebAuthn test signers below import `p256::ecdsa::SigningKey`
+// under the bare name, so the ed25519 key type must not collide with it.
+use ed25519_dalek::SigningKey as Ed25519SigningKey;
 use soroban_sdk::auth::Context;
 use soroban_sdk::BytesN;
 use soroban_sdk::Env;
@@ -54,18 +54,31 @@ pub trait TestSignerTrait {
 // Ed25519
 // ============================================================================
 
-pub struct Ed25519TestSigner(pub Keypair, pub SignerRole);
+pub struct Ed25519TestSigner(pub Ed25519SigningKey, pub SignerRole);
+
+/// Monotonic counter for deterministic, unique Ed25519 test keys (no `rand`).
+static ED25519_SEED_COUNTER: AtomicU32 = AtomicU32::new(1);
+
+/// Deterministically derive a unique Ed25519 signing key, mirroring the
+/// secp256r1 helper. Replaces `Keypair::generate(&mut StdRng)` so tests no
+/// longer depend on `rand` and are fully reproducible.
+pub fn generate_ed25519_signing_key() -> Ed25519SigningKey {
+    let seed = ED25519_SEED_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let mut sk_bytes = [0u8; 32];
+    sk_bytes[..4].copy_from_slice(&seed.to_be_bytes());
+    sk_bytes[31] = 1; // ensure non-zero
+    Ed25519SigningKey::from_bytes(&sk_bytes)
+}
 
 impl Ed25519TestSigner {
     pub fn public_key(&self, env: &Env) -> BytesN<32> {
-        let Ed25519TestSigner(keypair, _) = self;
-        BytesN::from_array(env, &keypair.public.to_bytes())
+        BytesN::from_array(env, &self.0.verifying_key().to_bytes())
     }
 }
 
 impl TestSignerTrait for Ed25519TestSigner {
     fn generate(role: SignerRole) -> Self {
-        Self(Keypair::generate(&mut StdRng::from_entropy()), role)
+        Self(generate_ed25519_signing_key(), role)
     }
 
     #[allow(clippy::wrong_self_convention)]
@@ -79,7 +92,8 @@ impl TestSignerTrait for Ed25519TestSigner {
         if signature_bytes.len() != 64 {
             panic!("Invalid signature length");
         }
-        let signer_key = SignerKey::Ed25519(BytesN::from_array(env, &self.0.public.to_bytes()));
+        let signer_key =
+            SignerKey::Ed25519(BytesN::from_array(env, &self.0.verifying_key().to_bytes()));
         let signature = SignerProof::Ed25519(BytesN::from_array(env, &signature_bytes));
         (signer_key, signature)
     }

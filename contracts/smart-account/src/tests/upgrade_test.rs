@@ -58,18 +58,16 @@ mod v2 {
 // Helper functions
 // ============================================================================
 
-/// Generate an Ed25519 keypair for test use.
-fn generate_ed25519_keypair() -> ed25519_dalek::Keypair {
-    use rand::rngs::StdRng;
-    use rand::SeedableRng;
-    ed25519_dalek::Keypair::generate(&mut StdRng::from_entropy())
+/// Generate a deterministic Ed25519 signing key for test use (no `rand`).
+fn generate_ed25519_keypair() -> ed25519_dalek::SigningKey {
+    crate::tests::test_utils::generate_ed25519_signing_key()
 }
 
 /// Deploy a v1 contract with a single Ed25519 admin signer.
 /// Returns (contract_address, keypair).
-fn deploy_v1_with_ed25519_admin(env: &Env) -> (Address, ed25519_dalek::Keypair) {
+fn deploy_v1_with_ed25519_admin(env: &Env) -> (Address, ed25519_dalek::SigningKey) {
     let keypair = generate_ed25519_keypair();
-    let pk = BytesN::from_array(env, &keypair.public.to_bytes());
+    let pk = BytesN::from_array(env, &keypair.verifying_key().to_bytes());
 
     let signer = v1::Signer::Ed25519(v1::Ed25519Signer { public_key: pk }, v1::SignerRole::Admin);
 
@@ -82,9 +80,9 @@ fn deploy_v1_with_ed25519_admin(env: &Env) -> (Address, ed25519_dalek::Keypair) 
 /// Returns (contract_address, admin_keypair, secp_key_id, secp_public_key_bytes).
 fn deploy_v1_with_secp256r1_signer(
     env: &Env,
-) -> (Address, ed25519_dalek::Keypair, [u8; 18], [u8; 65]) {
+) -> (Address, ed25519_dalek::SigningKey, [u8; 18], [u8; 65]) {
     let admin_keypair = generate_ed25519_keypair();
-    let admin_pk = BytesN::from_array(env, &admin_keypair.public.to_bytes());
+    let admin_pk = BytesN::from_array(env, &admin_keypair.verifying_key().to_bytes());
 
     let admin_signer = v1::Signer::Ed25519(
         v1::Ed25519Signer {
@@ -169,7 +167,7 @@ fn test_upgrade_ed25519_admin_preserved() {
     env.mock_all_auths();
 
     let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
-    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
+    let pk = BytesN::from_array(&env, &keypair.verifying_key().to_bytes());
 
     // Verify signer exists on v1
     let v1_client = v1::Client::new(&env, &contract_id);
@@ -209,7 +207,7 @@ fn test_migrate_secp256r1_to_webauthn() {
     env.mock_all_auths();
 
     let (contract_id, admin_keypair, key_id, pk_bytes) = deploy_v1_with_secp256r1_signer(&env);
-    let admin_pk = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
+    let admin_pk = BytesN::from_array(&env, &admin_keypair.verifying_key().to_bytes());
 
     // Verify secp256r1 signer exists on v1
     let v1_client = v1::Client::new(&env, &contract_id);
@@ -269,7 +267,7 @@ fn test_upgrade_ed25519_only_account() {
     env.mock_all_auths();
 
     let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
-    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
+    let pk = BytesN::from_array(&env, &keypair.verifying_key().to_bytes());
 
     // Upgrade
     let v1_client = v1::Client::new(&env, &contract_id);
@@ -299,7 +297,7 @@ fn test_migrate_without_upgrade_fails() {
 
     // Deploy v2 directly (no upgrade path)
     let keypair = generate_ed25519_keypair();
-    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
+    let pk = BytesN::from_array(&env, &keypair.verifying_key().to_bytes());
 
     let signer = v2::Signer::Ed25519(v2::Ed25519Signer { public_key: pk }, v2::SignerRole::Admin);
 
@@ -326,7 +324,7 @@ fn test_migrate_cannot_run_twice() {
     env.mock_all_auths();
 
     let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
-    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
+    let pk = BytesN::from_array(&env, &keypair.verifying_key().to_bytes());
 
     // Upgrade
     let v1_client = v1::Client::new(&env, &contract_id);
@@ -422,7 +420,7 @@ fn test_new_signer_types_after_upgrade() {
     env.mock_all_auths();
 
     let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
-    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
+    let pk = BytesN::from_array(&env, &keypair.verifying_key().to_bytes());
 
     // Upgrade and migrate
     let v1_client = v1::Client::new(&env, &contract_id);
@@ -473,7 +471,7 @@ fn test_upgrade_preserves_admin_count() {
 
     let (contract_id, admin_keypair, _key_id, _pk_bytes) = deploy_v1_with_secp256r1_signer(&env);
 
-    let admin_pk = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
+    let admin_pk = BytesN::from_array(&env, &admin_keypair.verifying_key().to_bytes());
 
     // v1: two admin signers (Ed25519 + Secp256r1)
     // Upgrade to v2
@@ -518,10 +516,10 @@ fn test_migrate_ed25519_with_external_policy() {
     env.mock_all_auths();
 
     let admin_keypair = generate_ed25519_keypair();
-    let admin_pk = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
+    let admin_pk = BytesN::from_array(&env, &admin_keypair.verifying_key().to_bytes());
 
     let standard_keypair = generate_ed25519_keypair();
-    let standard_pk = BytesN::from_array(&env, &standard_keypair.public.to_bytes());
+    let standard_pk = BytesN::from_array(&env, &standard_keypair.verifying_key().to_bytes());
 
     // Deploy a mock policy contract so v1 constructor's `on_add` succeeds
     let policy_address = env.register(DummyExternalPolicy, ());
@@ -561,7 +559,7 @@ fn test_migrate_ed25519_with_external_policy() {
     // Migrate — ALL Standard signers need migration due to XDR layout change
     // (v1 Standard(Vec<...>) vs v2 Standard(Option<Vec<...>>, u64)). The admin is
     // also included to satisfy the admin-count invariant.
-    let admin_pk_bytes = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
+    let admin_pk_bytes = BytesN::from_array(&env, &admin_keypair.verifying_key().to_bytes());
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
         signers_to_migrate: vec![
@@ -594,10 +592,10 @@ fn test_migrate_ed25519_with_time_window_policy() {
     env.mock_all_auths();
 
     let admin_keypair = generate_ed25519_keypair();
-    let admin_pk = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
+    let admin_pk = BytesN::from_array(&env, &admin_keypair.verifying_key().to_bytes());
 
     let standard_keypair = generate_ed25519_keypair();
-    let standard_pk = BytesN::from_array(&env, &standard_keypair.public.to_bytes());
+    let standard_pk = BytesN::from_array(&env, &standard_keypair.verifying_key().to_bytes());
 
     let admin_signer = v1::Signer::Ed25519(
         v1::Ed25519Signer {
@@ -636,7 +634,7 @@ fn test_migrate_ed25519_with_time_window_policy() {
     // Migrate — the Ed25519 standard signer with TimeWindowPolicy needs migration
     // because the TimeWindowPolicy variant no longer exists in v2. The admin is
     // included to satisfy the admin-count invariant.
-    let admin_pk_bytes = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
+    let admin_pk_bytes = BytesN::from_array(&env, &admin_keypair.verifying_key().to_bytes());
     let v2_client = v2::Client::new(&env, &contract_id);
     v2_client.migrate(&v2::MigrationData::V1ToV2(v2::V1ToV2MigrationData {
         signers_to_migrate: vec![
@@ -690,9 +688,9 @@ impl DummyPlugin {
 
 /// Helper: deploy v1, upgrade to v2, and migrate.
 /// Returns (contract_id, admin_keypair, v2_client).
-fn upgrade_and_migrate(env: &Env) -> (Address, ed25519_dalek::Keypair, v2::Client<'_>) {
+fn upgrade_and_migrate(env: &Env) -> (Address, ed25519_dalek::SigningKey, v2::Client<'_>) {
     let (contract_id, keypair) = deploy_v1_with_ed25519_admin(env);
-    let pk = BytesN::from_array(env, &keypair.public.to_bytes());
+    let pk = BytesN::from_array(env, &keypair.verifying_key().to_bytes());
     let v1_client = v1::Client::new(env, &contract_id);
     let v2_hash = upload_v2_wasm(env);
     v1_client.upgrade(&v2_hash);
@@ -725,7 +723,7 @@ fn test_auth_ed25519_works_after_migration() {
 
     let signer_key = smart_account_interfaces::SignerKey::Ed25519(BytesN::from_array(
         &env,
-        &admin_keypair.public.to_bytes(),
+        &admin_keypair.verifying_key().to_bytes(),
     ));
     let proof = SignerProof::Ed25519(BytesN::from_array(&env, &signature_bytes));
     let auth_payloads = SignatureProofs(map![&env, (signer_key, proof)]);
@@ -753,7 +751,7 @@ fn test_add_and_revoke_signer_after_migration() {
 
     // Add a new standard signer
     let new_keypair = generate_ed25519_keypair();
-    let new_pk = BytesN::from_array(&env, &new_keypair.public.to_bytes());
+    let new_pk = BytesN::from_array(&env, &new_keypair.verifying_key().to_bytes());
     let new_signer = v2::Signer::Ed25519(
         v2::Ed25519Signer {
             public_key: new_pk.clone(),
@@ -782,11 +780,11 @@ fn test_update_signer_role_after_migration() {
     env.mock_all_auths();
 
     let (_contract_id, admin_keypair, v2_client) = upgrade_and_migrate(&env);
-    let admin_pk = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
+    let admin_pk = BytesN::from_array(&env, &admin_keypair.verifying_key().to_bytes());
 
     // Add a second admin so we can downgrade the first one
     let admin2_keypair = generate_ed25519_keypair();
-    let admin2_pk = BytesN::from_array(&env, &admin2_keypair.public.to_bytes());
+    let admin2_pk = BytesN::from_array(&env, &admin2_keypair.verifying_key().to_bytes());
     v2_client.add_signer(&v2::Signer::Ed25519(
         v2::Ed25519Signer {
             public_key: admin2_pk,
@@ -836,7 +834,7 @@ fn test_install_plugin_after_migration() {
     };
     let signer_key = smart_account_interfaces::SignerKey::Ed25519(BytesN::from_array(
         &env,
-        &admin_keypair.public.to_bytes(),
+        &admin_keypair.verifying_key().to_bytes(),
     ));
     let proof = SignerProof::Ed25519(BytesN::from_array(&env, &signature_bytes));
     let auth_payloads = SignatureProofs(map![&env, (signer_key, proof)]);
@@ -871,7 +869,7 @@ fn test_admin_protection_after_migration() {
     env.mock_all_auths();
 
     let (_contract_id, admin_keypair, v2_client) = upgrade_and_migrate(&env);
-    let admin_pk = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
+    let admin_pk = BytesN::from_array(&env, &admin_keypair.verifying_key().to_bytes());
 
     // Try to revoke the only admin — contract should reject this
     // revoke_signer returns a Result; on the v2::Client it panics on error
@@ -892,7 +890,7 @@ fn test_revoke_migrated_webauthn_standard_signer() {
     env.mock_all_auths();
 
     let admin_keypair = generate_ed25519_keypair();
-    let admin_pk = BytesN::from_array(&env, &admin_keypair.public.to_bytes());
+    let admin_pk = BytesN::from_array(&env, &admin_keypair.verifying_key().to_bytes());
 
     let admin_signer = v1::Signer::Ed25519(
         v1::Ed25519Signer {
@@ -991,7 +989,7 @@ fn test_auth_admin_can_authorize_upgrade_after_migration() {
 
     let signer_key = smart_account_interfaces::SignerKey::Ed25519(BytesN::from_array(
         &env,
-        &admin_keypair.public.to_bytes(),
+        &admin_keypair.verifying_key().to_bytes(),
     ));
     let proof = SignerProof::Ed25519(BytesN::from_array(&env, &signature_bytes));
     let auth_payloads = SignatureProofs(map![&env, (signer_key, proof)]);
@@ -1023,7 +1021,7 @@ fn test_auth_standard_cannot_authorize_upgrade_after_migration() {
 
     // Add a standard signer
     let standard_keypair = generate_ed25519_keypair();
-    let standard_pk = BytesN::from_array(&env, &standard_keypair.public.to_bytes());
+    let standard_pk = BytesN::from_array(&env, &standard_keypair.verifying_key().to_bytes());
     let standard_signer = v2::Signer::Ed25519(
         v2::Ed25519Signer {
             public_key: standard_pk.clone(),
@@ -1084,7 +1082,7 @@ fn test_auth_admin_can_authorize_migrate_after_migration() {
 
     let signer_key = smart_account_interfaces::SignerKey::Ed25519(BytesN::from_array(
         &env,
-        &admin_keypair.public.to_bytes(),
+        &admin_keypair.verifying_key().to_bytes(),
     ));
     let proof = SignerProof::Ed25519(BytesN::from_array(&env, &signature_bytes));
     let auth_payloads = SignatureProofs(map![&env, (signer_key, proof)]);
@@ -1120,7 +1118,7 @@ fn test_auth_standard_cannot_authorize_migrate_after_migration() {
 
     // Add a standard signer
     let standard_keypair = generate_ed25519_keypair();
-    let standard_pk = BytesN::from_array(&env, &standard_keypair.public.to_bytes());
+    let standard_pk = BytesN::from_array(&env, &standard_keypair.verifying_key().to_bytes());
     let standard_signer = v2::Signer::Ed25519(
         v2::Ed25519Signer {
             public_key: standard_pk.clone(),
@@ -1180,7 +1178,7 @@ fn test_migrate_rejects_wrong_expected_signer_count() {
     env.mock_all_auths();
 
     let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
-    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
+    let pk = BytesN::from_array(&env, &keypair.verifying_key().to_bytes());
 
     let v1_client = v1::Client::new(&env, &contract_id);
     let v2_hash = upload_v2_wasm(&env);
@@ -1206,7 +1204,7 @@ fn test_migrate_rejects_wrong_expected_admin_count_vs_stored() {
     env.mock_all_auths();
 
     let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
-    let pk = BytesN::from_array(&env, &keypair.public.to_bytes());
+    let pk = BytesN::from_array(&env, &keypair.verifying_key().to_bytes());
 
     let v1_client = v1::Client::new(&env, &contract_id);
     let v2_hash = upload_v2_wasm(&env);
