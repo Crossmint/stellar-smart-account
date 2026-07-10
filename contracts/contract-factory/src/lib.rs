@@ -1,4 +1,6 @@
 #![no_std]
+// Deprecated in soroban-sdk 23+; `#[contractevent]` migration is deferred (changes event topic layout).
+#![allow(deprecated)]
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short, vec, xdr::ToXdr, Address, Bytes, BytesN,
     Env, Symbol, Val, Vec,

@@ -1,4 +1,6 @@
 #![no_std]
+// Deprecated in soroban-sdk 23+; `#[contractevent]` migration is deferred (changes event topic layout).
+#![allow(deprecated)]
 
 pub mod account;
 pub mod auth;

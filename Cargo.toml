@@ -10,15 +10,18 @@ members = [
   "contracts/storage",
   "contracts/testing/hello-world",
   "contracts/upgradeable",
-  "contracts/web-auth",
   "scripts/upgrade-wallet",
+]
+
+exclude = [
+  "contracts/web-auth",
 ]
 
 [workspace.package]
 license = "Apache-2.0"
 
 [workspace.dependencies]
-soroban-sdk = "22.0.10"
+soroban-sdk = "27.0.0"
 smart-account = { path = "contracts/smart-account" }
 contract-factory = { path = "contracts/contract-factory" }
 initializable = { path = "contracts/initializable" }
@@ -28,7 +31,6 @@ deny-list-policy = { path = "contracts/deny-list-policy" }
 smart-account-interfaces = { path = "contracts/smart-account-interfaces" }
 plugin-policy-example = { path = "contracts/examples/plugin-policy-example" }
 hello-world = { path = "contracts/testing/hello-world" }
-web-auth = { path = "contracts/web-auth" }
 
 [profile.release]
 opt-level = "z"
