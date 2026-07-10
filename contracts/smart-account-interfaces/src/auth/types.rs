@@ -55,6 +55,8 @@ pub enum SignerRole {
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
+// soroban `#[contracttype]` enums map to `ScVal` and cannot box their fields.
+#[allow(clippy::large_enum_variant)]
 pub enum SignerPolicy {
     TokenTransferPolicy(TokenTransferPolicy),
     ExternalPolicy(ExternalPolicy),

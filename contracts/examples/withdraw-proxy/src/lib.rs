@@ -1,5 +1,7 @@
 #![no_std]
 #![allow(clippy::too_many_arguments)]
+// Deprecated in soroban-sdk 23+; `#[contractevent]` migration is deferred (changes event topic layout).
+#![allow(deprecated)]
 
 //! # Withdraw Proxy
 //!
