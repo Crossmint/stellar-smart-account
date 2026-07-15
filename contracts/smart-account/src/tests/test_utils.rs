@@ -260,6 +260,99 @@ impl WebauthnTestSigner {
         let proof = self.build_webauthn_proof(env, payload, Some(&wrong));
         (signer_key, proof)
     }
+
+    /// Sign with `type: "webauthn.create"` (registration ceremony) instead of
+    /// `"webauthn.get"` — for verifying that the assertion verifier rejects
+    /// non-authentication ceremonies.
+    pub fn sign_with_wrong_type(
+        &self,
+        env: &Env,
+        payload: &BytesN<32>,
+    ) -> (SignerKey, SignerProof) {
+        let signer_key = SignerKey::Webauthn(Bytes::from_array(env, &self.key_id));
+        let proof = self.build_webauthn_proof_with_type(env, payload, "webauthn.create");
+        (signer_key, proof)
+    }
+
+    /// Sign with the User-Present (UP) flag bit cleared in `authenticator_data`.
+    /// Used to verify the verifier rejects assertions without user presence.
+    pub fn sign_without_user_present(
+        &self,
+        env: &Env,
+        payload: &BytesN<32>,
+    ) -> (SignerKey, SignerProof) {
+        let signer_key = SignerKey::Webauthn(Bytes::from_array(env, &self.key_id));
+        let proof = self.build_webauthn_proof_with_flags(env, payload, 0x00);
+        (signer_key, proof)
+    }
+
+    fn build_webauthn_proof_with_type(
+        &self,
+        env: &Env,
+        payload: &BytesN<32>,
+        ty: &str,
+    ) -> SignerProof {
+        let challenge = Base64UrlUnpadded::encode_string(&payload.to_array());
+        let client_data = WebauthnClientData {
+            ty,
+            challenge: &challenge,
+            origin: "https://example.com",
+            cross_origin: None,
+        };
+        let client_data_json = serde_json::to_vec(&client_data).unwrap();
+        let authenticator_data = Self::build_authenticator_data();
+        let client_data_hash = Sha256::digest(&client_data_json);
+        let mut signed_data = authenticator_data.clone();
+        signed_data.extend_from_slice(&client_data_hash);
+        let signature: P256Signature =
+            p256::ecdsa::signature::Signer::sign(&self.signing_key, &signed_data);
+        let normalized = normalize_signature(&signature);
+        SignerProof::Webauthn(WebauthnSignature {
+            authenticator_data: Bytes::from_slice(env, &authenticator_data),
+            client_data_json: Bytes::from_slice(env, &client_data_json),
+            signature: BytesN::from_array(
+                env,
+                normalized.to_bytes().as_slice().try_into().unwrap(),
+            ),
+        })
+    }
+
+    fn build_webauthn_proof_with_flags(
+        &self,
+        env: &Env,
+        payload: &BytesN<32>,
+        flags: u8,
+    ) -> SignerProof {
+        let challenge = Base64UrlUnpadded::encode_string(&payload.to_array());
+        let client_data = WebauthnClientData {
+            ty: "webauthn.get",
+            challenge: &challenge,
+            origin: "https://example.com",
+            cross_origin: None,
+        };
+        let client_data_json = serde_json::to_vec(&client_data).unwrap();
+
+        // Build authenticator_data with the supplied flags byte.
+        let mut authenticator_data = Vec::new();
+        authenticator_data.extend_from_slice(&Sha256::digest(b"example.com"));
+        authenticator_data.push(flags);
+        authenticator_data.extend_from_slice(&42u32.to_be_bytes());
+
+        let client_data_hash = Sha256::digest(&client_data_json);
+        let mut signed_data = authenticator_data.clone();
+        signed_data.extend_from_slice(&client_data_hash);
+        let signature: P256Signature =
+            p256::ecdsa::signature::Signer::sign(&self.signing_key, &signed_data);
+        let normalized = normalize_signature(&signature);
+        SignerProof::Webauthn(WebauthnSignature {
+            authenticator_data: Bytes::from_slice(env, &authenticator_data),
+            client_data_json: Bytes::from_slice(env, &client_data_json),
+            signature: BytesN::from_array(
+                env,
+                normalized.to_bytes().as_slice().try_into().unwrap(),
+            ),
+        })
+    }
 }
 
 impl TestSignerTrait for WebauthnTestSigner {
