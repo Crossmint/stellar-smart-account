@@ -34,6 +34,7 @@ stellar-smart-account/
 │   │   ├── plugin-policy-example/          # Example plugin+policy contract
 │   │   └── plugin-policy-example-reverts/  # Example plugin that reverts on uninstall
 │   ├── initializable/              # Contract initialization utilities
+│   ├── multicall/                  # Batched cross-contract call dispatcher
 │   ├── storage/                    # Storage management utilities
 │   ├── testing/                    # Shared test utilities
 │   ├── upgradeable/                # Contract upgrade utilities
