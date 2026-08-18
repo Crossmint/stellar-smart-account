@@ -5,6 +5,7 @@ members = [
   "contracts/examples/plugin-policy-example",
   "contracts/examples/withdraw-proxy",
   "contracts/initializable",
+  "contracts/multicall",
   "contracts/smart-account",
   "contracts/smart-account-interfaces",
   "contracts/storage",
