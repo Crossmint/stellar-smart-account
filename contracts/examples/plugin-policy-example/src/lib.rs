@@ -2,10 +2,25 @@
 use smart_account_interfaces::{PolicyError, SignerKey, SmartAccountPlugin, SmartAccountPolicy};
 use soroban_sdk::{
     auth::{Context, ContractContext},
-    contract, contractevent, contractimpl, symbol_short, Address, Env, Symbol, TryFromVal, Vec,
+    contract, contractevent, contractimpl, contracttype, symbol_short, Address, Env, Symbol,
+    TryFromVal, Vec,
 };
 
 const AUTH_COUNTER_KEY: Symbol = symbol_short!("COUNTER");
+
+const DAY_IN_LEDGERS: u32 = 17_280;
+const PERSISTENT_TTL_THRESHOLD: u32 = 7 * DAY_IN_LEDGERS;
+const PERSISTENT_EXTEND_TO: u32 = 30 * DAY_IN_LEDGERS;
+
+/// Storage key for the per-source counters. Each source gets its own
+/// persistent entry, so the shared instance entry does not grow with the
+/// number of accounts using this plugin.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub enum DataKey {
+    /// Keyed by the account that triggered the authorization callback.
+    SourceCounter(Address),
+}
 
 #[contract]
 pub struct PluginPolicyContract;
@@ -37,6 +52,25 @@ pub struct TransferDeniedEvent {
     pub limit: i128,
 }
 
+/// Records one authorization callback from `source`, bumping the global
+/// counter and that source's own counter. Returns the new
+/// `(global, per_source)` values.
+fn bump_auth_counters(env: &Env, source: &Address) -> (u32, u32) {
+    let global: u32 = env.storage().instance().get(&AUTH_COUNTER_KEY).unwrap_or(0) + 1;
+    env.storage().instance().set(&AUTH_COUNTER_KEY, &global);
+
+    let source_key = DataKey::SourceCounter(source.clone());
+    let per_source: u32 = env.storage().persistent().get(&source_key).unwrap_or(0) + 1;
+    env.storage().persistent().set(&source_key, &per_source);
+    env.storage().persistent().extend_ttl(
+        &source_key,
+        PERSISTENT_TTL_THRESHOLD,
+        PERSISTENT_EXTEND_TO,
+    );
+
+    (global, per_source)
+}
+
 #[contractimpl]
 impl SmartAccountPlugin for PluginPolicyContract {
     fn on_install(_env: &Env, source: Address) {
@@ -49,19 +83,14 @@ impl SmartAccountPlugin for PluginPolicyContract {
 
     fn on_auth(env: &Env, source: Address, contexts: Vec<Context>) {
         source.require_auth();
-        // Increment the internal counter
-        let current_counter: u32 = env.storage().instance().get(&AUTH_COUNTER_KEY).unwrap_or(0);
-
-        let new_counter = current_counter + 1;
-        env.storage()
-            .instance()
-            .set(&AUTH_COUNTER_KEY, &new_counter);
+        // Increment the global counter and this source's own counter
+        let (global_counter, _) = bump_auth_counters(env, &source);
 
         // Emit an event
         AuthEvent {
             source: source.clone(),
             context_count: contexts.len(),
-            counter: new_counter,
+            counter: global_counter,
         }
         .publish(env);
     }
@@ -87,17 +116,13 @@ impl SmartAccountPolicy for PluginPolicyContract {
     ) -> Result<(), PolicyError> {
         source.require_auth();
         // Increment the counter for policy authorization checks
-        let current_counter: u32 = env.storage().instance().get(&AUTH_COUNTER_KEY).unwrap_or(0);
-        let new_counter = current_counter + 1;
-        env.storage()
-            .instance()
-            .set(&AUTH_COUNTER_KEY, &new_counter);
+        let (global_counter, _) = bump_auth_counters(env, &source);
 
         // Emit an event with the current counter
         PolicyAuthEvent {
             source: source.clone(),
             context_count: contexts.len(),
-            counter: new_counter,
+            counter: global_counter,
         }
         .publish(env);
 
@@ -130,11 +155,21 @@ impl SmartAccountPolicy for PluginPolicyContract {
     }
 }
 
-// Helper function to get the current counter (for testing purposes)
+// Counter readers (for testing purposes)
 #[contractimpl]
 impl PluginPolicyContract {
+    /// Authorization callbacks from every account since deployment.
     pub fn get_auth_counter(env: Env) -> u32 {
         env.storage().instance().get(&AUTH_COUNTER_KEY).unwrap_or(0)
+    }
+
+    /// Authorization callbacks from `source` alone. Tests running in parallel
+    /// against separate accounts do not observe each other's calls here.
+    pub fn get_auth_counter_for(env: Env, source: Address) -> u32 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::SourceCounter(source))
+            .unwrap_or(0)
     }
 }
 
@@ -161,20 +196,49 @@ mod test {
         let source = Address::generate(&env);
         let contexts = Vec::new(&env);
 
-        // Initial counter should be 0
+        // Both counters should start at 0
         assert_eq!(client.get_auth_counter(), 0);
+        assert_eq!(client.get_auth_counter_for(&source), 0);
 
         // Call on_auth
         client.on_auth(&source, &contexts);
 
-        // Counter should be incremented
+        // Both counters should be incremented
         assert_eq!(client.get_auth_counter(), 1);
+        assert_eq!(client.get_auth_counter_for(&source), 1);
 
         // Call on_auth again
         client.on_auth(&source, &contexts);
 
-        // Counter should be incremented again
+        // Both counters should be incremented again
         assert_eq!(client.get_auth_counter(), 2);
+        assert_eq!(client.get_auth_counter_for(&source), 2);
+    }
+
+    #[test]
+    fn test_auth_counter_is_isolated_per_source() {
+        let env = setup();
+        env.mock_all_auths();
+        let contract_id = env.register(PluginPolicyContract, ());
+        let client = PluginPolicyContractClient::new(&env, &contract_id);
+
+        let first = Address::generate(&env);
+        let second = Address::generate(&env);
+        let contexts = Vec::new(&env);
+
+        client.on_auth(&first, &contexts);
+        client.on_auth(&second, &contexts);
+        client.on_auth(&first, &contexts);
+
+        // Each source only sees its own callbacks
+        assert_eq!(client.get_auth_counter_for(&first), 2);
+        assert_eq!(client.get_auth_counter_for(&second), 1);
+
+        // The global counter still sees all of them
+        assert_eq!(client.get_auth_counter(), 3);
+
+        // A source that never authorized reads 0
+        assert_eq!(client.get_auth_counter_for(&Address::generate(&env)), 0);
     }
 
     fn dummy_signer_key(env: &Env) -> SignerKey {
@@ -201,6 +265,10 @@ mod test {
         contexts.push_back(transfer_context);
 
         client.is_authorized(&source, &dummy_signer_key(&env), &contexts);
+
+        // Policy checks bump the same pair of counters as on_auth
+        assert_eq!(client.get_auth_counter(), 1);
+        assert_eq!(client.get_auth_counter_for(&source), 1);
     }
 
     #[test]
