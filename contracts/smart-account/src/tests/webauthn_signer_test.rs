@@ -92,3 +92,75 @@ fn test_webauthn_end_to_end_auth() {
     )
     .unwrap();
 }
+
+// ============================================================================
+// Spec compliance: WebAuthn assertions must use type "webauthn.get" (W3C §7.2.11)
+// ============================================================================
+
+#[test]
+fn test_webauthn_wrong_type_rejected() {
+    let env = setup();
+    let signer = WebauthnTestSigner::generate(SignerRole::Admin);
+
+    let payload_hash = env.crypto().sha256(&Bytes::from_array(&env, &[0xAB; 32]));
+    let (_, wrong_type_proof) = signer.sign_with_wrong_type(&env, &payload_hash.to_bytes());
+
+    let result = signer
+        .into_signer(&env)
+        .verify(&env, &payload_hash, &wrong_type_proof);
+    assert!(matches!(
+        result,
+        Err(Error::InvalidWebauthnClientDataJson)
+    ));
+}
+
+#[test]
+fn test_webauthn_wrong_type_rejected_end_to_end() {
+    let env = setup();
+    let test_signer = WebauthnTestSigner::generate(SignerRole::Admin);
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, test_signer.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let payload = BytesN::random(&env);
+    let (signer_key, proof) = test_signer.sign_with_wrong_type(&env, &payload);
+    let auth_payloads = SignatureProofs(map![&env, (signer_key, proof)]);
+
+    match env
+        .try_invoke_contract_check_auth::<Error>(
+            &contract_id,
+            &payload,
+            auth_payloads.into_val(&env),
+            &vec![&env, get_token_auth_context(&env)],
+        )
+        .unwrap_err()
+    {
+        Ok(err) => assert_eq!(err, Error::InvalidWebauthnClientDataJson),
+        Err(other) => panic!("unexpected host error {:?}", other),
+    }
+}
+
+// ============================================================================
+// Spec compliance: User-Present (UP) flag must be set (W3C §6.1)
+// ============================================================================
+
+#[test]
+fn test_webauthn_missing_user_present_flag_rejected() {
+    let env = setup();
+    let signer = WebauthnTestSigner::generate(SignerRole::Admin);
+
+    let payload_hash = env.crypto().sha256(&Bytes::from_array(&env, &[0xAB; 32]));
+    let (_, proof) = signer.sign_without_user_present(&env, &payload_hash.to_bytes());
+
+    let result = signer
+        .into_signer(&env)
+        .verify(&env, &payload_hash, &proof);
+    assert!(matches!(
+        result,
+        Err(Error::InvalidWebauthnClientDataJson)
+    ));
+}
