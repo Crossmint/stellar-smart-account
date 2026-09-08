@@ -162,7 +162,18 @@ impl SmartAccountInterface for SmartAccount {
 
         let key = signer.clone().into();
         let storage = Storage::persistent();
-        storage.store::<SignerKey, Signer>(env, &key, &signer)?;
+        storage
+            .store::<SignerKey, Signer>(env, &key, &signer)
+            .map_err(|e| {
+                // The domain-specific SignerAlreadyExists conveys intent more
+                // clearly than the generic storage error.
+                let surfaced = SmartAccountError::from(e);
+                if surfaced == SmartAccountError::StorageEntryAlreadyExists {
+                    SmartAccountError::SignerAlreadyExists
+                } else {
+                    surfaced
+                }
+            })?;
         storage.extend_ttl(env, &key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_EXTEND_TO);
 
         // Handle role-specific initialization

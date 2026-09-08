@@ -438,7 +438,9 @@ fn test_auth_idempotency() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #11)")]
+// SignerAlreadyExists (21) — previously surfaced as the generic
+// StorageEntryAlreadyExists (11); see add_signer in account.rs.
+#[should_panic(expected = "Error(Contract, #21)")]
 fn test_constructor_duplicate_signers() {
     let env = setup();
     let test_signer = Ed25519TestSigner::generate(SignerRole::Admin);
