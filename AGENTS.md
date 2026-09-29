@@ -4,7 +4,7 @@ Soroban smart contracts for a programmable Stellar account: the smart account (`
 
 ## Best practices
 
-At session start, run `./scripts/fetch-best-practices.sh core.md rust.md`, then follow the fetched best-practices doc. When reviewing PRs in this repo, check changes against the fetched best-practices doc and cite the specific rule when flagging.
+At session start, run `./scripts/fetch-best-practices.sh rust.md`, then follow the fetched best-practices doc. When reviewing PRs in this repo, check changes against the fetched best-practices doc and cite the specific rule when flagging.
 
 ## Commands
 
@@ -18,5 +18,6 @@ cargo fmt --check
 
 ## Testing
 
+- Contract tests use the Soroban `Env` test utilities in each contract's `src/tests/` or `#[cfg(test)]` modules and run with `cargo test`.
 - The E2E-first testing policy in the fetched best-practices doc applies to new code; existing test suites stay.
-- Default E2E artifact: an explorer link or transaction signature for the devnet/testnet deployment and interaction run, made deterministic with fixed seeds/keys in the test.
+- PR evidence to link in the PR description: an explorer link or transaction signature for the devnet/testnet deployment and interaction run, made deterministic with fixed seeds/keys in the test.
