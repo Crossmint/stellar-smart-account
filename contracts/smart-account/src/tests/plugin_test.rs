@@ -247,3 +247,62 @@ fn test_max_plugins_limit() {
 
     assert_eq!(err, Error::MaxPluginsReached);
 }
+
+// -----------------------------------------------------------------------------
+// Plugin that crashes via plain `panic!` — Soroban 22 classifies this as
+// Err(Ok(_)), i.e. fail-closed. The authorizer comment previously grouped
+// `panic!` with host traps in the fail-open branch, which was inaccurate.
+// This test pins the actual behaviour so future refactors cannot regress it.
+// -----------------------------------------------------------------------------
+
+mod panicking_plugin {
+    use soroban_sdk::{auth::Context, contract, contractimpl, Address, Env, Vec};
+
+    #[contract]
+    pub struct PlainPanicPlugin;
+
+    #[contractimpl]
+    impl PlainPanicPlugin {
+        pub fn on_install(_env: &Env, _source: Address) {}
+        pub fn on_uninstall(_env: &Env, _source: Address) {}
+        #[allow(clippy::panic)]
+        pub fn on_auth(_env: &Env, _source: Address, _contexts: Vec<Context>) {
+            panic!("buggy plugin — this should block auth, not be skipped");
+        }
+    }
+}
+
+#[test]
+fn test_plugin_plain_panic_is_fail_closed() {
+    let env = setup();
+    env.mock_all_auths();
+
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin);
+    let smart_account_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let plugin_id = env.register(panicking_plugin::PlainPanicPlugin, ());
+    env.as_contract(&smart_account_id, || {
+        SmartAccount::install_plugin(&env, plugin_id.clone())
+    })
+    .unwrap();
+
+    let payload = BytesN::random(&env);
+    let (admin_key, admin_proof) = admin.sign(&env, &payload);
+    let auth_payloads = SignatureProofs(soroban_sdk::map![&env, (admin_key, admin_proof)]);
+
+    let result = env.try_invoke_contract_check_auth::<Error>(
+        &smart_account_id,
+        &payload,
+        auth_payloads.into_val(&env),
+        &vec![&env, get_token_auth_context(&env)],
+    );
+
+    // plain `panic!` → Err(Ok(_)) classification → PluginOnAuthFailed.
+    assert_eq!(result, Err(Ok(Error::PluginOnAuthFailed)));
+}
