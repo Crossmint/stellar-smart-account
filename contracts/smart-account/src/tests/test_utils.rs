@@ -190,10 +190,16 @@ struct WebauthnClientData<'a> {
     cross_origin: Option<bool>,
 }
 
+pub const WEBAUTHN_FLAG_UP: u8 = 0x01;
+pub const WEBAUTHN_FLAG_UV: u8 = 0x04;
+pub const WEBAUTHN_FLAG_BE: u8 = 0x08;
+pub const WEBAUTHN_FLAG_BS: u8 = 0x10;
+
 pub struct WebauthnTestSigner {
     pub signing_key: SigningKey,
     pub key_id: [u8; 18],
     pub role: SignerRole,
+    pub flags: u8,
 }
 
 impl WebauthnTestSigner {
@@ -201,10 +207,15 @@ impl WebauthnTestSigner {
         verifying_key_bytes(&self.signing_key)
     }
 
-    fn build_authenticator_data() -> Vec<u8> {
+    pub fn with_flags(mut self, flags: u8) -> Self {
+        self.flags = flags;
+        self
+    }
+
+    fn build_authenticator_data(&self) -> Vec<u8> {
         let mut auth_data = Vec::new();
         auth_data.extend_from_slice(&Sha256::digest(b"example.com"));
-        auth_data.push(0x01); // user present flag
+        auth_data.push(self.flags);
         auth_data.extend_from_slice(&42u32.to_be_bytes()); // counter
         auth_data
     }
@@ -229,7 +240,7 @@ impl WebauthnTestSigner {
         };
         let client_data_json = serde_json::to_vec(&client_data).unwrap();
 
-        let authenticator_data = Self::build_authenticator_data();
+        let authenticator_data = self.build_authenticator_data();
 
         let client_data_hash = Sha256::digest(&client_data_json);
         let mut signed_data = authenticator_data.clone();
@@ -268,6 +279,7 @@ impl TestSignerTrait for WebauthnTestSigner {
             signing_key: generate_p256_signing_key(),
             key_id: *b"test_credential_id",
             role,
+            flags: WEBAUTHN_FLAG_UP | WEBAUTHN_FLAG_UV,
         }
     }
 

@@ -5,6 +5,11 @@ use base64ct::{Base64UrlUnpadded, Encoding};
 use smart_account_interfaces::WebauthnSigner;
 use soroban_sdk::{crypto::Hash, Env};
 
+const WEBAUTHN_AUTH_DATA_MIN_LEN: u32 = 37;
+const WEBAUTHN_AUTH_DATA_FLAGS_OFFSET: u32 = 32;
+const WEBAUTHN_FLAG_USER_PRESENT: u8 = 0x01;
+const WEBAUTHN_FLAG_USER_VERIFIED: u8 = 0x04;
+
 #[derive(serde::Deserialize)]
 struct ClientDataJson<'a> {
     challenge: &'a str,
@@ -28,8 +33,15 @@ impl SignatureVerifier for WebauthnSigner {
                 // Cheap checks first — reject malformed inputs before expensive crypto
 
                 // WebAuthn authenticator data: rpIdHash (32) + flags (1) + signCount (4) = 37 min
-                if authenticator_data.len() < 37 {
+                if authenticator_data.len() < WEBAUTHN_AUTH_DATA_MIN_LEN {
                     return Err(Error::InvalidWebauthnClientDataJson);
+                }
+
+                let flags = authenticator_data.get_unchecked(WEBAUTHN_AUTH_DATA_FLAGS_OFFSET);
+                if flags & WEBAUTHN_FLAG_USER_PRESENT == 0
+                    || flags & WEBAUTHN_FLAG_USER_VERIFIED == 0
+                {
+                    return Err(Error::InvalidWebauthnFlags);
                 }
 
                 if client_data_json.len() > 1024 {

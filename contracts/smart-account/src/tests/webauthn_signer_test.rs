@@ -5,7 +5,10 @@ use crate::{
     auth::proof::{SignatureProofs, SignerProof},
     auth::signers::SignatureVerifier,
     error::Error,
-    tests::test_utils::{get_token_auth_context, setup, TestSignerTrait as _, WebauthnTestSigner},
+    tests::test_utils::{
+        get_token_auth_context, setup, TestSignerTrait as _, WebauthnTestSigner, WEBAUTHN_FLAG_BE,
+        WEBAUTHN_FLAG_BS, WEBAUTHN_FLAG_UP, WEBAUTHN_FLAG_UV,
+    },
 };
 use smart_account_interfaces::SignerRole;
 
@@ -91,4 +94,67 @@ fn test_webauthn_end_to_end_auth() {
         &vec![&env, get_token_auth_context(&env)],
     )
     .unwrap();
+}
+
+fn verify_with_flags(flags: u8) -> Result<(), Error> {
+    let env = setup();
+    let signer = WebauthnTestSigner::generate(SignerRole::Admin).with_flags(flags);
+
+    let payload_hash = env.crypto().sha256(&Bytes::from_array(&env, &[0xAB; 32]));
+    let (_, proof) = signer.sign(&env, &payload_hash.to_bytes());
+
+    signer.into_signer(&env).verify(&env, &payload_hash, &proof)
+}
+
+#[test]
+fn test_webauthn_flags_user_present_only_rejected() {
+    assert_eq!(
+        verify_with_flags(WEBAUTHN_FLAG_UP),
+        Err(Error::InvalidWebauthnFlags)
+    );
+}
+
+#[test]
+fn test_webauthn_flags_user_verified_only_rejected() {
+    assert_eq!(
+        verify_with_flags(WEBAUTHN_FLAG_UV),
+        Err(Error::InvalidWebauthnFlags)
+    );
+}
+
+#[test]
+fn test_webauthn_flags_none_rejected() {
+    assert_eq!(verify_with_flags(0x00), Err(Error::InvalidWebauthnFlags));
+}
+
+#[test]
+fn test_webauthn_flags_up_uv_with_backup_bits_accepted() {
+    verify_with_flags(WEBAUTHN_FLAG_UP | WEBAUTHN_FLAG_UV | WEBAUTHN_FLAG_BE | WEBAUTHN_FLAG_BS)
+        .unwrap();
+}
+
+#[test]
+fn test_webauthn_end_to_end_auth_rejects_missing_user_verification() {
+    let env = setup();
+    let test_signer = WebauthnTestSigner::generate(SignerRole::Admin).with_flags(WEBAUTHN_FLAG_UP);
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, test_signer.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let payload = BytesN::random(&env);
+    let (signer_key, proof) = test_signer.sign(&env, &payload);
+    let auth_payloads = SignatureProofs(map![&env, (signer_key, proof)]);
+
+    assert!(env
+        .try_invoke_contract_check_auth::<Error>(
+            &contract_id,
+            &payload,
+            auth_payloads.into_val(&env),
+            &vec![&env, get_token_auth_context(&env)],
+        )
+        .is_err());
 }
