@@ -127,7 +127,7 @@ pub trait SmartAccountPlugin {
 ### Plugin Lifecycle
 
 1. **Installation**: Plugins are installed via `install_plugin()` or during contract initialization
-2. **Authorization Hooks**: The `on_auth()` callback is invoked during every `__check_auth()` call
+2. **Authorization Hooks**: The `on_auth()` callback is invoked during every `__check_auth()` call, except when every authorized context is a call to the account's own `uninstall_plugin`, `upgrade` or `migrate` (admin-only). This prevents a plugin from vetoing its own removal and locking the account.
 3. **Uninstallation**: Plugins can be removed via `uninstall_plugin()`
 
 ### Plugin Management

@@ -7,7 +7,11 @@ use crate::error::Error;
 use crate::events::PluginAuthFailedEvent;
 use smart_account_interfaces::SmartAccountPluginClient;
 use smart_account_interfaces::{Signer, SignerKey, SignerRole};
-use soroban_sdk::{auth::Context, crypto::Hash, Env, Vec};
+use soroban_sdk::{
+    auth::{Context, ContractContext},
+    crypto::Hash,
+    Env, Vec,
+};
 use soroban_sdk::{Address, Map, String, Symbol};
 use storage::Storage;
 
@@ -79,7 +83,36 @@ impl Authorizer {
         Err(Error::InsufficientPermissions)
     }
 
+    /// Returns true when every context is a call to one of the account's own
+    /// recovery entry points (`uninstall_plugin`, `upgrade`, `migrate`).
+    ///
+    /// Plugins are not consulted for such authorizations: otherwise an installed
+    /// plugin could veto its own removal (or the replacement of the account code)
+    /// and permanently lock the account. These contexts target the account itself,
+    /// so they can only be authorized by an admin signer (see `SignerRole::is_authorized`).
+    fn is_plugin_recovery_auth(env: &Env, auth_contexts: &Vec<Context>) -> bool {
+        if auth_contexts.is_empty() {
+            return false;
+        }
+        let current = env.current_contract_address();
+        let uninstall_plugin = Symbol::new(env, "uninstall_plugin");
+        let upgrade = Symbol::new(env, "upgrade");
+        let migrate = Symbol::new(env, "migrate");
+        auth_contexts.iter().all(|context| match context {
+            Context::Contract(ContractContext {
+                contract, fn_name, ..
+            }) => {
+                contract == current
+                    && (fn_name == uninstall_plugin || fn_name == upgrade || fn_name == migrate)
+            }
+            _ => false,
+        })
+    }
+
     pub fn call_plugins_on_auth(env: &Env, auth_contexts: &Vec<Context>) -> Result<(), Error> {
+        if Self::is_plugin_recovery_auth(env, auth_contexts) {
+            return Ok(());
+        }
         let storage = Storage::instance();
         for (plugin, _) in storage
             .get::<Symbol, Map<Address, ()>>(env, &PLUGINS_KEY)
