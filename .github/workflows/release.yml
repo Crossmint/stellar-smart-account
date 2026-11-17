@@ -7,6 +7,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: write # gh release upload
+
 jobs:
   release:
     runs-on: ubuntu-latest
