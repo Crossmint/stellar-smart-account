@@ -280,3 +280,37 @@ fn test_get_signer_returns_error_when_signer_does_not_exist() {
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), Error::SignerNotFound);
 }
+
+// ============================================================================
+// add_signer surfaces SignerAlreadyExists (not StorageEntryAlreadyExists)
+// when the same key is added twice — the domain-specific error code makes
+// the caller's mistake obvious.
+// ============================================================================
+
+#[test]
+fn test_add_duplicate_signer_returns_signer_already_exists() {
+    let env = setup();
+    let admin_signer = Ed25519TestSigner::generate(SignerRole::Admin);
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin_signer.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+    env.mock_all_auths();
+
+    // Standard signer we will add once then try to re-add.
+    let dup = Ed25519TestSigner::generate(SignerRole::Standard(None, 0));
+    env.as_contract(&contract_id, || {
+        SmartAccount::add_signer(&env, dup.into_signer(&env))
+    })
+    .unwrap();
+
+    let err = env
+        .as_contract(&contract_id, || {
+            SmartAccount::add_signer(&env, dup.into_signer(&env))
+        })
+        .unwrap_err();
+    assert_eq!(err, Error::SignerAlreadyExists);
+}
