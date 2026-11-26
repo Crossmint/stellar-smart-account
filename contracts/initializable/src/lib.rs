@@ -2,7 +2,7 @@
 
 use soroban_sdk::{contracterror, contractevent, symbol_short, Address, Env, Symbol};
 
-#[contracterror(export = false)]
+#[contracterror]
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u32)]
 pub enum Error {

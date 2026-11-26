@@ -16,7 +16,7 @@ pub struct HelloContract;
 // Refer to the official documentation:
 // <https://developers.stellar.org/docs/build/smart-contracts/overview>.
 
-#[contracterror(export = false)]
+#[contracterror]
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u32)]
 pub enum Error {

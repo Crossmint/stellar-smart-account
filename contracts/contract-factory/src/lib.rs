@@ -1,7 +1,7 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contractevent, contractimpl, contracttype, xdr::ToXdr, Address, Bytes, BytesN, Env,
-    Symbol, Val, Vec,
+    contract, contractevent, contractimpl, contracttype, xdr::ToXdr, Address, Bytes, BytesN,
+    ContractExecutable, Env, Symbol, Val, Vec,
 };
 
 const DAY_IN_LEDGERS: u32 = 17_280;
@@ -68,7 +68,7 @@ impl ContractFactory {
         let contract_id = env
             .deployer()
             .with_current_contract(derived_salt)
-            .deploy_v2(wasm_hash, constructor_args);
+            .deploy_contract(ContractExecutable::Wasm(wasm_hash), constructor_args);
 
         ContractDeployedEvent {
             contract_id: contract_id.clone(),

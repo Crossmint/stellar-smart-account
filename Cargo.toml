@@ -22,7 +22,7 @@ exclude = [
 license = "Apache-2.0"
 
 [workspace.dependencies]
-soroban-sdk = "27.0.0"
+soroban-sdk = "30.0.0"
 smart-account = { path = "contracts/smart-account" }
 contract-factory = { path = "contracts/contract-factory" }
 initializable = { path = "contracts/initializable" }

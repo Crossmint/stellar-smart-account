@@ -5,7 +5,7 @@ use soroban_sdk::{
     Symbol, Val,
 };
 
-#[contracterror(export = false)]
+#[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Error {
@@ -35,7 +35,8 @@ pub trait SmartAccountUpgradeable: SmartAccountUpgradeableAuth {
     fn upgrade(env: &Env, new_wasm_hash: BytesN<32>) {
         Self::_require_auth_upgrade(env);
         enable_migration(env);
-        env.deployer().update_current_contract_wasm(new_wasm_hash);
+        env.deployer()
+            .update_current_contract(soroban_sdk::ContractExecutable::Wasm(new_wasm_hash));
     }
 }
 
@@ -50,7 +51,8 @@ pub trait SmartAccountUpgradeableMigratable:
             contract: e.current_contract_address(),
         }
         .publish(e);
-        e.deployer().update_current_contract_wasm(new_wasm_hash);
+        e.deployer()
+            .update_current_contract(soroban_sdk::ContractExecutable::Wasm(new_wasm_hash));
     }
 
     fn migrate(e: &soroban_sdk::Env, migration_data: Self::MigrationData) {
@@ -89,7 +91,8 @@ macro_rules! impl_upgradeable {
             fn upgrade(env: &soroban_sdk::Env, new_wasm_hash: soroban_sdk::BytesN<32>) {
                 Self::_require_auth_upgrade(env);
                 $crate::enable_migration(env);
-                env.deployer().update_current_contract_wasm(new_wasm_hash);
+                env.deployer()
+                    .update_current_contract(soroban_sdk::ContractExecutable::Wasm(new_wasm_hash));
             }
         }
     };
@@ -120,7 +123,8 @@ macro_rules! impl_upgradeable_migratable {
                     contract: e.current_contract_address(),
                 }
                 .publish(e);
-                e.deployer().update_current_contract_wasm(new_wasm_hash);
+                e.deployer()
+                    .update_current_contract(soroban_sdk::ContractExecutable::Wasm(new_wasm_hash));
             }
 
             pub fn migrate(e: &soroban_sdk::Env, migration_data: $migration_data_type) {
