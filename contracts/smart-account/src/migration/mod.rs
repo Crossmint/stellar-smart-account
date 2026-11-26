@@ -17,6 +17,7 @@ use v1_to_v2::{migrate_v1_to_v2, V1ToV2MigrationData};
 #[derive(Clone, Debug, PartialEq)]
 pub enum MigrationData {
     V1ToV2(V1ToV2MigrationData),
+    V2ToV3,
 }
 
 /// Reads the current contract version from instance storage.
@@ -45,6 +46,8 @@ pub fn run_migration(env: &Env, data: &MigrationData) {
 
     let result = match (version, data) {
         (1, MigrationData::V1ToV2(v1_data)) => migrate_v1_to_v2(env, v1_data),
+        // v3 adds signer variants only; stored entries keep their shape.
+        (2, MigrationData::V2ToV3) => Ok(()),
         _ => panic_with_error!(env, Error::MigrationVersionMismatch),
     };
 

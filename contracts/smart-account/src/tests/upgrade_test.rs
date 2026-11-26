@@ -16,6 +16,8 @@ use soroban_sdk::{
 use crate::account::SmartAccount;
 use crate::auth::proof::{SignatureProofs, SignerProof};
 use crate::error::Error;
+use crate::migration::v1_to_v2::V1ToV2MigrationData;
+use crate::migration::{get_contract_version, set_contract_version, MigrationData};
 use crate::tests::test_utils::{get_token_auth_context, Ed25519TestSigner, TestSignerTrait as _};
 use smart_account_interfaces::SignerRole;
 use upgradeable::SmartAccountUpgradeableMigratable;
@@ -1246,4 +1248,91 @@ fn test_migrate_rejects_partial_admin_migration() {
         expected_signer_count: 1,
         expected_admin_count: 2,
     }));
+}
+
+// ============================================================================
+// Test: v2 → v3
+// ============================================================================
+
+/// Registers the current contract code and sets the stored contract version.
+/// v2 and v3 accounts differ in storage only by this version value.
+fn register_account_at_version(env: &Env, version: u32) -> Address {
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin);
+    let contract_id = env.register(
+        SmartAccount,
+        (vec![env, admin.into_signer(env)], Vec::<Address>::new(env)),
+    );
+    env.as_contract(&contract_id, || set_contract_version(env, version));
+    contract_id
+}
+
+fn upgrade_and_migrate_natively(env: &Env, contract_id: &Address, data: MigrationData) {
+    let wasm_hash = upload_v2_wasm(env);
+    env.as_contract(contract_id, || {
+        <SmartAccount as SmartAccountUpgradeableMigratable>::upgrade(env, wasm_hash);
+    });
+    env.as_contract(contract_id, || {
+        <SmartAccount as SmartAccountUpgradeableMigratable>::migrate(env, data);
+    });
+}
+
+#[test]
+fn test_new_account_starts_at_version_3() {
+    let env = Env::default();
+    let admin = Ed25519TestSigner::generate(SignerRole::Admin);
+    let contract_id = env.register(
+        SmartAccount,
+        (
+            vec![&env, admin.into_signer(&env)],
+            Vec::<Address>::new(&env),
+        ),
+    );
+
+    let version = env.as_contract(&contract_id, || get_contract_version(&env));
+
+    assert_eq!(version, 3);
+}
+
+#[test]
+fn test_migrate_v2_to_v3_completes_and_allows_next_upgrade() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = register_account_at_version(&env, 2);
+
+    upgrade_and_migrate_natively(&env, &contract_id, MigrationData::V2ToV3);
+
+    let version = env.as_contract(&contract_id, || get_contract_version(&env));
+    assert_eq!(version, 3);
+    let wasm_hash = upload_v2_wasm(&env);
+    env.as_contract(&contract_id, || {
+        <SmartAccount as SmartAccountUpgradeableMigratable>::upgrade(&env, wasm_hash);
+    });
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1101)")]
+fn test_migrate_v2_to_v3_on_v1_account_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = register_account_at_version(&env, 1);
+
+    upgrade_and_migrate_natively(&env, &contract_id, MigrationData::V2ToV3);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #1101)")]
+fn test_migrate_v1_to_v2_on_v2_account_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = register_account_at_version(&env, 2);
+
+    upgrade_and_migrate_natively(
+        &env,
+        &contract_id,
+        MigrationData::V1ToV2(V1ToV2MigrationData {
+            signers_to_migrate: vec![&env],
+            expected_signer_count: 0,
+            expected_admin_count: 1,
+        }),
+    );
 }

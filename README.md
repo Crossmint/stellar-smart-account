@@ -19,7 +19,7 @@ A comprehensive smart contract system for Stellar/Soroban that provides enterpri
 - **🤖 AI Agent Ready**: Built for both human users and automated systems
 - **⚡ Soroban Native**: Leverages Stellar's smart contract platform capabilities
 - **🔄 Upgradeable**: Built-in contract upgrade support with permission controls
-- **🔀 V1→V2 Migration**: Built-in migration system for upgrading from v1 contracts
+- **🔀 Versioned Migrations**: Built-in migration system for upgrading v1 and v2 contracts (`V1ToV2`, `V2ToV3`)
 
 ## 🏗️ Architecture
 
