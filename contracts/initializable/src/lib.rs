@@ -5,7 +5,7 @@ use soroban_sdk::{contracterror, contractevent, symbol_short, Address, Env, Symb
 #[contracterror]
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u32)]
-pub enum Error {
+pub enum InitializableError {
     AlreadyInitialized = 0,
     NotInitialized = 1,
 }
@@ -58,23 +58,23 @@ pub trait Initializable {
             .set::<Symbol, bool>(&INITIALIZED, &value);
     }
 
-    fn ensure_not_initialized(env: &Env) -> Result<(), Error> {
+    fn ensure_not_initialized(env: &Env) -> Result<(), InitializableError> {
         if Self::get_initialization_value(env) {
-            return Err(Error::AlreadyInitialized);
+            return Err(InitializableError::AlreadyInitialized);
         }
         Ok(())
     }
 
-    fn ensure_initialized(env: &Env) -> Result<(), Error> {
+    fn ensure_initialized(env: &Env) -> Result<(), InitializableError> {
         if !Self::get_initialization_value(env) {
-            return Err(Error::NotInitialized);
+            return Err(InitializableError::NotInitialized);
         }
         Ok(())
     }
 
-    fn mark_initialized(env: &Env) -> Result<(), Error> {
+    fn mark_initialized(env: &Env) -> Result<(), InitializableError> {
         if Self::get_initialization_value(env) {
-            return Err(Error::AlreadyInitialized);
+            return Err(InitializableError::AlreadyInitialized);
         }
         Self::set_initialization_value(env, true);
         InitializedEvent {
@@ -88,7 +88,7 @@ pub trait Initializable {
         Self::get_initialization_value(env)
     }
 
-    fn initialize(env: &Env) -> Result<(), Error> {
+    fn initialize(env: &Env) -> Result<(), InitializableError> {
         Self::ensure_not_initialized(env)?;
         Self::mark_initialized(env)?;
         Self::ensure_initialized(env)?;

@@ -8,7 +8,7 @@ use soroban_sdk::{
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
-pub enum Error {
+pub enum UpgradeableError {
     MigrationNotAllowed = 1100,
     MigrationAlreadyPending = 1110,
 }
@@ -143,7 +143,7 @@ macro_rules! impl_upgradeable_migratable {
 
 pub fn ensure_can_complete_migration(e: &Env) {
     if !can_complete_migration(e) {
-        panic_with_error!(e, Error::MigrationNotAllowed)
+        panic_with_error!(e, UpgradeableError::MigrationNotAllowed)
     }
 }
 pub fn can_complete_migration(e: &Env) -> bool {
@@ -157,7 +157,7 @@ pub fn complete_migration(e: &Env) {
 }
 pub fn ensure_no_pending_migration(e: &Env) {
     if can_complete_migration(e) {
-        panic_with_error!(e, Error::MigrationAlreadyPending)
+        panic_with_error!(e, UpgradeableError::MigrationAlreadyPending)
     }
 }
 pub fn enable_migration(e: &Env) {

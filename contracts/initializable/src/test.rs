@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use super::*;
+use crate::InitializableError as Error;
 use soroban_sdk::{contract, contractimpl, log, panic_with_error, Env};
 
 #[contract]

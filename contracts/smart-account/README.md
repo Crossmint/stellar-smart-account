@@ -556,7 +556,7 @@ Unlike Ethereum's proxy pattern approach, Soroban contracts can be upgraded dire
 
 ```rust
 // Standard Soroban upgrade function (called by authorized admin)
-env.deployer().update_current_contract_wasm(new_wasm_hash)
+env.deployer().update_current_contract(ContractExecutable::Wasm(new_wasm_hash))
 ```
 
 Key characteristics of Soroban contract upgrades:
@@ -601,7 +601,7 @@ sequenceDiagram
     SW->>SW: Check signer role == Admin
     SW->>Admin: Authorization confirmed
     
-    SW->>Soroban: update_current_contract_wasm(new_wasm_hash)
+    SW->>Soroban: update_current_contract(Wasm(new_wasm_hash))
     Soroban->>Storage: Preserve existing contract state
     Soroban->>Soroban: Replace WASM bytecode
     Soroban->>Soroban: Emit SYSTEM upgrade event

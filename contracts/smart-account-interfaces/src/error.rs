@@ -55,11 +55,13 @@ pub enum SmartAccountError {
     NotFound = 1000,
 }
 
-impl From<initializable::Error> for SmartAccountError {
-    fn from(e: initializable::Error) -> Self {
+impl From<initializable::InitializableError> for SmartAccountError {
+    fn from(e: initializable::InitializableError) -> Self {
         match e {
-            initializable::Error::AlreadyInitialized => SmartAccountError::AlreadyInitialized,
-            initializable::Error::NotInitialized => SmartAccountError::NotInitialized,
+            initializable::InitializableError::AlreadyInitialized => {
+                SmartAccountError::AlreadyInitialized
+            }
+            initializable::InitializableError::NotInitialized => SmartAccountError::NotInitialized,
         }
     }
 }
