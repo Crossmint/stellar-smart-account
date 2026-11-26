@@ -300,3 +300,46 @@ impl TestSignerTrait for WebauthnTestSigner {
         (signer_key, proof)
     }
 }
+
+// ============================================================================
+// ML-DSA-65
+// ============================================================================
+
+use ml_dsa::{signature::Signer as _, MlDsa65, Seed, SigningKey as MlDsaSigningKey};
+use smart_account_interfaces::MlDsa65Signer;
+
+/// Monotonic counter for deterministic, unique ML-DSA-65 test keys (no `rand`).
+static ML_DSA65_SEED_COUNTER: AtomicU32 = AtomicU32::new(1);
+
+pub struct MlDsa65TestSigner(pub MlDsaSigningKey<MlDsa65>, pub SignerRole);
+
+impl MlDsa65TestSigner {
+    pub fn public_key(&self, env: &Env) -> BytesN<1952> {
+        let encoded = self.0.as_ref().encode();
+        BytesN::from_array(env, encoded.as_slice().try_into().unwrap())
+    }
+}
+
+impl TestSignerTrait for MlDsa65TestSigner {
+    fn generate(role: SignerRole) -> Self {
+        let n = ML_DSA65_SEED_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let mut seed = [0u8; 32];
+        seed[..4].copy_from_slice(&n.to_be_bytes());
+        Self(MlDsaSigningKey::from_seed(&Seed::from(seed)), role)
+    }
+
+    #[allow(clippy::wrong_self_convention)]
+    fn into_signer(&self, env: &Env) -> Signer {
+        Signer::MlDsa65(MlDsa65Signer::new(self.public_key(env)), self.1.clone())
+    }
+
+    fn sign(&self, env: &Env, payload: &BytesN<32>) -> (SignerKey, SignerProof) {
+        let signature = self.0.sign(&payload.to_array()).encode();
+        let signer_key = MlDsa65Signer::new(self.public_key(env)).into();
+        let proof = SignerProof::MlDsa65(BytesN::from_array(
+            env,
+            signature.as_slice().try_into().unwrap(),
+        ));
+        (signer_key, proof)
+    }
+}

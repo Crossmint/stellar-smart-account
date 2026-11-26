@@ -22,7 +22,7 @@ The Smart Account is a multi-signature account contract built on Soroban that pr
 ## Overview
 
 The Smart Account contract implements a flexible authentication system that combines:
-- **Multiple signature schemes** (Ed25519, Secp256r1, WebAuthn/passkeys, and Multisig M-of-N threshold)
+- **Multiple signature schemes** (Ed25519, Secp256r1, WebAuthn/passkeys, ML-DSA-65 post-quantum, and Multisig M-of-N threshold)
 - **Role-based access control** (Admin, Standard with optional policies)
 - **Policy-based restrictions** (external delegation, token spending limits with reset windows)
 - **Signer expiration** (time-limited signers with configurable expiration timestamps)
@@ -228,7 +228,7 @@ impl SmartAccountPolicy for MyCustomPolicy {
 
 ### Current Signer Implementation
 
-The system supports four signature schemes with a design that allows easy extension:
+The system supports five signature schemes with a design that allows easy extension:
 
 ```rust
 pub enum SignerKey {
@@ -236,6 +236,7 @@ pub enum SignerKey {
     Secp256r1(BytesN<65>),
     Webauthn(Bytes),
     Multisig(BytesN<32>),
+    MlDsa65(BytesN<32>), // SHA-256 of the public key
 }
 
 pub enum Signer {
@@ -243,16 +244,19 @@ pub enum Signer {
     Secp256r1(Secp256r1Signer, SignerRole),
     Webauthn(WebauthnSigner, SignerRole),
     Multisig(MultisigSigner, SignerRole),
+    MlDsa65(MlDsa65Signer, SignerRole),
 }
 
 pub struct Secp256r1Signer { pub public_key: BytesN<65> }
 pub struct WebauthnSigner  { pub key_id: Bytes, pub public_key: BytesN<65> }
+pub struct MlDsa65Signer   { pub public_key: BytesN<1952> }
 pub struct MultisigSigner  { pub id: BytesN<32>, pub members: Vec<MultisigMember>, pub threshold: u32 }
 
 pub enum MultisigMember {
     Ed25519(Ed25519Signer),
     Secp256r1(Secp256r1Signer),
     Webauthn(WebauthnSigner),
+    MlDsa65(MlDsa65Signer),
 }
 
 pub enum SignerProof {
@@ -260,12 +264,23 @@ pub enum SignerProof {
     Secp256r1(BytesN<64>),
     Webauthn(WebauthnSignature),
     Multisig(Map<SignerKey, SignerProof>),
+    MlDsa65(BytesN<3309>),
 }
 ```
 
+### ML-DSA-65 Signers
+
+ML-DSA-65 (FIPS 204) is a post-quantum signature scheme. The `verify_sig_ml_dsa_65` host function verifies it, so the contract needs protocol 30 or later.
+
+- **Signer key:** SHA-256 of the 1952-byte public key. Clients compute this value to build proofs and to revoke the signer.
+- **Signed message:** the 32-byte authorization payload, signed with pure ML-DSA and an empty context.
+- **Hybrid accounts:** top-level signers are alternatives. To require a classic signature and an ML-DSA-65 signature together, put both keys in a multisig with a threshold of 2.
+- **Keys per transaction:** each `signer added` event contains the full public key. The network limits contract events to 16,384 bytes per transaction, so one transaction can add at most 7 ML-DSA-65 keys (as signers or as multisig members).
+- **External policies:** an external policy receives the `SignerKey`. A policy contract built against interfaces from before v3 cannot decode `SignerKey::MlDsa65`. Rebuild the policy against the v3 interfaces before you attach it to an ML-DSA-65 signer.
+
 ### Adding New Signer Types
 
-The system supports Ed25519, Secp256r1, WebAuthn, and Multisig signer types. To add an additional type, follow this pattern:
+The system supports Ed25519, Secp256r1, WebAuthn, ML-DSA-65, and Multisig signer types. To add an additional type, follow this pattern:
 
 1. **Define the signer struct** in `src/auth/signers/`:
 ```rust
@@ -521,6 +536,7 @@ Where:
 | **Storage Operations** | O(n) | Signer existence checks and retrieval |
 | **Ed25519 Signatures** | O(1) | Baseline cost (1x) |
 | **Secp256r1 Signatures** | O(1) | ~3x cost vs Ed25519 (includes SHA256 operations) |
+| **ML-DSA-65 Signatures** | O(1) | ~3x CPU cost vs Ed25519; the 3309-byte signature and 1952-byte key also increase transaction size and storage |
 | **Admin Role** | O(1) | Constant time authorization |
 | **Standard Role** | O(m) | Address comparison per context |
 | **Standard Role with Policies** | O(p × m) | Policy evaluation per context |

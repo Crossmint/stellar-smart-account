@@ -1,4 +1,5 @@
 mod ed25519;
+mod ml_dsa65;
 mod multisig;
 pub mod secp256r1;
 pub mod webauthn;

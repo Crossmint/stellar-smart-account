@@ -17,6 +17,7 @@ pub enum SignerProof {
     Secp256r1(BytesN<64>),
     Webauthn(WebauthnSignature),
     Multisig(Map<SignerKey, SignerProof>),
+    MlDsa65(BytesN<3309>),
 }
 
 #[contracttype]
