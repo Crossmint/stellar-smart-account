@@ -22,7 +22,8 @@ use soroban_sdk::{
     auth::{Context, CustomAccountInterface},
     contract, contractimpl,
     crypto::Hash,
-    map, panic_with_error, Address, BytesN, Env, IntoVal, Map, Symbol, Val, Vec,
+    map, panic_with_error, Address, BytesN, ContractExecutable, Env, IntoVal, Map, Symbol, Val,
+    Vec,
 };
 use storage::Storage;
 use upgradeable::{
@@ -69,7 +70,8 @@ impl SmartAccountUpgradeableMigratable for SmartAccount {
             contract: e.current_contract_address(),
         }
         .publish(e);
-        e.deployer().update_current_contract_wasm(new_wasm_hash);
+        e.deployer()
+            .update_current_contract(ContractExecutable::Wasm(new_wasm_hash));
     }
 
     fn migrate(e: &Env, migration_data: MigrationData) {
