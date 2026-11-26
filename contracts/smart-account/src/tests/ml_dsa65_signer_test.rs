@@ -1,3 +1,4 @@
+use sha2::{Digest, Sha256};
 use soroban_sdk::{
     map, testutils::BytesN as _, vec, Address, Bytes, BytesN, Env, IntoVal, Map, Vec,
 };
@@ -110,11 +111,11 @@ fn test_ml_dsa65_wrong_proof_type_rejected() {
 fn test_ml_dsa65_signer_key_is_sha256_of_public_key() {
     let env = setup();
     let public_key = MlDsa65TestSigner::generate(SignerRole::Admin).public_key(&env);
-    let expected = env.crypto().sha256(&public_key.clone().into()).to_bytes();
+    let expected: [u8; 32] = Sha256::digest(public_key.to_array()).into();
 
     let key: SignerKey = MlDsa65Signer::new(public_key).into();
 
-    assert_eq!(key, SignerKey::MlDsa65(expected));
+    assert_eq!(key, SignerKey::MlDsa65(BytesN::from_array(&env, &expected)));
 }
 
 // ============================================================================

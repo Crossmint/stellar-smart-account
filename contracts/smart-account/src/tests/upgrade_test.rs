@@ -1,8 +1,11 @@
-//! Tests for upgrading from v1.0.0 to v2 and migrating on-chain state.
+//! Tests for contract upgrades and migrations of on-chain state.
 //!
 //! These tests use pre-built WASM binaries:
 //! - v1: from the v1.0.0 GitHub release (optimized)
-//! - v2: built from the current source code
+//! - v2: built from the source at #123
+//!
+//! `v2::Client::migrate` runs the v2 fixture's code. Tests for this source's
+//! `migrate()` call it natively with `env.as_contract`.
 
 extern crate alloc;
 extern crate std;
@@ -17,9 +20,10 @@ use crate::account::SmartAccount;
 use crate::auth::proof::{SignatureProofs, SignerProof};
 use crate::error::Error;
 use crate::migration::v1_to_v2::V1ToV2MigrationData;
+use crate::migration::v1_types::V1SignerKey;
 use crate::migration::{get_contract_version, set_contract_version, MigrationData};
 use crate::tests::test_utils::{get_token_auth_context, Ed25519TestSigner, TestSignerTrait as _};
-use smart_account_interfaces::SignerRole;
+use smart_account_interfaces::{Signer, SignerKey, SignerRole, SmartAccountInterface as _};
 use upgradeable::SmartAccountUpgradeableMigratable;
 
 // A minimal external-policy contract so the v1 constructor's `on_add` call succeeds.
@@ -1335,4 +1339,33 @@ fn test_migrate_v1_to_v2_on_v2_account_rejected() {
             expected_admin_count: 1,
         }),
     );
+}
+
+#[test]
+fn test_migrate_v1_account_lands_on_version_3() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (contract_id, keypair) = deploy_v1_with_ed25519_admin(&env);
+    let pk = BytesN::from_array(&env, &keypair.verifying_key().to_bytes());
+    v1::Client::new(&env, &contract_id).upgrade(&upload_v2_wasm(&env));
+
+    env.as_contract(&contract_id, || {
+        <SmartAccount as SmartAccountUpgradeableMigratable>::migrate(
+            &env,
+            MigrationData::V1ToV2(V1ToV2MigrationData {
+                signers_to_migrate: vec![&env, V1SignerKey::Ed25519(pk.clone())],
+                expected_signer_count: 1,
+                expected_admin_count: 1,
+            }),
+        );
+    });
+
+    let (version, signer) = env.as_contract(&contract_id, || {
+        (
+            get_contract_version(&env),
+            SmartAccount::get_signer(&env, SignerKey::Ed25519(pk)),
+        )
+    });
+    assert_eq!(version, 3);
+    assert!(matches!(signer, Ok(Signer::Ed25519(_, SignerRole::Admin))));
 }
