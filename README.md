@@ -19,7 +19,7 @@ A comprehensive smart contract system for Stellar/Soroban that provides enterpri
 - **🤖 AI Agent Ready**: Built for both human users and automated systems
 - **⚡ Soroban Native**: Leverages Stellar's smart contract platform capabilities
 - **🔄 Upgradeable**: Built-in contract upgrade support with permission controls
-- **🔀 Versioned Migrations**: Built-in migration system for upgrading v1 and v2 contracts (`V1ToV2`, `V2ToV3`)
+- **🔀 Versioned Migrations**: Built-in migration system. v1 accounts migrate with `V1ToV2`, and v2 accounts with `V2ToV3`. Both end at version 3
 
 ## 🏗️ Architecture
 
@@ -98,7 +98,7 @@ cargo test
 | **ML-DSA-65** (post-quantum) | 1952-byte public key | SHA-256 of the public key |
 | **Multisig** | Members (any type above) and a threshold | The multisig ID |
 
-An ML-DSA-65 signer signs the 32-byte authorization payload with pure ML-DSA (FIPS 204) and an empty context. Verification uses the `verify_sig_ml_dsa_65` host function, which needs protocol 30 or later. To require a classic signature and a post-quantum signature together, put both keys in a multisig with a threshold of 2.
+An ML-DSA-65 signer signs the 32-byte authorization payload with pure ML-DSA (FIPS 204) and an empty context. Verification uses the `verify_sig_ml_dsa_65` host function, which needs protocol 30 or later. To require a classic signature and a post-quantum signature together, put both keys in a multisig with a threshold of 2. One transaction can add at most 7 ML-DSA-65 keys, because the network limits contract events to 16,384 bytes per transaction. See [`contracts/smart-account/README.md`](contracts/smart-account/README.md#ml-dsa-65-signers) for details.
 
 ### Signer Roles
 
