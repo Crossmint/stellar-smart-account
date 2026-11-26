@@ -30,6 +30,7 @@ impl SignatureVerifier for Signer {
                 threshold: signer.threshold,
             }
             .verify(env, payload, proof),
+            Signer::MlDsa65(signer, _) => signer.verify(env, payload, proof),
         }
     }
 }

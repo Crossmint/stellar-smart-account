@@ -2477,6 +2477,7 @@ dependencies = [
  "env_logger",
  "initializable",
  "log",
+ "ml-dsa",
  "p256",
  "passkey",
  "serde",

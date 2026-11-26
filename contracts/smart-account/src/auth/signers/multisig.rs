@@ -10,6 +10,7 @@ impl SignatureVerifier for MultisigMember {
             MultisigMember::Ed25519(signer) => signer.verify(env, payload, proof),
             MultisigMember::Secp256r1(signer) => signer.verify(env, payload, proof),
             MultisigMember::Webauthn(signer) => signer.verify(env, payload, proof),
+            MultisigMember::MlDsa65(signer) => signer.verify(env, payload, proof),
         }
     }
 }

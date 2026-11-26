@@ -3,6 +3,7 @@ mod admin_downgrade_test;
 mod auth_test;
 mod expiring_signer_test;
 mod external_policy_test;
+mod ml_dsa65_signer_test;
 mod multisig_test;
 mod plugin_test;
 mod secp256r1_signer_test;

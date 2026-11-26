@@ -10,6 +10,7 @@ A comprehensive smart contract system for Stellar/Soroban that provides enterpri
 ## 🌟 Features
 
 - **🔐 Multi-Signature Account**: Advanced smart account with customizable authentication
+- **🛡️ Post-Quantum Signers**: ML-DSA-65 (FIPS 204) signers, alone or together with a classic key in a multisig
 - **🏭 Contract Factory**: Permissionless deployment system with deterministic addresses
 - **🎯 Role-Based Permissions**: Admin and Standard signer roles with optional policies
 - **📋 Policy System**: External delegation, token spending limits with reset windows and recipient allowlists, and extensible policies
@@ -86,6 +87,18 @@ cargo test
 ```
 
 ## 🔑 Authentication & Permissions
+
+### Signer Types
+
+| Type | Public data | `SignerKey` |
+|------|-------------|-------------|
+| **Ed25519** | 32-byte public key | The public key |
+| **Secp256r1** | 65-byte uncompressed public key | The public key |
+| **WebAuthn** (passkey) | Credential ID and 65-byte secp256r1 public key | The credential ID |
+| **ML-DSA-65** (post-quantum) | 1952-byte public key | SHA-256 of the public key |
+| **Multisig** | Members (any type above) and a threshold | The multisig ID |
+
+An ML-DSA-65 signer signs the 32-byte authorization payload with pure ML-DSA (FIPS 204) and an empty context. Verification uses the `verify_sig_ml_dsa_65` host function, which needs protocol 30 or later. To require a classic signature and a post-quantum signature together, put both keys in a multisig with a threshold of 2.
 
 ### Signer Roles
 

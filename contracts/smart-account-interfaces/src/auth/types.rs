@@ -78,6 +78,8 @@ pub enum SignerKey {
     Secp256r1(BytesN<65>),
     Webauthn(Bytes),
     Multisig(BytesN<32>),
+    /// SHA-256 of the ML-DSA-65 public key.
+    MlDsa65(BytesN<32>),
 }
 
 #[contracttype]
@@ -99,12 +101,21 @@ pub struct WebauthnSigner {
     pub public_key: BytesN<65>,
 }
 
+/// Post-quantum signer using ML-DSA-65 (FIPS 204). Verified by the
+/// `verify_sig_ml_dsa_65` host function (protocol 30+).
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct MlDsa65Signer {
+    pub public_key: BytesN<1952>,
+}
+
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum MultisigMember {
     Ed25519(Ed25519Signer),
     Secp256r1(Secp256r1Signer),
     Webauthn(WebauthnSigner),
+    MlDsa65(MlDsa65Signer),
 }
 
 #[contracttype]
@@ -122,6 +133,7 @@ pub enum Signer {
     Secp256r1(Secp256r1Signer, SignerRole),
     Webauthn(WebauthnSigner, SignerRole),
     Multisig(MultisigSigner, SignerRole),
+    MlDsa65(MlDsa65Signer, SignerRole),
 }
 
 impl Ed25519Signer {
@@ -142,6 +154,12 @@ impl WebauthnSigner {
     }
 }
 
+impl MlDsa65Signer {
+    pub fn new(public_key: BytesN<1952>) -> Self {
+        Self { public_key }
+    }
+}
+
 impl MultisigSigner {
     pub fn new(id: BytesN<32>, members: Vec<MultisigMember>, threshold: u32) -> Self {
         Self {
@@ -159,6 +177,7 @@ impl Signer {
             Signer::Secp256r1(_, role) => role.clone(),
             Signer::Webauthn(_, role) => role.clone(),
             Signer::Multisig(_, role) => role.clone(),
+            Signer::MlDsa65(_, role) => role.clone(),
         }
     }
 
@@ -196,12 +215,20 @@ impl From<WebauthnSigner> for SignerKey {
     }
 }
 
+impl From<MlDsa65Signer> for SignerKey {
+    fn from(signer: MlDsa65Signer) -> Self {
+        let env = signer.public_key.env().clone();
+        SignerKey::MlDsa65(env.crypto().sha256(&signer.public_key.into()).to_bytes())
+    }
+}
+
 impl From<MultisigMember> for SignerKey {
     fn from(member: MultisigMember) -> Self {
         match member {
             MultisigMember::Ed25519(signer) => signer.into(),
             MultisigMember::Secp256r1(signer) => signer.into(),
             MultisigMember::Webauthn(signer) => signer.into(),
+            MultisigMember::MlDsa65(signer) => signer.into(),
         }
     }
 }
@@ -219,6 +246,7 @@ impl From<Signer> for SignerKey {
             Signer::Secp256r1(signer, _) => signer.into(),
             Signer::Webauthn(signer, _) => signer.into(),
             Signer::Multisig(signer, _) => signer.into(),
+            Signer::MlDsa65(signer, _) => signer.into(),
         }
     }
 }
