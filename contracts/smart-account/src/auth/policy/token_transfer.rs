@@ -157,13 +157,7 @@ impl AuthorizationCheck for TokenTransferPolicy {
         };
 
         // 3. Enforce cumulative spending limit (read-only check)
-        if self.limit.is_some()
-            && check_spending_limit(self, env, signer_key, total_amount).is_none()
-        {
-            return false;
-        }
-
-        true
+        self.limit.is_none() || check_spending_limit(self, env, signer_key, total_amount).is_some()
     }
 
     fn on_authorized(&self, env: &Env, signer_key: &SignerKey, contexts: &Vec<Context>) {
